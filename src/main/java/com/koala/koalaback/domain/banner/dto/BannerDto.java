@@ -23,6 +23,12 @@ public class BannerDto {
         @Size(max = 255)
         private String subtitle;
 
+        @Size(max = 100)
+        private String badge;
+
+        @Size(max = 500)
+        private String description;
+
         @Size(max = 700)
         private String imageUrl;   // URL 직접 입력 또는 업로드 후 채워짐
 
@@ -47,6 +53,12 @@ public class BannerDto {
 
         @Size(max = 255)
         private String subtitle;
+
+        @Size(max = 100)
+        private String badge;
+
+        @Size(max = 500)
+        private String description;
 
         @NotBlank @Size(max = 700)
         private String imageUrl;
@@ -75,6 +87,8 @@ public class BannerDto {
         private String bannerType;
         private String title;
         private String subtitle;
+        private String badge;
+        private String description;
         private String imageUrl;
         private String mobileImageUrl;
         private String linkUrl;
@@ -94,6 +108,8 @@ public class BannerDto {
                     .bannerType(b.getBannerType())
                     .title(b.getTitle())
                     .subtitle(b.getSubtitle())
+                    .badge(b.getBadge())
+                    .description(b.getDescription())
                     .imageUrl(b.getImageUrl())
                     .mobileImageUrl(b.getMobileImageUrl())
                     .linkUrl(b.getLinkUrl())

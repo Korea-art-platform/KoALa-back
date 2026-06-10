@@ -28,6 +28,12 @@ public class Banner extends BaseTimeEntity {
     @Column(length = 255)
     private String subtitle;
 
+    @Column(length = 100)
+    private String badge;        // 히어로 상단 뱃지 (예: 신제품 드랍!)
+
+    @Column(length = 500)
+    private String description;  // 히어로 부연 설명
+
     @Column(length = 700)
     private String imageUrl;
 
@@ -67,6 +73,7 @@ public class Banner extends BaseTimeEntity {
 
     @Builder
     public Banner(String bannerCode, String bannerType, String title, String subtitle,
+                  String badge, String description,
                   String imageUrl, String mobileImageUrl, String linkUrl, String linkTarget,
                   String bgColor, String textColor, Integer sortOrder,
                   LocalDateTime visibleFrom, LocalDateTime visibleTo, Admin createdByAdmin) {
@@ -74,6 +81,8 @@ public class Banner extends BaseTimeEntity {
         this.bannerType = bannerType;
         this.title = title;
         this.subtitle = subtitle;
+        this.badge = badge;
+        this.description = description;
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
         this.linkUrl = linkUrl;
@@ -87,13 +96,15 @@ public class Banner extends BaseTimeEntity {
         this.createdByAdmin = createdByAdmin;
     }
 
-    public void update(String title, String subtitle, String imageUrl,
-                       String mobileImageUrl, String linkUrl, String linkTarget,
+    public void update(String title, String subtitle, String badge, String description,
+                       String imageUrl, String mobileImageUrl, String linkUrl, String linkTarget,
                        String bgColor, String textColor, Integer sortOrder,
                        LocalDateTime visibleFrom, LocalDateTime visibleTo,
                        Admin updatedByAdmin) {
         this.title = title;
         this.subtitle = subtitle;
+        this.badge = badge;
+        this.description = description;
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
         this.linkUrl = linkUrl;

@@ -62,6 +62,8 @@ public class BannerService {
                 .bannerType(req.getBannerType())
                 .title(req.getTitle())
                 .subtitle(req.getSubtitle())
+                .badge(req.getBadge())
+                .description(req.getDescription())
                 .imageUrl(req.getImageUrl())
                 .mobileImageUrl(req.getMobileImageUrl())
                 .linkUrl(req.getLinkUrl())
@@ -84,6 +86,7 @@ public class BannerService {
         Banner banner = getBannerEntityByCode(bannerCode);
 
         banner.update(req.getTitle(), req.getSubtitle(),
+                req.getBadge(), req.getDescription(),
                 req.getImageUrl(), req.getMobileImageUrl(),
                 req.getLinkUrl(), req.getLinkTarget(),
                 req.getBgColor(), req.getTextColor(),
