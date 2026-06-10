@@ -45,6 +45,9 @@ public class TossLoginService {
     private final CodeGenerator codeGenerator;
     private final UserService userService;
 
+    // 토스 mTLS RestTemplate 주입 (TossMtlsConfig의 @Bean("tossRestTemplate"))
+    private final RestTemplate tossRestTemplate;
+
     // TODO: 앱인토스 콘솔 → 내 앱 → 설정 → API 키에서 확인
     @Value("${apps-in-toss.base-url:https://pay-apps-in-toss-api.toss.im}")
     private String tossApiBaseUrl;
@@ -106,8 +109,7 @@ public class TossLoginService {
      */
     @SuppressWarnings("unchecked")
     private String exchangeToken(String authorizationCode) {
-        // TODO: mTLS 인증서를 적용한 RestTemplate으로 교체
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = tossRestTemplate;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -143,8 +145,7 @@ public class TossLoginService {
      */
     @SuppressWarnings("unchecked")
     private TossUserInfo fetchUserInfo(String tossAccessToken) {
-        // TODO: mTLS 인증서를 적용한 RestTemplate으로 교체
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = tossRestTemplate;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

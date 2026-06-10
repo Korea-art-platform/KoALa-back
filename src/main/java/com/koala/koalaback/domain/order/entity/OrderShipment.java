@@ -1,6 +1,7 @@
 package com.koala.koalaback.domain.order.entity;
 
 import com.koala.koalaback.global.common.BaseTimeEntity;
+import com.koala.koalaback.global.crypto.AesGcmCryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,19 +20,24 @@ public class OrderShipment extends BaseTimeEntity {
     @JoinColumn(name = "order_id", nullable = false, unique = true)
     private Order order;
 
-    @Column(nullable = false, length = 100)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String recipientName;
 
-    @Column(nullable = false, length = 30)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String recipientPhone;
 
-    @Column(nullable = false, length = 20)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String zipCode;
 
-    @Column(nullable = false, length = 255)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 1024)
     private String address1;
 
-    @Column(length = 255)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(length = 1024)
     private String address2;
 
     @Column(length = 255)

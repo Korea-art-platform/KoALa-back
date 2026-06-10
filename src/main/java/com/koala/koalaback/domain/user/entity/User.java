@@ -1,6 +1,7 @@
 package com.koala.koalaback.domain.user.entity;
 
 import com.koala.koalaback.global.common.BaseTimeEntity;
+import com.koala.koalaback.global.crypto.AesGcmCryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,10 +28,12 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(nullable = false, length = 100)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String name;
 
-    @Column(length = 30)
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(length = 512)
     private String phone;
 
     @Column(nullable = false, length = 20)
