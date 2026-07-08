@@ -18,7 +18,7 @@ public class PasswordResetDto {
         @NotBlank @Email
         private String email;
 
-        @NotBlank @Size(min = 6, max = 6)
+        @NotBlank @Size(min = 8, max = 8)
         private String token;
     }
 
@@ -27,7 +27,7 @@ public class PasswordResetDto {
         @NotBlank @Email
         private String email;
 
-        @NotBlank @Size(min = 6, max = 6)
+        @NotBlank @Size(min = 8, max = 8)
         private String token;
 
         @NotBlank @Size(min = 8, max = 64)
