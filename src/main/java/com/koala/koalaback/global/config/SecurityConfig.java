@@ -97,8 +97,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/password-reset/send",
                                 "/api/v1/auth/password-reset/verify",
-                                "/api/v1/auth/password-reset/reset",
-                                "/api/v1/auth/toss/login"       // 앱인토스 토스 로그인
+                                "/api/v1/auth/password-reset/reset"
                         ).permitAll();
                         auth.requestMatchers(HttpMethod.GET, "/api/v1/artists/*/following").authenticated();
                         auth.requestMatchers(HttpMethod.GET,

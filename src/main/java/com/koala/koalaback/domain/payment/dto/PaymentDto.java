@@ -3,6 +3,7 @@ package com.koala.koalaback.domain.payment.dto;
 import com.koala.koalaback.domain.payment.entity.Payment;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -44,6 +45,8 @@ public class PaymentDto {
         @NotBlank
         private String reason;
 
+        // null 이면 전액 취소, 값이 있으면 부분취소 금액(양수만 허용)
+        @Positive
         private BigDecimal cancelAmount;
     }
 

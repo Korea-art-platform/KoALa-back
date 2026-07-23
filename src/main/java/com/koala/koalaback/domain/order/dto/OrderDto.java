@@ -6,6 +6,7 @@ import com.koala.koalaback.domain.order.entity.OrderShipment;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -54,7 +55,8 @@ public class OrderDto {
     public static class AdminCancelRequest {
         @NotBlank
         private String reason;            // 취소 사유 (필수)
-        private BigDecimal cancelAmount;  // null 이면 전액 환불
+        @Positive
+        private BigDecimal cancelAmount;  // null 이면 전액 환불, 값이 있으면 양수만
     }
 
     @Getter
