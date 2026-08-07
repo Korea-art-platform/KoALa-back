@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 
 /**
  * 반품 처리 흐름의 <b>DB 단계</b>만 담당한다. 외부 PG 호출은 들어오지 않는다.
@@ -69,11 +70,12 @@ public class ReturnRequestTransactionService {
 
         // 반품(RETURN) 승인 시 재고 복구 — 교환(EXCHANGE)은 교환 완료 처리 시점에 별도 처리
         if ("RETURN".equals(returnRequest.getReturnType())) {
-            returnRequest.getOrder().getOrderItems().forEach(item -> {
-                if (item.getSku() != null) {
-                    stockService.restoreByReturn(item.getSku().getId(), item.getQuantity(), item.getId());
-                }
-            });
+            // restoreByReturn 이 SKU row 에 락을 걸므로 skuId 오름차순으로 잡는다(데드락 방지)
+            returnRequest.getOrder().getOrderItems().stream()
+                    .filter(item -> item.getSku() != null)
+                    .sorted(Comparator.comparing(item -> item.getSku().getId()))
+                    .forEach(item -> stockService.restoreByReturn(
+                            item.getSku().getId(), item.getQuantity(), item.getId()));
             log.info("Stock restored on return approval: returnNo={}", returnNo);
         }
 

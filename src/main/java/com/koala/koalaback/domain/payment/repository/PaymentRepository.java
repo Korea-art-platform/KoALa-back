@@ -19,6 +19,15 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findTopByOrderIdOrderByCreatedAtDesc(Long orderId);
 
+    /**
+     * 사람이 확인해야 하는 결제 조회 — 승인/취소 결과가 확정되지 않은 건.
+     *
+     * <p>IN_DOUBT(PG 응답 미수신), IN_PROGRESS(승인 요청 중 멈춤),
+     * CANCEL_IN_PROGRESS(환불 요청 중 멈춤)는 자동으로 풀리지 않을 수 있어
+     * 어드민이 발견할 수 있어야 한다.
+     */
+    List<Payment> findByStatusInOrderByCreatedAtDesc(List<String> statuses);
+
     @Query("SELECT COALESCE(SUM(p.approvedAmount), 0) FROM Payment p WHERE p.approvedAt >= :from AND p.status = 'CAPTURED'")
     BigDecimal sumApprovedAmountAfter(@Param("from") LocalDateTime from);
 

@@ -2,6 +2,7 @@ package com.koala.koalaback.infra.storage;
 
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -24,7 +25,10 @@ import java.util.UUID;
 @Slf4j
 @Component
 @Profile("local")
+@RequiredArgsConstructor
 public class LocalStorageUploader implements StorageUploader {
+
+    private final ImageOptimizer imageOptimizer;
 
     @Value("${koala.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -48,12 +52,17 @@ public class LocalStorageUploader implements StorageUploader {
     public String upload(MultipartFile file, String directory) {
         FileValidator.validateImageOrVideo(file);
         validateDirectory(directory);
+
+        // 운영(S3)과 동일하게 로컬에서도 축소해서 저장한다 — 환경별 결과가 달라지면 안 된다
+        ImageOptimizer.OptimizedImage optimized = imageOptimizer.optimize(file);
+
         String key = buildKey(directory, file.getOriginalFilename());
         Path target = resolveAndValidatePath(key);
         try {
             Files.createDirectories(target.getParent());
-            Files.write(target, file.getBytes());
-            log.info("Local upload success: path={}", target);
+            Files.write(target, optimized.bytes());
+            log.info("Local upload success: path={}, size={}KB, optimized={}",
+                    target, optimized.size() / 1024, optimized.changed());
             return cdnBaseUrl + "/uploads/" + key;
         } catch (IOException e) {
             log.error("Local upload failed: path={}", target, e);

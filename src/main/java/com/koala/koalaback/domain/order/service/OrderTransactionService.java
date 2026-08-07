@@ -2,6 +2,7 @@ package com.koala.koalaback.domain.order.service;
 
 import com.koala.koalaback.domain.order.dto.OrderDto;
 import com.koala.koalaback.domain.order.entity.Order;
+import com.koala.koalaback.domain.order.entity.OrderItem;
 import com.koala.koalaback.domain.order.event.OrderCancelledEvent;
 import com.koala.koalaback.domain.order.repository.OrderRepository;
 import com.koala.koalaback.domain.payment.repository.PaymentRepository;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * 주문 취소 흐름의 <b>DB 단계</b>만 담당한다. 외부 PG 호출은 들어오지 않는다.
@@ -71,12 +74,9 @@ public class OrderTransactionService {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
 
-        order.getOrderItems().forEach(item -> {
-            if (item.getSku() != null) {
+        lockOrderedItems(order).forEach(item ->
                 stockService.restore(item.getSku().getId(), item.getQuantity(),
-                        "order_items", item.getId());
-            }
-        });
+                        "order_items", item.getId()));
 
         order.cancel();
         log.info("Order cancelled: orderNo={}, userId={}", orderNo, userId);
@@ -100,12 +100,9 @@ public class OrderTransactionService {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
 
-        order.getOrderItems().forEach(item -> {
-            if (item.getSku() != null) {
+        lockOrderedItems(order).forEach(item ->
                 stockService.restore(item.getSku().getId(), item.getQuantity(),
-                        "admin_cancel", item.getId());
-            }
-        });
+                        "admin_cancel", item.getId()));
 
         order.forceCancel();
 
@@ -115,6 +112,20 @@ public class OrderTransactionService {
                 .filter(p -> "CAPTURED".equals(p.getStatus()))
                 .map(p -> p.getPaymentNo())
                 .orElse(null);
+    }
+
+    /**
+     * 재고 복원 대상 아이템을 skuId 오름차순으로 정렬해 반환한다.
+     *
+     * <p>{@code StockService.restore} 는 SKU row 에 비관적 락을 건다. 주문 아이템 순서대로
+     * 복원하면 같은 SKU 들을 공유하는 두 취소가 서로 반대 순서로 락을 잡아 데드락이 날 수 있다.
+     * 주문 생성({@code OrderService.sortByLockOrder})과 같은 기준으로 맞춘다.
+     */
+    private List<OrderItem> lockOrderedItems(Order order) {
+        return order.getOrderItems().stream()
+                .filter(item -> item.getSku() != null)
+                .sorted(Comparator.comparing(item -> item.getSku().getId()))
+                .toList();
     }
 
     /**

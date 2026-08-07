@@ -263,6 +263,22 @@ public class PaymentService {
     }
 
     /**
+     * 사람이 확인해야 하는 결제 목록 — 어드민 대시보드용.
+     *
+     * <p>PG 응답을 못 받아 미확정(IN_DOUBT)으로 잠긴 건은 자동으로 풀리지 않을 수 있다.
+     * 웹훅이 오면 확정되지만, 안 오면 아무도 모르게 방치된다. 그래서 노출 경로가 필요하다.
+     */
+    @Transactional(readOnly = true)
+    public List<PaymentDto.PaymentResponse> getPaymentsNeedingAttention() {
+        return paymentRepository
+                .findByStatusInOrderByCreatedAtDesc(
+                        List.of("IN_DOUBT", "IN_PROGRESS", "CANCEL_IN_PROGRESS"))
+                .stream()
+                .map(PaymentDto.PaymentResponse::from)
+                .toList();
+    }
+
+    /**
      * 환불 실패 이벤트 기록 — 주문 취소/반품 승인 후 환불이 실패했을 때 감사 추적용
      */
     @Transactional

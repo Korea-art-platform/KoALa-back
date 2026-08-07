@@ -23,6 +23,7 @@ import java.util.UUID;
 public class S3StorageUploader implements StorageUploader {
 
     private final S3Client s3Client;
+    private final ImageOptimizer imageOptimizer;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
@@ -39,21 +40,26 @@ public class S3StorageUploader implements StorageUploader {
     public String upload(MultipartFile file, String directory) {
         validateFile(file);
 
+        // 원본 그대로 올리면 상품 이미지 1장이 800KB 를 넘는다 — 업로드 시점에 한 번 줄인다.
+        // 포맷·확장자는 유지되므로 key 생성이나 저장 URL 형식에는 영향이 없다.
+        ImageOptimizer.OptimizedImage optimized = imageOptimizer.optimize(file);
+
         String key = buildKey(directory, file.getOriginalFilename());
         try {
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(bucket)
                             .key(key)
-                            .contentType(file.getContentType())
-                            .contentLength(file.getSize())
+                            .contentType(optimized.contentType())
+                            .contentLength(optimized.size())
                             .build(),
-                    RequestBody.fromBytes(file.getBytes())
+                    RequestBody.fromBytes(optimized.bytes())
             );
-            log.info("S3 upload success: key={}", key);
+            log.info("S3 upload success: key={}, size={}KB, optimized={}",
+                    key, optimized.size() / 1024, optimized.changed());
             return cdnBaseUrl + "/" + key;
 
-        } catch (IOException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.error("S3 upload failed: key={}", key, e);
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }

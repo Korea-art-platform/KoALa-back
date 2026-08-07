@@ -204,12 +204,13 @@ public class OrderService {
             return;
         }
 
-        order.getOrderItems().forEach(item -> {
-            if (item.getSku() != null) {
-                stockService.restore(item.getSku().getId(), item.getQuantity(),
-                        "order_expiry", item.getId());
-            }
-        });
+        // restore 가 SKU row 에 락을 걸므로, 주문 생성과 같은 skuId 오름차순으로 잡아야
+        // 같은 상품을 공유하는 다른 취소/주문과 데드락이 나지 않는다.
+        order.getOrderItems().stream()
+                .filter(item -> item.getSku() != null)
+                .sorted(Comparator.comparing(item -> item.getSku().getId()))
+                .forEach(item -> stockService.restore(item.getSku().getId(), item.getQuantity(),
+                        "order_expiry", item.getId()));
         order.cancel();
         log.info("미결제 만료 주문 자동취소: orderNo={}", order.getOrderNo());
     }

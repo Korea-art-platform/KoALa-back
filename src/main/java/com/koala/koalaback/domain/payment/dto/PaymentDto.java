@@ -76,6 +76,10 @@ public class PaymentDto {
         private LocalDateTime approvedAt;
         private LocalDateTime failedAt;
         private LocalDateTime cancelledAt;
+        /** 미확정(IN_DOUBT) 건의 원인 파악용 — PG 가 준 실패/오류 메시지 */
+        private String failureCode;
+        private String failureMessage;
+        private LocalDateTime createdAt;
 
         public static PaymentResponse from(Payment p) {
             return PaymentResponse.builder()
@@ -92,6 +96,9 @@ public class PaymentDto {
                     .approvedAt(p.getApprovedAt())
                     .failedAt(p.getFailedAt())
                     .cancelledAt(p.getCancelledAt())
+                    .failureCode(p.getFailureCode())
+                    .failureMessage(p.getFailureMessage())
+                    .createdAt(p.getCreatedAt())
                     .build();
         }
     }
