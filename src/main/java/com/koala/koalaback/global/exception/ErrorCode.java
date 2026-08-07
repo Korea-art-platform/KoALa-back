@@ -55,6 +55,16 @@ public enum ErrorCode {
     PAYMENT_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "P002", "결제 금액이 일치하지 않습니다."),
     PAYMENT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "P003", "이미 처리된 결제입니다."),
     PAYMENT_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "P004", "결제 처리 중 오류가 발생했습니다."),
+    /**
+     * PG 응답을 받지 못해 승인 여부가 미확정 — 임의 재시도 금지, 재조회/웹훅으로 확정된다.
+     *
+     * <p>반드시 2xx 가 아니어야 한다. 프론트는 axios 로 승인을 호출하고 2xx 면 성공으로 보고
+     * 결제 완료 화면으로 넘어가는데, 미확정을 202 로 주면 승인되지도 않은 결제가
+     * 완료로 표시된다. 재시도해도 막히는 상태이므로 409 로 준다.
+     */
+    PAYMENT_IN_DOUBT(HttpStatus.CONFLICT, "P005",
+            "결제 결과를 확인하는 중입니다. 잠시 후 주문 내역에서 상태를 확인해 주세요. 중복 결제를 막기 위해 재시도는 차단됩니다."),
+    PAYMENT_IN_PROGRESS(HttpStatus.CONFLICT, "P006", "이미 진행 중인 결제입니다."),
 
     // Review
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "리뷰를 찾을 수 없습니다."),

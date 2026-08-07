@@ -38,6 +38,58 @@ services:
       timeout: 3s
       retries: 10
 
+  # ── Kafka (KRaft 모드 — Zookeeper 없음) ────────────────────────────────
+  # KRaft 는 브로커가 컨트롤러 역할까지 겸해 Zookeeper 가 필요 없다.
+  # 단일 노드라 CLUSTER_ID 를 고정하고 복제 계수를 모두 1로 둔다(운영에서는 3 이상).
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: arso-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"     # 호스트(로컬 애플리케이션)에서 접속하는 포트
+    environment:
+      # KRaft 필수 설정
+      KAFKA_CFG_NODE_ID: "0"
+      KAFKA_CFG_PROCESS_ROLES: "broker,controller"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_KRAFT_CLUSTER_ID: "koala-local-cluster-0"
+      # 리스너 — 컨테이너 내부(INTERNAL)와 호스트(EXTERNAL)를 분리해야
+      # Kafka UI(컨테이너)와 로컬 애플리케이션(호스트)이 모두 접속할 수 있다.
+      KAFKA_CFG_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://localhost:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      # 단일 노드용 — 복제본을 1로 낮추지 않으면 내부 토픽 생성이 실패한다
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - arso_kafka_data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # ── Kafka UI (선택) — http://localhost:8090 에서 토픽/메시지/컨슈머랙 확인 ──
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: arso-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"     # 8080 은 애플리케이션이 쓰므로 8090 으로 노출
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "koala-local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:29092"
+      DYNAMIC_CONFIG_ENABLED: "true"
+
 volumes:
   arso_mysql_data:
   arso_redis_data:
+  arso_kafka_data:

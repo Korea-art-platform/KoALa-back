@@ -10,6 +10,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -77,25 +79,69 @@ public class TossPaymentProvider implements PaymentProvider {
                     Map.class
             );
             Map<String, Object> res = response.getBody();
-            String rawJson = toJson(res);
-            return new PaymentConfirmResult(
-                    true,
+            return PaymentConfirmResult.approved(
                     (String) res.get("paymentKey"),
                     (String) res.get("approvalNo"),
                     new BigDecimal(res.get("totalAmount").toString()),
-                    rawJson,
-                    null, null
+                    toJson(res)
             );
         } catch (HttpClientErrorException e) {
+            // 4xx — Toss 가 요청을 명시적으로 거절했다. 승인되지 않은 것이 확실하다.
             String body = e.getResponseBodyAsString();
             String code = extractJsonField(body, "code");
             String msg  = extractJsonField(body, "message");
             log.error("Toss confirm rejected: orderId={}, code={}, message={}", orderId, code, msg);
-            return new PaymentConfirmResult(false, null, null, null, null, code, msg);
+            return PaymentConfirmResult.rejected(code, msg);
+        } catch (HttpServerErrorException e) {
+            // 5xx — Toss 내부에서 승인이 완료됐을 수도 있다. 실패로 단정하면 안 된다.
+            log.error("Toss confirm 5xx — 승인 여부 미확정: orderId={}, status={}", orderId, e.getStatusCode());
+            return PaymentConfirmResult.unknown("TOSS_SERVER_ERROR", e.getMessage());
+        } catch (ResourceAccessException e) {
+            // 타임아웃·연결 실패 — 가장 위험한 케이스. 요청이 전달되어 승인됐을 수 있다.
+            log.error("Toss confirm 응답 없음 — 승인 여부 미확정: orderId={}, error={}", orderId, e.getMessage());
+            return PaymentConfirmResult.unknown("TOSS_NO_RESPONSE", e.getMessage());
         } catch (Exception e) {
-            log.error("Toss confirm error: orderId={}, error={}", orderId, e.getMessage());
-            return new PaymentConfirmResult(
-                    false, null, null, null, null, "TOSS_ERROR", e.getMessage());
+            // 분류할 수 없는 오류는 안전한 쪽(미확정)으로 처리한다.
+            log.error("Toss confirm error — 승인 여부 미확정: orderId={}, error={}", orderId, e.getMessage());
+            return PaymentConfirmResult.unknown("TOSS_ERROR", e.getMessage());
+        }
+    }
+
+    @Override
+    public PaymentLookupResult lookup(String orderId) {
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    TOSS_API_BASE + "/orders/" + orderId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildHeaders()),
+                    Map.class
+            );
+            Map<String, Object> res = response.getBody();
+            if (res == null) {
+                return PaymentLookupResult.unavailable();
+            }
+            String status = (String) res.get("status");
+            boolean approved = "DONE".equals(status);
+            Object totalAmount = res.get("totalAmount");
+
+            log.info("Toss lookup: orderId={}, status={}", orderId, status);
+            return new PaymentLookupResult(
+                    true,
+                    true,
+                    approved,
+                    (String) res.get("paymentKey"),
+                    (String) res.get("approvalNo"),
+                    totalAmount != null ? new BigDecimal(totalAmount.toString()) : null,
+                    toJson(res)
+            );
+        } catch (HttpClientErrorException.NotFound e) {
+            // PG 에 결제 자체가 없다 — 승인되지 않은 것이 확실하다.
+            log.info("Toss lookup: orderId={} 결제 없음(미승인 확정)", orderId);
+            return new PaymentLookupResult(true, false, false, null, null, null, null);
+        } catch (Exception e) {
+            // 재조회조차 실패 — 여전히 알 수 없다.
+            log.error("Toss lookup 실패: orderId={}, error={}", orderId, e.getMessage());
+            return PaymentLookupResult.unavailable();
         }
     }
 
@@ -115,17 +161,25 @@ public class TossPaymentProvider implements PaymentProvider {
                     Map.class
             );
             Map<String, Object> res = response.getBody();
-            return new PaymentCancelResult(true, cancelAmount, toJson(res), null, null);
+            return PaymentCancelResult.cancelled(cancelAmount, toJson(res));
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
             String code = extractJsonField(body, "code");
             String msg  = extractJsonField(body, "message");
             log.error("Toss cancel rejected: pgTransactionId={}, code={}, message={}", pgTransactionId, code, msg);
-            return new PaymentCancelResult(false, null, null, code, msg);
+            return PaymentCancelResult.rejected(code, msg);
+        } catch (HttpServerErrorException e) {
+            log.error("Toss cancel 5xx — 취소 여부 미확정: pgTransactionId={}, status={}",
+                    pgTransactionId, e.getStatusCode());
+            return PaymentCancelResult.unknown("TOSS_CANCEL_SERVER_ERROR", e.getMessage());
+        } catch (ResourceAccessException e) {
+            log.error("Toss cancel 응답 없음 — 취소 여부 미확정: pgTransactionId={}, error={}",
+                    pgTransactionId, e.getMessage());
+            return PaymentCancelResult.unknown("TOSS_CANCEL_NO_RESPONSE", e.getMessage());
         } catch (Exception e) {
-            log.error("Toss cancel error: pgTransactionId={}, error={}", pgTransactionId, e.getMessage());
-            return new PaymentCancelResult(
-                    false, null, null, "TOSS_CANCEL_ERROR", e.getMessage());
+            log.error("Toss cancel error — 취소 여부 미확정: pgTransactionId={}, error={}",
+                    pgTransactionId, e.getMessage());
+            return PaymentCancelResult.unknown("TOSS_CANCEL_ERROR", e.getMessage());
         }
     }
 

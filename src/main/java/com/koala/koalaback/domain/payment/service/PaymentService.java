@@ -13,7 +13,6 @@ import com.koala.koalaback.domain.payment.repository.PaymentRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import com.koala.koalaback.global.util.CodeGenerator;
-import com.koala.koalaback.infra.mail.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,10 +21,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
+/**
+ * 결제 오케스트레이션.
+ *
+ * <p><b>클래스 레벨에 {@code @Transactional} 을 두지 않는다.</b>
+ * 승인·취소는 "짧은 트랜잭션 → 외부 PG 호출(트랜잭션 밖) → 짧은 트랜잭션" 순서로 진행되며,
+ * 여기에 트랜잭션이 걸리면 PG 응답을 기다리는 내내 DB 커넥션이 묶인다.
+ * DB 단계는 모두 {@link PaymentTransactionService} 에 있다(자기호출 회피용 별도 빈).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -34,7 +40,7 @@ public class PaymentService {
     private final CodeGenerator codeGenerator;
     private final List<PaymentProvider> providers;
     private final ObjectMapper objectMapper;
-    private final EmailService emailService;
+    private final PaymentTransactionService paymentTransactionService;
 
     @Transactional
     public PaymentDto.PrepareResponse prepare(Long userId, PaymentDto.PrepareRequest req) {
@@ -68,83 +74,150 @@ public class PaymentService {
                 .build();
     }
 
-    @Transactional
+    /**
+     * 결제 승인.
+     *
+     * <pre>
+     * ① beginConfirm       [트랜잭션] 검증 + IN_PROGRESS 선점 → 커밋
+     * ② provider.confirm   [트랜잭션 밖] PG HTTP 호출 (connect 3s / read 10s)
+     * ③ apply*             [트랜잭션] 결과 반영 → 커밋
+     * </pre>
+     *
+     * <p>②에서 응답을 못 받으면(UNKNOWN) 승인됐는지 알 수 없으므로 즉시 재조회로 확정을 시도하고,
+     * 그래도 모르면 IN_DOUBT 로 남긴다. 절대 FAILED 로 단정하지 않는다.
+     */
     public PaymentDto.PaymentResponse confirm(Long userId, PaymentDto.ConfirmRequest req) {
-        Order order = orderRepository.findByOrderNo(req.getOrderNo())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        // ① 사전 검증 + 선점 (짧은 트랜잭션)
+        PaymentTransactionService.ConfirmContext ctx =
+                paymentTransactionService.beginConfirm(userId, req);
 
-        if (!order.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
+        PaymentProvider provider = getProvider(ctx.providerCode());
+
+        // ② PG 승인 — 트랜잭션 밖
+        PaymentProvider.PaymentConfirmResult result;
+        try {
+            result = provider.confirm(req.getPaymentKey(), ctx.orderNo(), ctx.amount());
+        } catch (Exception e) {
+            // provider 가 예외를 삼키도록 되어 있지만, 새 구현이 던질 수 있으므로 방어한다.
+            // 여기서 실패로 단정하면 안 된다 — 요청이 전달돼 승인됐을 수 있다.
+            log.error("PG 승인 호출 중 예외 — 승인 여부 미확정: orderNo={}", ctx.orderNo(), e);
+            result = PaymentProvider.PaymentConfirmResult.unknown("PROVIDER_EXCEPTION", e.getMessage());
         }
 
-        Payment payment = paymentRepository
-                .findTopByOrderIdOrderByCreatedAtDesc(order.getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
-
-        // 이미 처리된 결제(paymentKey 재사용) 방지
-        if (!"READY".equals(payment.getStatus())) {
-            throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+        // ③ 결과 반영 (짧은 트랜잭션)
+        if (result.isApproved()) {
+            return paymentTransactionService.applyConfirmApproved(ctx.paymentId(), result);
         }
 
-        if (payment.getRequestedAmount().compareTo(req.getAmount()) != 0) {
-            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        if (result.isUnknown()) {
+            return resolveUnknownConfirm(provider, ctx, result);
         }
 
-        PaymentProvider provider = getProvider(payment.getProvider());
-        PaymentProvider.PaymentConfirmResult result =
-                provider.confirm(req.getPaymentKey(), req.getOrderNo(), req.getAmount());
-
-        if (result.success()) {
-            payment.markCaptured(result.pgTransactionId(), result.approvalNo(),
-                    result.approvedAmount(), result.rawResponse());
-            order.markPaid();
-            recordEvent(payment, "CAPTURED", "SUCCESS",
-                    result.approvedAmount(), result.pgTransactionId(), result.rawResponse());
-
-            // 주문 완료 이메일 — @Async 비동기 발송 (결제 응답 속도에 영향 없음)
-            sendOrderConfirmEmailAsync(order);
-        } else {
-            payment.markFailed(result.failureCode(), result.failureMessage());
-            order.markPaymentFailed();
-            recordEvent(payment, "FAILED", "FAILED",
-                    req.getAmount(), null, result.failureMessage());
-            throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR,
-                    result.failureMessage());
-        }
-
-        return PaymentDto.PaymentResponse.from(payment);
+        paymentTransactionService.applyConfirmRejected(
+                ctx.paymentId(), result.failureCode(), result.failureMessage());
+        throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR, result.failureMessage());
     }
 
-    @Transactional
+    /**
+     * 승인 여부 미확정 해소 — 가장 위험한 케이스.
+     *
+     * <p>"승인은 됐는데 응답을 못 받은" 상황에서 실패로 처리하면 돈은 빠져나갔는데
+     * 주문은 만료 취소된다. 그래서 순서가 중요하다.
+     * <ol>
+     *   <li>PG 에 재조회한다 → 승인됐으면 정상 확정(주문 PAID)</li>
+     *   <li>재조회가 성공했고 승인 안 된 게 확인되면 그때만 실패 확정</li>
+     *   <li>재조회조차 실패하면 IN_DOUBT — 주문 상태는 손대지 않고 웹훅/수동 확인에 맡긴다</li>
+     * </ol>
+     */
+    private PaymentDto.PaymentResponse resolveUnknownConfirm(
+            PaymentProvider provider,
+            PaymentTransactionService.ConfirmContext ctx,
+            PaymentProvider.PaymentConfirmResult result) {
+
+        log.warn("PG 응답 미확정 — 재조회 시도: orderNo={}, code={}", ctx.orderNo(), result.failureCode());
+
+        PaymentProvider.PaymentLookupResult lookup;
+        try {
+            lookup = provider.lookup(ctx.orderNo());
+        } catch (Exception e) {
+            log.error("재조회 중 예외: orderNo={}", ctx.orderNo(), e);
+            lookup = PaymentProvider.PaymentLookupResult.unavailable();
+        }
+
+        if (lookup.approved()) {
+            log.info("재조회 결과 승인됨 — 정상 확정: orderNo={}", ctx.orderNo());
+            return paymentTransactionService.applyConfirmApproved(
+                    ctx.paymentId(),
+                    PaymentProvider.PaymentConfirmResult.approved(
+                            lookup.pgTransactionId(), lookup.approvalNo(),
+                            lookup.approvedAmount() != null ? lookup.approvedAmount() : ctx.amount(),
+                            lookup.rawResponse()));
+        }
+
+        if (lookup.isDefinitelyNotApproved()) {
+            log.info("재조회 결과 미승인 확정 — 실패 처리: orderNo={}", ctx.orderNo());
+            paymentTransactionService.applyConfirmRejected(
+                    ctx.paymentId(), result.failureCode(), result.failureMessage());
+            throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR, result.failureMessage());
+        }
+
+        paymentTransactionService.applyConfirmInDoubt(
+                ctx.paymentId(), result.failureCode(), result.failureMessage());
+        throw new BusinessException(ErrorCode.PAYMENT_IN_DOUBT);
+    }
+
+    /**
+     * 결제 취소(환불) — 승인과 동일하게 3단계로 분리한다.
+     *
+     * <pre>
+     * ① beginCancel      [트랜잭션] 검증 + CANCEL_IN_PROGRESS 선점 → 커밋
+     * ② provider.cancel  [트랜잭션 밖] PG HTTP 호출
+     * ③ apply*           [트랜잭션] 결과 반영 → 커밋
+     * </pre>
+     *
+     * <p>호출자(주문취소·반품승인)의 트랜잭션 안에서 부르면 다시 PG 호출이 트랜잭션에 갇히므로,
+     * 반드시 호출자의 트랜잭션 <b>밖</b>에서 호출해야 한다.
+     */
     public PaymentDto.PaymentResponse cancel(String paymentNo, PaymentDto.CancelRequest req) {
-        Payment payment = paymentRepository.findByPaymentNo(paymentNo)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
+        // ① 검증 + 선점
+        PaymentTransactionService.CancelContext ctx =
+                paymentTransactionService.beginCancel(paymentNo, req);
 
-        if (!payment.isCaptured()) {
-            throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+        PaymentProvider provider = getProvider(ctx.providerCode());
+
+        // ② PG 취소 — 트랜잭션 밖
+        PaymentProvider.PaymentCancelResult result;
+        try {
+            result = provider.cancel(ctx.pgTransactionId(), ctx.cancelAmount(), req.getReason());
+        } catch (Exception e) {
+            log.error("PG 취소 호출 중 예외 — 취소 여부 미확정: paymentNo={}", paymentNo, e);
+            result = PaymentProvider.PaymentCancelResult.unknown("PROVIDER_EXCEPTION", e.getMessage());
         }
 
-        BigDecimal cancelAmount = req.getCancelAmount() != null
-                ? req.getCancelAmount() : payment.getApprovedAmount();
-
-        PaymentProvider provider = getProvider(payment.getProvider());
-        PaymentProvider.PaymentCancelResult result =
-                provider.cancel(payment.getPgTransactionId(), cancelAmount, req.getReason());
-
-        if (result.success()) {
-            payment.markCancelled(cancelAmount);
-            recordEvent(payment, "CANCELLED", "SUCCESS",
-                    cancelAmount, null, result.rawResponse());
-        } else {
-            recordEvent(payment, "CANCELLED", "FAILED",
-                    cancelAmount, null, result.failureMessage());
-            throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR,
-                    result.failureMessage());
+        // ③ 결과 반영
+        if (result.isCancelled()) {
+            return paymentTransactionService.applyCancelSucceeded(
+                    ctx.paymentId(), ctx.cancelAmount(), result.rawResponse());
         }
 
-        return PaymentDto.PaymentResponse.from(payment);
+        if (result.isUnknown()) {
+            // 되돌리면 재시도로 이중 환불이 날 수 있어 IN_DOUBT 로 잠근다.
+            paymentTransactionService.applyCancelInDoubt(
+                    ctx.paymentId(), ctx.cancelAmount(), result.failureMessage());
+            throw new BusinessException(ErrorCode.PAYMENT_IN_DOUBT);
+        }
+
+        paymentTransactionService.applyCancelRejected(
+                ctx.paymentId(), ctx.cancelAmount(), result.failureCode(), result.failureMessage());
+        throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR, result.failureMessage());
     }
 
+    /**
+     * PG 웹훅 처리.
+     *
+     * <p>IN_DOUBT(승인 여부 미확정) 결제를 확정짓는 두 번째 경로이기도 하다.
+     * 승인 응답을 못 받아 미확정으로 남은 건도 웹훅이 DONE 을 알려주면 여기서 주문이 PAID 가 된다.
+     */
     @Transactional
     public void handleWebhook(String providerCode, String payloadJson) {
         log.info("Webhook received: provider={}", providerCode);
@@ -158,10 +231,35 @@ public class PaymentService {
                         payment -> {
                             String status = extractWebhookStatus(payloadJson);
                             recordEvent(payment, "WEBHOOK", status, BigDecimal.ZERO, paymentKey, payloadJson);
+                            settleInDoubtByWebhook(payment, status, paymentKey, payloadJson);
                             log.info("Webhook processed: paymentKey={}, status={}", paymentKey, status);
                         },
                         () -> log.warn("Webhook — 매핑된 결제 없음: paymentKey={}", paymentKey)
                 );
+    }
+
+    /**
+     * 미확정 결제를 웹훅 상태로 확정한다.
+     * 이 메서드는 {@link #handleWebhook} 의 트랜잭션 안에서 동작한다(엔티티 변경 감지).
+     */
+    private void settleInDoubtByWebhook(Payment payment, String status,
+                                        String paymentKey, String payloadJson) {
+        if (!payment.isInDoubt()) {
+            return;
+        }
+        if ("DONE".equals(status)) {
+            payment.markCaptured(paymentKey, null, payment.getRequestedAmount(), payloadJson);
+            payment.getOrder().markPaid();
+            recordEvent(payment, "CAPTURED", "SUCCESS",
+                    payment.getRequestedAmount(), paymentKey, payloadJson);
+            log.info("웹훅으로 미확정 결제 승인 확정: paymentNo={}, orderNo={}",
+                    payment.getPaymentNo(), payment.getOrder().getOrderNo());
+        } else if ("ABORTED".equals(status) || "EXPIRED".equals(status) || "CANCELED".equals(status)) {
+            payment.markFailed("WEBHOOK_" + status, "웹훅으로 미승인 확정");
+            payment.getOrder().markPaymentFailed();
+            log.info("웹훅으로 미확정 결제 실패 확정: paymentNo={}, status={}",
+                    payment.getPaymentNo(), status);
+        }
     }
 
     /**
@@ -172,31 +270,6 @@ public class PaymentService {
         paymentRepository.findByPaymentNo(paymentNo).ifPresent(payment ->
                 recordEvent(payment, "REFUND_FAILED", "FAILED", BigDecimal.ZERO, null, reason)
         );
-    }
-
-    private void sendOrderConfirmEmailAsync(Order order) {
-        try {
-            List<EmailService.OrderConfirmData.ItemData> items = order.getOrderItems().stream()
-                    .map(i -> new EmailService.OrderConfirmData.ItemData(
-                            i.getSkuNameSnapshot(),
-                            i.getQuantity(),
-                            i.getLineTotalAmount()))
-                    .toList();
-
-            emailService.sendOrderConfirmEmail(new EmailService.OrderConfirmData(
-                    order.getOrdererEmail(),
-                    order.getOrdererName(),
-                    order.getOrderNo(),
-                    items,
-                    order.getProductAmount(),
-                    order.getShippingAmount(),
-                    order.getTotalAmount()
-            ));
-        } catch (Exception e) {
-            // 이메일 실패가 결제 트랜잭션에 영향을 주어서는 안 됨 — 로그만 남기고 계속
-            log.warn("주문 완료 이메일 발송 준비 실패 (결제는 정상): orderNo={}, error={}",
-                    order.getOrderNo(), e.getMessage());
-        }
     }
 
     private PaymentProvider getProvider(String providerCode) {

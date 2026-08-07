@@ -11,6 +11,8 @@
 -- 단, oauthId 컬럼 길이가 100자로 충분한지 확인 (앱인토스 userKey는 UUID 수준)
 
 -- 앱인토스 연결 해제 웹훅 수신용 필드 (토스 앱에서 연결 끊기 시)
+-- 주의: MySQL 은 ADD COLUMN IF NOT EXISTS 를 지원하지 않는다(MariaDB 전용 문법).
+-- 빈 DB 에 V1 부터 재생할 때 문법 오류로 실패하므로 표준 구문을 쓴다.
 ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS toss_disconnected_at DATETIME NULL
+    ADD COLUMN toss_disconnected_at DATETIME NULL
     COMMENT '앱인토스 연결 해제 시각';

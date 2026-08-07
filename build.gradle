@@ -27,6 +27,7 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom 'io.awspring.cloud:spring-cloud-aws-dependencies:3.1.1'
+        mavenBom 'org.testcontainers:testcontainers-bom:1.20.4'
     }
 }
 
@@ -54,6 +55,11 @@ dependencies {
 
     // ── Redis ─────────────────────────────────────────────
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // ── Kafka ─────────────────────────────────────────────
+    // 주문 후처리(메일 등)를 이벤트로 분리. 브로커가 없는 환경에서는
+    // koala.events.kafka.enabled=false 로 두면 리스너/프로듀서가 뜨지 않는다.
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // ── JWT ───────────────────────────────────────────────
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
@@ -104,6 +110,15 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.8.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
     testImplementation 'org.assertj:assertj-core:3.25.1'
+
+    // ── Testcontainers ────────────────────────────────────
+    // 동시성 테스트는 실제 MySQL 의 비관적 락(SELECT ... FOR UPDATE) 동작이 필요하므로
+    // H2 가 아닌 컨테이너 MySQL 을 띄운다. (Docker 필요)
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+
+    // @EmbeddedKafka — 브로커를 인메모리로 띄워 발행·수신을 검증한다
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
     testCompileOnly    'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly    'org.junit.platform:junit-platform-launcher'
@@ -111,4 +126,17 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // ── Testcontainers 용 Docker 접속 설정 ────────────────────────────
+    // Windows 의 Docker Desktop 은 desktop-linux 컨텍스트(named pipe)를 쓰는데
+    // Testcontainers 가 이를 자동 탐지하지 못해 "Could not find a valid Docker environment" 로 죽는다.
+    // Linux/CI 에서는 기본 소켓 탐지를 그대로 쓰도록 Windows 에서만 지정한다.
+    if (System.getProperty('os.name').toLowerCase().contains('windows')
+            && System.getenv('DOCKER_HOST') == null) {
+        environment 'DOCKER_HOST', 'npipe:////./pipe/docker_engine'
+    }
+    // Docker Engine 29 부터 API 1.44 미만 요청을 400 으로 거부한다.
+    // docker-java 의 기본 API 버전이 더 낮아 명시적으로 올려준다.
+    // (env DOCKER_API_VERSION 이 아니라 시스템 프로퍼티 api.version 을 읽는다)
+    systemProperty 'api.version', '1.44'
 }

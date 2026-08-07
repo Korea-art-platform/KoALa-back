@@ -6,11 +6,15 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface SkuReviewStatsRepository extends JpaRepository<SkuReviewStats, Long> {
 
     Optional<SkuReviewStats> findBySkuId(Long skuId);
+
+    /** 여러 SKU 의 리뷰 집계를 한 번에 조회 — 목록 조회 N+1 제거용 */
+    List<SkuReviewStats> findAllBySkuIdIn(List<Long> skuIds);
 
     /**
      * 리뷰 집계 재계산 — nativeQuery 사용으로 도메인 간 순환 의존 제거.

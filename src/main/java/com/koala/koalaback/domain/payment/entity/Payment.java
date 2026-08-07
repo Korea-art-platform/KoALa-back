@@ -83,6 +83,37 @@ public class Payment extends BaseTimeEntity {
         this.currency = currency != null ? currency : "KRW";
     }
 
+    /**
+     * PG 승인 요청 직전 선점 — 같은 결제가 두 번 승인 요청되는 것을 막는다.
+     * 이 상태로 커밋한 뒤에야 트랜잭션 밖에서 PG 를 호출한다.
+     */
+    public void markInProgress() {
+        this.status = "IN_PROGRESS";
+    }
+
+    /**
+     * 승인 여부 미확정 — 타임아웃/5xx 로 PG 응답을 못 받았고 재조회로도 확정하지 못한 상태.
+     *
+     * <p>절대 FAILED 로 두지 않는다. 실제로는 승인되어 돈이 빠져나갔을 수 있으므로,
+     * 실패로 단정하면 주문이 만료 취소되어 "결제됐는데 주문 없음"이 된다.
+     * 웹훅 또는 재조회로 확정될 때까지 이 상태로 남긴다.
+     */
+    public void markInDoubt(String failureCode, String failureMessage) {
+        this.status = "IN_DOUBT";
+        this.failureCode = failureCode;
+        this.failureMessage = truncate(failureMessage);
+    }
+
+    /** 환불 요청 직전 선점 — 동시 이중 환불 방지 */
+    public void markCancelInProgress() {
+        this.status = "CANCEL_IN_PROGRESS";
+    }
+
+    /** 환불 실패로 원래 상태(CAPTURED)로 되돌린다 */
+    public void revertToCaptured() {
+        this.status = "CAPTURED";
+    }
+
     public void markCaptured(String pgTransactionId, String approvalNo,
                              BigDecimal approvedAmount, String rawResponseJson) {
         this.status = "CAPTURED";
@@ -96,7 +127,7 @@ public class Payment extends BaseTimeEntity {
     public void markFailed(String failureCode, String failureMessage) {
         this.status = "FAILED";
         this.failureCode = failureCode;
-        this.failureMessage = failureMessage;
+        this.failureMessage = truncate(failureMessage);
         this.failedAt = LocalDateTime.now();
     }
 
@@ -107,5 +138,22 @@ public class Payment extends BaseTimeEntity {
         this.cancelledAt = LocalDateTime.now();
     }
 
-    public boolean isCaptured() { return "CAPTURED".equals(this.status); }
+    public boolean isCaptured()   { return "CAPTURED".equals(this.status); }
+    public boolean isReady()      { return "READY".equals(this.status); }
+    public boolean isInProgress() { return "IN_PROGRESS".equals(this.status); }
+    public boolean isInDoubt()    { return "IN_DOUBT".equals(this.status); }
+
+    /**
+     * 결과가 아직 정해지지 않아 주문을 만료 취소하면 안 되는 상태인지.
+     * 만료 스케줄러가 이 결제를 가진 주문을 건너뛰는 기준.
+     */
+    public boolean isSettlementPending() {
+        return isInProgress() || isInDoubt();
+    }
+
+    /** failure_message 컬럼이 varchar(255) — PG 원문이 길면 저장 시 터진다 */
+    private String truncate(String message) {
+        if (message == null) return null;
+        return message.length() <= 255 ? message : message.substring(0, 255);
+    }
 }

@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -46,6 +47,8 @@ public class OrderService {
     private final PaymentService paymentService;
     private final CodeGenerator codeGenerator;
     private final PhoneNormalizer phoneNormalizer;
+    /** 취소 흐름의 DB 단계 — 자기호출을 피하려고 별도 빈으로 분리했다 */
+    private final OrderTransactionService orderTransactionService;
 
     @Transactional
     public OrderDto.OrderDetailResponse createOrder(Long userId, OrderDto.CreateRequest req) {
@@ -56,8 +59,17 @@ public class OrderService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        // 재고 검증 및 차감
-        for (CartItem ci : selectedItems) {
+        // 재고 검증 및 차감.
+        //
+        // deduct() 는 SKU row 에 비관적 락을 건다. 장바구니 순서대로 잡으면
+        // A주문이 [1,2], B주문이 [2,1] 순으로 잡을 때 서로 상대의 락을 기다리는 데드락이 난다.
+        // 모든 주문이 skuId 오름차순이라는 같은 순서로 잡으면 순환 대기가 생기지 않는다.
+        List<CartItem> lockOrderedItems = sortByLockOrder(selectedItems);
+
+        log.debug("재고 차감 락 획득 순서(skuId 오름차순): {}",
+                lockOrderedItems.stream().map(ci -> ci.getSku().getId()).toList());
+
+        for (CartItem ci : lockOrderedItems) {
             Sku sku = ci.getSku();
             if (!sku.isAvailable()) throw new BusinessException(ErrorCode.SKU_NOT_ACTIVE);
             stockService.deduct(sku.getId(), ci.getQuantity(), "order_items", null);
@@ -141,37 +153,32 @@ public class OrderService {
         return OrderDto.OrderDetailResponse.from(order);
     }
 
-    @Transactional
+    /**
+     * 주문 취소 — 환불이 성공해야 취소된다.
+     *
+     * <p><b>트랜잭션이 걸려 있지 않다.</b> 환불은 외부 PG HTTP 호출이라
+     * 트랜잭션 안에서 부르면 응답을 기다리는 내내 DB 커넥션이 묶인다.
+     * <pre>
+     * ① checkCancellable  [트랜잭션] 취소 가능 여부 확인 + 환불 대상 결제 조회 → 커밋
+     * ② paymentService.cancel  [트랜잭션 밖] PG 환불 (자체적으로 짧은 트랜잭션 사용)
+     * ③ completeCancel    [트랜잭션] 재고 복구 + 주문 취소 → 커밋
+     * </pre>
+     *
+     * <p>환불이 실패하면 ②에서 예외가 나고 ③에 도달하지 않으므로,
+     * "취소됐는데 환불 안 된" 주문은 생기지 않는다.
+     */
     public OrderDto.OrderDetailResponse cancelOrder(Long userId, String orderNo) {
-        Order order = orderRepository.findByOrderNoAndUserId(orderNo, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        // ① 취소 가능 여부 확인 + 환불 대상 파악
+        String refundPaymentNo = orderTransactionService.checkCancellable(userId, orderNo);
 
-        if (!order.isCancellable()) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        // ② 환불 먼저 — 트랜잭션 밖. 실패하면 예외가 전파되어 주문은 그대로 남는다.
+        if (refundPaymentNo != null) {
+            paymentService.cancel(refundPaymentNo, new PaymentDto.CancelRequest("주문취소", null));
+            log.info("Payment refunded on order cancel: paymentNo={}", refundPaymentNo);
         }
 
-        // ① 환불 먼저 시도 — 실패 시 예외를 던져 트랜잭션 전체 롤백
-        // (취소 성공 후 환불 실패로 사용자가 돈을 돌려받지 못하는 상황 방지)
-        paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(order.getId())
-                .filter(p -> "CAPTURED".equals(p.getStatus()))
-                .ifPresent(p -> {
-                    paymentService.cancel(p.getPaymentNo(),
-                            new PaymentDto.CancelRequest("주문취소", null));
-                    log.info("Payment refunded on order cancel: paymentNo={}", p.getPaymentNo());
-                });
-
-        // ② 환불 성공(또는 결제 없음) 후 재고 복구 및 주문 취소
-        order.getOrderItems().forEach(item -> {
-            if (item.getSku() != null) {
-                stockService.restore(item.getSku().getId(), item.getQuantity(),
-                        "order_items", item.getId());
-            }
-        });
-
-        order.cancel();
-        log.info("Order cancelled: orderNo={}, userId={}", orderNo, userId);
-
-        return OrderDto.OrderDetailResponse.from(order);
+        // ③ 환불 성공(또는 결제 없음) 후 재고 복구 및 주문 취소
+        return orderTransactionService.completeCancel(userId, orderNo);
     }
 
     /**
@@ -186,6 +193,17 @@ public class OrderService {
         if (order == null) return;
         if (!"PENDING_PAYMENT".equals(order.getOrderStatus())) return; // 그 사이 결제/취소됨
 
+        // 승인 여부가 미확정인 결제가 붙어 있으면 절대 취소하지 않는다.
+        // 실제로는 승인되어 돈이 빠져나갔을 수 있어, 여기서 취소하면 "결제됐는데 주문 없음" 이 된다.
+        boolean settlementPending = paymentRepository
+                .findTopByOrderIdOrderByCreatedAtDesc(order.getId())
+                .filter(p -> p.isSettlementPending())
+                .isPresent();
+        if (settlementPending) {
+            log.warn("결제 확정 대기 중이라 만료 취소 건너뜀: orderNo={}", order.getOrderNo());
+            return;
+        }
+
         order.getOrderItems().forEach(item -> {
             if (item.getSku() != null) {
                 stockService.restore(item.getSku().getId(), item.getQuantity(),
@@ -196,46 +214,34 @@ public class OrderService {
         log.info("미결제 만료 주문 자동취소: orderNo={}", order.getOrderNo());
     }
 
-    /** 관리자 강제 취소 — 모든 상태 취소 가능, 이유 필수, 부분환불 지원 */
-    @Transactional
+    /**
+     * 관리자 강제 취소 — 모든 상태 취소 가능, 이유 필수, 부분환불 지원.
+     *
+     * <p>주문 취소와 달리 환불은 best-effort 다(강제 취소는 어떤 상태에서든 완료되어야 함).
+     * 환불이 실패해도 주문은 취소된 채로 두고, 실패 사실을 이벤트로 남겨 수동 처리하게 한다.
+     * PG 호출은 트랜잭션 밖에서 이루어진다.
+     */
     public OrderDto.OrderDetailResponse adminCancelOrder(String orderNo, OrderDto.AdminCancelRequest req) {
-        Order order = orderRepository.findByOrderNo(orderNo)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        // 이미 취소된 주문이면 예외
-        if ("CANCELLED".equals(order.getOrderStatus())) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
-        }
-
-        // 재고 복구 (배송완료 상태라도 재고를 돌려줌)
-        order.getOrderItems().forEach(item -> {
-            if (item.getSku() != null) {
-                stockService.restore(item.getSku().getId(), item.getQuantity(),
-                        "admin_cancel", item.getId());
-            }
-        });
-
-        order.forceCancel();
+        // ① 재고 복구 + 강제 취소 (트랜잭션)
+        String refundPaymentNo = orderTransactionService.forceCancelAndFindRefundTarget(orderNo);
         log.info("Admin force cancel: orderNo={}, reason={}", orderNo, req.getReason());
 
-        // CAPTURED 결제 자동 환불
-        paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(order.getId())
-                .filter(p -> "CAPTURED".equals(p.getStatus()))
-                .ifPresent(p -> {
-                    try {
-                        paymentService.cancel(p.getPaymentNo(),
-                                new PaymentDto.CancelRequest(req.getReason(), req.getCancelAmount()));
-                        log.info("Admin refund success: paymentNo={}, amount={}",
-                                p.getPaymentNo(), req.getCancelAmount());
-                    } catch (Exception e) {
-                        log.error("Admin refund FAILED — manual action required: paymentNo={}, orderNo={}, error={}",
-                                p.getPaymentNo(), orderNo, e.getMessage());
-                        paymentService.recordRefundFailure(p.getPaymentNo(),
-                                "어드민 강제취소 환불 실패 — 수동처리 필요: " + e.getMessage());
-                    }
-                });
+        // ② 환불 — 트랜잭션 밖, 실패해도 취소는 유지
+        if (refundPaymentNo != null) {
+            try {
+                paymentService.cancel(refundPaymentNo,
+                        new PaymentDto.CancelRequest(req.getReason(), req.getCancelAmount()));
+                log.info("Admin refund success: paymentNo={}, amount={}",
+                        refundPaymentNo, req.getCancelAmount());
+            } catch (Exception e) {
+                log.error("Admin refund FAILED — manual action required: paymentNo={}, orderNo={}, error={}",
+                        refundPaymentNo, orderNo, e.getMessage());
+                paymentService.recordRefundFailure(refundPaymentNo,
+                        "어드민 강제취소 환불 실패 — 수동처리 필요: " + e.getMessage());
+            }
+        }
 
-        return OrderDto.OrderDetailResponse.from(order);
+        return orderTransactionService.getOrderDetail(orderNo);
     }
 
     /** 관리자 주문 상세 (트랜잭션 안에서 lazy 컬렉션 접근) */
@@ -285,6 +291,18 @@ public class OrderService {
     public Order getOrderEntityByNo(String orderNo) {
         return orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    /**
+     * 재고 락을 잡을 순서로 정렬 — skuId 오름차순.
+     *
+     * <p>모든 주문이 같은 순서로 락을 잡아야 순환 대기(데드락)가 생기지 않는다.
+     * 정렬된 새 리스트를 반환하므로 원본(금액 계산·주문 아이템 생성용)의 순서는 유지된다.
+     */
+    static List<CartItem> sortByLockOrder(List<CartItem> items) {
+        return items.stream()
+                .sorted(Comparator.comparing(ci -> ci.getSku().getId()))
+                .toList();
     }
 
     private List<CartItem> selectCartItems(Cart cart, List<Long> itemIds) {

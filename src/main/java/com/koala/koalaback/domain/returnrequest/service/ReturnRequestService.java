@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -37,6 +38,8 @@ public class ReturnRequestService {
     private final PaymentService paymentService;
     private final StockService stockService;
     private final CodeGenerator codeGenerator;
+    /** 반품 처리의 DB 단계 — 자기호출을 피하려고 별도 빈으로 분리했다 */
+    private final ReturnRequestTransactionService returnRequestTransactionService;
 
     /** 사용자 — 반품/교환 신청 */
     @Transactional
@@ -104,61 +107,40 @@ public class ReturnRequestService {
         return ReturnRequestDto.ReturnResponse.from(getByReturnNo(returnNo));
     }
 
-    /** 관리자 — 승인 또는 거절 처리 */
-    @Transactional
+    /**
+     * 관리자 — 승인 또는 거절 처리.
+     *
+     * <p>{@code NOT_SUPPORTED} 로 클래스 레벨의 읽기 트랜잭션을 무력화한다.
+     * 이 메서드에 트랜잭션이 열려 있으면 아래 PG 환불 호출이 다시 트랜잭션 안에 갇힌다.
+     * <pre>
+     * ① applyDecision  [트랜잭션] 승인/거절 + 재고 복구 → 커밋
+     * ② paymentService.cancel  [트랜잭션 밖] PG 환불 (best-effort)
+     * </pre>
+     *
+     * <p>환불은 best-effort 다 — 실패해도 반품 승인은 유지하고 실패 이벤트만 남겨 수동 처리한다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReturnRequestDto.ReturnResponse processReturnRequest(String returnNo, ReturnRequestDto.AdminProcessRequest req) {
-        ReturnRequest returnRequest = getByReturnNo(returnNo);
+        // ① DB 단계
+        ReturnRequestTransactionService.ReturnDecision decision =
+                returnRequestTransactionService.applyDecision(returnNo, req);
 
-        if (!"REQUESTED".equals(returnRequest.getStatus())) {
-            throw new BusinessException(ErrorCode.RETURN_REQUEST_NOT_ALLOWED);
-        }
-
-        if ("APPROVE".equals(req.getAction())) {
-            // 환불 금액: 명시하면 그 금액, 없으면 전액
-            BigDecimal refundAmt = req.getRefundAmount() != null
-                    ? req.getRefundAmount()
-                    : returnRequest.getOrder().getTotalAmount();
-
-            returnRequest.approve(refundAmt, req.getAdminMemo());
-
-            // 반품(RETURN) 승인 시 재고 복구 — 교환(EXCHANGE)은 교환 완료 처리 시점에 별도 처리
-            if ("RETURN".equals(returnRequest.getReturnType())) {
-                returnRequest.getOrder().getOrderItems().forEach(item -> {
-                    if (item.getSku() != null) {
-                        stockService.restoreByReturn(item.getSku().getId(), item.getQuantity(), item.getId());
-                    }
-                });
-                log.info("Stock restored on return approval: returnNo={}", returnNo);
+        // ② 환불 — 트랜잭션 밖
+        if (decision.needsRefund()) {
+            try {
+                paymentService.cancel(decision.refundPaymentNo(),
+                        new PaymentDto.CancelRequest("반품 승인 환불", decision.refundAmount()));
+                log.info("Return refund success: paymentNo={}, amount={}",
+                        decision.refundPaymentNo(), decision.refundAmount());
+            } catch (Exception e) {
+                log.error("Return refund FAILED — manual action required: paymentNo={}, returnNo={}, error={}",
+                        decision.refundPaymentNo(), returnNo, e.getMessage());
+                paymentService.recordRefundFailure(decision.refundPaymentNo(),
+                        "반품 승인 환불 실패 — 수동처리 필요: " + e.getMessage());
             }
-
-            // CAPTURED 결제 자동 환불
-            paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(returnRequest.getOrder().getId())
-                    .filter(p -> "CAPTURED".equals(p.getStatus()))
-                    .ifPresent(p -> {
-                        try {
-                            paymentService.cancel(p.getPaymentNo(),
-                                    new PaymentDto.CancelRequest("반품 승인 환불", refundAmt));
-                            log.info("Return refund success: paymentNo={}, amount={}",
-                                    p.getPaymentNo(), refundAmt);
-                        } catch (Exception e) {
-                            log.error("Return refund FAILED — manual action required: paymentNo={}, returnNo={}, error={}",
-                                    p.getPaymentNo(), returnNo, e.getMessage());
-                            paymentService.recordRefundFailure(p.getPaymentNo(),
-                                    "반품 승인 환불 실패 — 수동처리 필요: " + e.getMessage());
-                        }
-                    });
-
-            log.info("Return approved: returnNo={}, refundAmt={}", returnNo, refundAmt);
-
-        } else if ("REJECT".equals(req.getAction())) {
-            returnRequest.reject(req.getAdminMemo());
-            log.info("Return rejected: returnNo={}", returnNo);
-
-        } else {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        return ReturnRequestDto.ReturnResponse.from(returnRequest);
+        return returnRequestTransactionService.getDetail(returnNo);
     }
 
     /** 관리자 — 완료 처리 (교환 완료 등) */

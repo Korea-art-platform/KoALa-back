@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,18 +46,14 @@ public class SkuService {
     // ── 공개 조회 ─────────────────────────────────────────
 
     public PageResponse<SkuDto.SummaryResponse> getActiveSkus(Pageable pageable) {
-        Page<SkuDto.SummaryResponse> page = skuRepository
-                .findByStatusAndDeletedAtIsNull("ACTIVE", pageable)
-                .map(this::toSummary);
-        return PageResponse.of(page);
+        return toSummaryPage(skuRepository
+                .findByStatusAndDeletedAtIsNull("ACTIVE", pageable));
     }
 
     public PageResponse<SkuDto.SummaryResponse> getSkusByArtist(String artistCode, Pageable pageable) {
         Artist artist = artistService.getArtistEntityByCode(artistCode);
-        Page<SkuDto.SummaryResponse> page = skuRepository
-                .findByArtistIdAndStatusAndDeletedAtIsNull(artist.getId(), "ACTIVE", pageable)
-                .map(this::toSummary);
-        return PageResponse.of(page);
+        return toSummaryPage(skuRepository
+                .findByArtistIdAndStatusAndDeletedAtIsNull(artist.getId(), "ACTIVE", pageable));
     }
 
     public SkuDto.DetailResponse getSkuBySlug(String slug) {
@@ -298,6 +295,26 @@ public class SkuService {
         return SkuDto.SummaryResponse.from(sku, stock, stats);
     }
 
+    /**
+     * 목록 응답 조립 — 재고/리뷰집계를 SKU 별로 조회하면 N+1 이 되므로
+     * 페이지의 skuId 를 모아 한 번에 배치 조회한 뒤 매핑한다.
+     * (응답 스키마는 {@link #toSummary} 와 동일)
+     */
+    private PageResponse<SkuDto.SummaryResponse> toSummaryPage(Page<Sku> skuPage) {
+        List<Long> skuIds = skuPage.getContent().stream().map(Sku::getId).toList();
+
+        Map<Long, Integer> stockMap = stockService.getStocks(skuIds);
+        Map<Long, SkuReviewStats> statsMap = skuIds.isEmpty()
+                ? Map.of()
+                : skuReviewStatsRepository.findAllBySkuIdIn(skuIds).stream()
+                        .collect(Collectors.toMap(SkuReviewStats::getSkuId, stats -> stats));
+
+        return PageResponse.of(skuPage.map(sku -> SkuDto.SummaryResponse.from(
+                sku,
+                stockMap.getOrDefault(sku.getId(), 0),
+                statsMap.get(sku.getId()))));
+    }
+
     private SkuDto.DetailResponse toDetail(Sku sku) {
         int stock = stockService.getStock(sku.getId());
         SkuReviewStats stats = skuReviewStatsRepository.findById(sku.getId()).orElse(null);
@@ -308,9 +325,6 @@ public class SkuService {
 
 
     public PageResponse<SkuDto.SummaryResponse> getAllSkus(Pageable pageable) {
-        Page<SkuDto.SummaryResponse> page = skuRepository
-                .findByDeletedAtIsNull(pageable)
-                .map(this::toSummary);
-        return PageResponse.of(page);
+        return toSummaryPage(skuRepository.findByDeletedAtIsNull(pageable));
     }
 }
