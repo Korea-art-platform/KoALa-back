@@ -68,6 +68,10 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
     @Query("SELECT s FROM Sku s WHERE s.skuCode IN :skuCodes")
     List<Sku> findAllBySkuCodeIn(@Param("skuCodes") List<String> skuCodes);
 
+    /** csv 일괄 등록 slug 중복 검사 — 이미 있는 slug 만 반환 */
+    @Query("SELECT s.slug FROM Sku s WHERE s.slug IN :slugs")
+    List<String> findExistingSlugs(@Param("slugs") List<String> slugs);
+
     /** 작가 삭제 시 연관 상품 일괄 soft-delete용 */
     List<Sku> findByArtistIdAndDeletedAtIsNull(Long artistId);
 }

@@ -93,6 +93,10 @@ dependencies {
     // jasypt: 미사용(ENC() 값 없음) + Spring Boot 4 Flyway 순환 의존성 유발하여 제거
     // implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
 
+    // ── CSV ───────────────────────────────────────────────
+    // 상품 csv 일괄 등록 파싱
+    implementation 'com.opencsv:opencsv:5.9'
+
     // ─── OAuth2 ───────────────────────────
     implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
 

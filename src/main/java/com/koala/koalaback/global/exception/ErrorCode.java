@@ -97,7 +97,13 @@ public enum ErrorCode {
     // Toss Login (앱인토스)
     TOSS_LOGIN_FAILED(HttpStatus.BAD_GATEWAY, "TL001", "토스 로그인 처리 중 오류가 발생했습니다."),
     TOSS_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "TL002", "토스 인가 코드 교환에 실패했습니다."),
-    TOSS_USER_INFO_FAILED(HttpStatus.BAD_GATEWAY, "TL003", "토스 사용자 정보 조회에 실패했습니다.");
+    TOSS_USER_INFO_FAILED(HttpStatus.BAD_GATEWAY, "TL003", "토스 사용자 정보 조회에 실패했습니다."),
+
+    // csv 일괄 등록
+    CSV_EMPTY_FILE(HttpStatus.BAD_REQUEST, "CSV001", "빈 파일입니다."),
+    CSV_INVALID_HEADER(HttpStatus.BAD_REQUEST, "CSV002", "CSV 헤더가 올바르지 않습니다."),
+    CSV_TOO_MANY_ROWS(HttpStatus.BAD_REQUEST, "CSV003", "허용된 최대 행 수를 초과했습니다."),
+    CSV_PARSE_FAILED(HttpStatus.BAD_REQUEST, "CSV004", "CSV 파일을 읽을 수 없습니다.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;

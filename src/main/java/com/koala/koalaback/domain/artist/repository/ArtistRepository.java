@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
@@ -16,4 +17,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     Page<Artist> findByDeletedAtIsNull(Pageable pageable);
 
     Page<Artist> findByDeletedAtIsNullAndIsActiveTrue(Pageable pageable);
+
+    /** csv 일괄 등록 작가 존재 확인 */
+    List<Artist> findAllByArtistCodeIn(List<String> artistCodes);
 }
