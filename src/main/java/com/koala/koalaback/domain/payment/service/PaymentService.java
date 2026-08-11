@@ -106,7 +106,7 @@ public class PaymentService {
 
         // ③ 결과 반영 (짧은 트랜잭션)
         if (result.isApproved()) {
-            return paymentTransactionService.applyConfirmApproved(ctx.paymentId(), result);
+            return applyApprovedOrCompensate(provider, ctx, result);
         }
 
         if (result.isUnknown()) {
@@ -116,6 +116,100 @@ public class PaymentService {
         paymentTransactionService.applyConfirmRejected(
                 ctx.paymentId(), result.failureCode(), result.failureMessage());
         throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_ERROR, result.failureMessage());
+    }
+
+    /**
+     * 승인 결과를 DB 에 반영하되, <b>반영이 실패하면 PG 승인을 되돌린다(보상 취소).</b>
+     *
+     * <p>PG 승인은 이미 끝났는데 우리 DB 저장이 실패하면 고객 돈만 빠져나간 상태가 된다.
+     * 외부 결제는 우리 트랜잭션에 참여하지 않으므로 롤백으로 되돌아오지 않는다.
+     * 그래서 반대 방향 작업(취소)을 직접 호출해 상쇄한다.
+     *
+     * <p>보상까지 실패하면 {@link ErrorCode#PAYMENT_IN_DOUBT} 로 응답한다.
+     * "결제 실패"로 보이면 고객이 다시 시도하는데, 실제로는 돈이 나가 있어 이중 결제가 된다.
+     */
+    private PaymentDto.PaymentResponse applyApprovedOrCompensate(
+            PaymentProvider provider,
+            PaymentTransactionService.ConfirmContext ctx,
+            PaymentProvider.PaymentConfirmResult result) {
+
+        try {
+            return paymentTransactionService.applyConfirmApproved(ctx.paymentId(), result);
+        } catch (Exception e) {
+            log.error("승인 반영 실패 — 보상 취소를 시작한다: orderNo={}, pgTransactionId={}",
+                    ctx.orderNo(), result.pgTransactionId(), e);
+            compensateApproved(provider, ctx, result);
+            throw new BusinessException(ErrorCode.PAYMENT_IN_DOUBT);
+        }
+    }
+
+    /**
+     * 승인된 결제를 되돌린다.
+     *
+     * <p>거래번호를 DB 가 아니라 <b>PG 응답에서</b> 가져오는 것이 핵심이다.
+     * 그 값을 저장하려던 트랜잭션이 방금 실패했으므로 DB 에는 아직 없다.
+     * 같은 이유로 정상 취소 경로({@code beginCancel})도 쓸 수 없다 —
+     * 그쪽은 결제가 CAPTURED 상태이고 거래번호가 저장돼 있다고 전제한다.
+     *
+     * <p>DB 가 고장난 상황이므로 <b>로그가 1차 기록</b>이고 DB 이벤트 기록은 best-effort 다.
+     * 순서를 반대로 하면 정작 추적이 필요한 순간에 아무것도 남지 않는다.
+     */
+    private void compensateApproved(PaymentProvider provider,
+                                    PaymentTransactionService.ConfirmContext ctx,
+                                    PaymentProvider.PaymentConfirmResult result) {
+
+        String pgTransactionId = result.pgTransactionId();
+        BigDecimal amount = result.approvedAmount() != null ? result.approvedAmount() : ctx.amount();
+
+        if (pgTransactionId == null || pgTransactionId.isBlank()) {
+            // 거래번호가 없으면 취소를 호출할 방법이 없다
+            log.error("★수동 확인 필요★ 거래번호가 없어 보상 취소 불가 — orderNo={}, amount={}",
+                    ctx.orderNo(), amount);
+            recordSafely(() -> paymentTransactionService.applyConfirmInDoubt(
+                    ctx.paymentId(), "COMPENSATE_NO_TX_ID", "저장 실패 후 거래번호 없어 취소 불가"));
+            return;
+        }
+
+        PaymentProvider.PaymentCancelResult cancelResult;
+        try {
+            cancelResult = provider.cancel(pgTransactionId, amount, "결제 저장 실패에 따른 보상 취소");
+        } catch (Exception e) {
+            log.error("보상 취소 호출 중 예외: orderNo={}, pgTransactionId={}",
+                    ctx.orderNo(), pgTransactionId, e);
+            cancelResult = PaymentProvider.PaymentCancelResult.unknown(
+                    "COMPENSATE_EXCEPTION", e.getMessage());
+        }
+
+        if (cancelResult.isCancelled()) {
+            log.warn("보상 취소 성공 — 승인이 철회됐다: orderNo={}, pgTransactionId={}, amount={}",
+                    ctx.orderNo(), pgTransactionId, amount);
+            // 결제 실패로 확정한다. 그래야 고객이 새 결제를 시작할 수 있다
+            recordSafely(() -> paymentTransactionService.applyConfirmRejected(
+                    ctx.paymentId(), "SAVE_FAILED_COMPENSATED", "저장 실패로 승인을 취소했습니다."));
+            return;
+        }
+
+        // 거절이든 미확정이든 돈이 고객에게 돌아갔는지 알 수 없다 — 사람이 봐야 한다
+        log.error("★수동 환불 필요★ 보상 취소 실패 — 고객 결제금이 남아 있을 수 있다. "
+                        + "orderNo={}, pgTransactionId={}, amount={}, code={}, message={}",
+                ctx.orderNo(), pgTransactionId, amount,
+                cancelResult.failureCode(), cancelResult.failureMessage());
+
+        recordSafely(() -> paymentTransactionService.applyConfirmInDoubt(
+                ctx.paymentId(), "COMPENSATE_FAILED", "저장 실패 후 보상 취소도 실패했습니다."));
+    }
+
+    /**
+     * 보상 결과를 DB 에 남기려는 시도 — 실패해도 흐름을 멈추지 않는다.
+     * 이 시점에는 이미 로그에 전부 기록돼 있고, 여기서 예외를 던지면
+     * 원래 알리려던 오류(PAYMENT_IN_DOUBT)가 가려진다.
+     */
+    private void recordSafely(Runnable dbWrite) {
+        try {
+            dbWrite.run();
+        } catch (Exception e) {
+            log.error("보상 결과 DB 기록 실패 — 로그로만 남는다", e);
+        }
     }
 
     /**
@@ -146,8 +240,8 @@ public class PaymentService {
 
         if (lookup.approved()) {
             log.info("재조회 결과 승인됨 — 정상 확정: orderNo={}", ctx.orderNo());
-            return paymentTransactionService.applyConfirmApproved(
-                    ctx.paymentId(),
+            // 이 경로도 저장이 실패할 수 있다 — 승인 경로와 같은 보상 처리를 탄다
+            return applyApprovedOrCompensate(provider, ctx,
                     PaymentProvider.PaymentConfirmResult.approved(
                             lookup.pgTransactionId(), lookup.approvalNo(),
                             lookup.approvedAmount() != null ? lookup.approvedAmount() : ctx.amount(),

@@ -164,6 +164,112 @@ class PaymentConfirmPolicyTest {
     }
 
     @Test
+    @DisplayName("승인 저장이 실패하면 PG 승인을 되돌린다 — 돈만 빠져나간 상태를 막는다")
+    void confirm_saveFails_compensatesByCancel() {
+        given(provider.confirm(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentConfirmResult.approved(
+                        "pk_1", "A1", AMOUNT, "{}"));
+        // DB 저장 실패
+        given(paymentTransactionService.applyConfirmApproved(any(), any()))
+                .willThrow(new RuntimeException("DB 연결 끊김"));
+        given(provider.cancel(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentCancelResult.cancelled(AMOUNT, "{}"));
+
+        assertThatThrownBy(() -> paymentService.confirm(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
+
+        // 거래번호는 DB 가 아니라 PG 응답에서 가져와야 한다 (저장이 실패했으므로)
+        then(provider).should().cancel(eq("pk_1"), eq(AMOUNT), anyString());
+        // 보상에 성공했으니 실패로 확정 — 그래야 고객이 새 결제를 시작할 수 있다
+        then(paymentTransactionService).should()
+                .applyConfirmRejected(eq(PAYMENT_ID), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("보상 취소까지 실패하면 IN_DOUBT 로 잠가 재시도를 막는다")
+    void confirm_compensationFails_marksInDoubt() {
+        given(provider.confirm(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentConfirmResult.approved(
+                        "pk_1", "A1", AMOUNT, "{}"));
+        given(paymentTransactionService.applyConfirmApproved(any(), any()))
+                .willThrow(new RuntimeException("DB 연결 끊김"));
+        given(provider.cancel(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentCancelResult.rejected("ALREADY_CANCELED", "이미 취소됨"));
+
+        assertThatThrownBy(() -> paymentService.confirm(1L, request))
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
+
+        // 실패로 확정하면 고객이 재시도해 이중 결제가 된다 — IN_DOUBT 로 잠근다
+        then(paymentTransactionService).should()
+                .applyConfirmInDoubt(eq(PAYMENT_ID), anyString(), anyString());
+        then(paymentTransactionService).should(never())
+                .applyConfirmRejected(any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("거래번호가 없으면 취소를 호출하지 않고 바로 IN_DOUBT 로 둔다")
+    void confirm_saveFailsWithoutTxId_skipsCancel() {
+        given(provider.confirm(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentConfirmResult.approved(
+                        null, "A1", AMOUNT, "{}"));
+        given(paymentTransactionService.applyConfirmApproved(any(), any()))
+                .willThrow(new RuntimeException("DB 연결 끊김"));
+
+        assertThatThrownBy(() -> paymentService.confirm(1L, request))
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
+
+        then(provider).should(never()).cancel(any(), any(), any());
+        then(paymentTransactionService).should()
+                .applyConfirmInDoubt(eq(PAYMENT_ID), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("보상 결과를 DB 에 못 남겨도 원래 오류(IN_DOUBT)를 그대로 전달한다")
+    void confirm_compensationRecordFails_stillReportsInDoubt() {
+        given(provider.confirm(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentConfirmResult.approved(
+                        "pk_1", "A1", AMOUNT, "{}"));
+        given(paymentTransactionService.applyConfirmApproved(any(), any()))
+                .willThrow(new RuntimeException("DB 연결 끊김"));
+        given(provider.cancel(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentCancelResult.cancelled(AMOUNT, "{}"));
+        // 보상 결과 기록마저 실패 — DB 가 고장난 상황이므로 충분히 가능하다
+        org.mockito.BDDMockito.willThrow(new RuntimeException("DB 여전히 죽어 있음"))
+                .given(paymentTransactionService)
+                .applyConfirmRejected(any(), anyString(), anyString());
+
+        assertThatThrownBy(() -> paymentService.confirm(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .as("기록 실패가 원래 오류를 가리면 안 된다")
+                        .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
+    }
+
+    @Test
+    @DisplayName("재조회로 승인을 확인한 경우에도 저장 실패 시 보상 취소한다")
+    void confirm_recoveredByLookup_alsoCompensatesOnSaveFailure() {
+        given(provider.confirm(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentConfirmResult.unknown("TOSS_NO_RESPONSE", "read timed out"));
+        given(provider.lookup(ORDER_NO))
+                .willReturn(new PaymentProvider.PaymentLookupResult(
+                        true, true, true, "pk_1", "A1", AMOUNT, "{}"));
+        given(paymentTransactionService.applyConfirmApproved(any(), any()))
+                .willThrow(new RuntimeException("DB 연결 끊김"));
+        given(provider.cancel(any(), any(), any()))
+                .willReturn(PaymentProvider.PaymentCancelResult.cancelled(AMOUNT, "{}"));
+
+        assertThatThrownBy(() -> paymentService.confirm(1L, request))
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
+
+        then(provider).should().cancel(eq("pk_1"), eq(AMOUNT), anyString());
+    }
+
+    @Test
     @DisplayName("provider 가 예외를 던져도 실패로 단정하지 않고 재조회로 확인한다")
     void confirm_providerThrows_treatedAsUnknown() {
         given(provider.confirm(any(), any(), any()))
