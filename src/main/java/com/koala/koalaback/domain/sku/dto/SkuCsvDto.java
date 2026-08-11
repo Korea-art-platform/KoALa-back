@@ -66,6 +66,27 @@ public class SkuCsvDto {
         }
     }
 
+    // ── 사전검증 결과 (저장 전) ───────────────────────────
+    // ImportResult 는 저장까지 끝난 최종 리포트라 이 단계에서 만들 수 없다.
+    // 검증기는 통과분과 오류를 함께 돌려줘야 해서 별도 타입을 둔다.
+    @Getter
+    @Builder
+    public static class ValidationResult {
+        private List<ParsedRow> validRows;
+        private List<RowError> errors;
+
+        public boolean hasErrors() {
+            return !errors.isEmpty();
+        }
+
+        public static ValidationResult of(List<ParsedRow> validRows, List<RowError> errors) {
+            return ValidationResult.builder()
+                    .validRows(validRows)
+                    .errors(errors)
+                    .build();
+        }
+    }
+
     // ── 최종 리포트 ──────────────────────────────────────
     @Getter
     @Builder

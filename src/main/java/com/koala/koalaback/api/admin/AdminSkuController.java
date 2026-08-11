@@ -1,6 +1,9 @@
 package com.koala.koalaback.api.admin;
 
+import com.koala.koalaback.domain.sku.dto.SkuCsvDto;
 import com.koala.koalaback.domain.sku.dto.SkuDto;
+import com.koala.koalaback.domain.sku.service.SkuCsvImportService;
+import com.koala.koalaback.domain.sku.service.SkuCsvTemplate;
 import com.koala.koalaback.domain.sku.service.SkuService;
 import com.koala.koalaback.global.response.ApiResponse;
 import com.koala.koalaback.global.response.PageResponse;
@@ -8,12 +11,16 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -23,6 +30,7 @@ import java.util.List;
 public class AdminSkuController {
 
     private final SkuService skuService;
+    private final SkuCsvImportService skuCsvImportService;
 
     @GetMapping
     public ApiResponse<PageResponse<SkuDto.SummaryResponse>> getSkus(
@@ -98,5 +106,34 @@ public class AdminSkuController {
     @GetMapping("/{skuCode}/stock")
     public ApiResponse<SkuDto.StockResponse> getStock(@PathVariable String skuCode) {
         return ApiResponse.ok(skuService.getStock(skuCode));
+    }
+
+    // ── csv 일괄 등록 ─────────────────────────────────────
+
+    /**
+     * csv 일괄 등록.
+     *
+     * <p>검증 실패든 저장 성공이든 <b>200 으로 응답한다.</b> 오류 목록 자체가 응답 본문이라
+     * 400 을 주면 프론트가 본문을 읽지 않고 에러 배너만 띄우기 쉽다.
+     * 파일 자체를 못 읽는 경우(빈 파일·헤더 누락·행 수 초과)만 예외로 4xx 가 나간다.
+     */
+    @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<SkuCsvDto.ImportResult> bulkImport(
+            @RequestPart("file") MultipartFile file) {
+        return ApiResponse.ok(skuCsvImportService.importCsv(file));
+    }
+
+    /** 빈 템플릿 내려받기 — 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM 을 붙인다 */
+    @GetMapping("/bulk/template")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] body = SkuCsvTemplate.build();
+
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("sku-bulk-template.csv", StandardCharsets.UTF_8)
+                                .build().toString())
+                .body(body);
     }
 }
