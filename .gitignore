@@ -61,3 +61,7 @@ src/test/resources/application*.yml
 
 # Firebase 서비스 계정 키 (민감 정보 — 절대 커밋 금지)
 src/main/resources/firebase-service-account.json
+
+# 빌드/실행 로그
+*.log
+bootrun.log
