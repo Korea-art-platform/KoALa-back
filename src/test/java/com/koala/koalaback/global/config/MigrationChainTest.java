@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MigrationChainTest {
 
     /** 운영에 실제로 적용된 마지막 버전 */
-    private static final String LATEST_VERSION = "21";
+    private static final String LATEST_VERSION = "22";
 
     @Test
     @DisplayName("빈 DB 에 V1 부터 끝까지 순서대로 적용된다")
