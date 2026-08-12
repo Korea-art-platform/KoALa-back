@@ -1,6 +1,7 @@
 package com.koala.koalaback.domain.order.event;
 
 import com.koala.koalaback.infra.mail.EmailService;
+import com.koala.koalaback.infra.slack.AdminOrderNotifier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,18 +36,25 @@ public class OrderEventRelay {
     /** Kafka 가 비활성이면 이 빈이 없다 — ObjectProvider 로 선택적 주입 */
     private final ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider;
     private final EmailService emailService;
+    private final AdminOrderNotifier adminOrderNotifier;
     private final boolean kafkaEnabled;
 
     public OrderEventRelay(ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider,
                            EmailService emailService,
+                           AdminOrderNotifier adminOrderNotifier,
                            @Value("${koala.events.kafka.enabled:false}") boolean kafkaEnabled) {
         this.kafkaTemplateProvider = kafkaTemplateProvider;
         this.emailService = emailService;
+        this.adminOrderNotifier = adminOrderNotifier;
         this.kafkaEnabled = kafkaEnabled;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrderCompleted(OrderCompletedEvent event) {
+        // 관리자 알림은 Kafka 여부와 무관하게 여기서 보낸다.
+        // 컨슈머에 두면 브로커가 없는 지금은 알림이 아예 나가지 않는다.
+        adminOrderNotifier.notifyOrderCompleted(event);
+
         if (!kafkaEnabled) {
             sendOrderConfirmEmailDirectly(event);
             return;

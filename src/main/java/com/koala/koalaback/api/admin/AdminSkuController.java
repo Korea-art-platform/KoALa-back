@@ -31,6 +31,7 @@ public class AdminSkuController {
 
     private final SkuService skuService;
     private final SkuCsvImportService skuCsvImportService;
+    private final SkuCsvTemplate skuCsvTemplate;
 
     @GetMapping
     public ApiResponse<PageResponse<SkuDto.SummaryResponse>> getSkus(
@@ -126,7 +127,7 @@ public class AdminSkuController {
     /** 빈 템플릿 내려받기 — 엑셀에서 한글이 깨지지 않도록 UTF-8 BOM 을 붙인다 */
     @GetMapping("/bulk/template")
     public ResponseEntity<byte[]> downloadTemplate() {
-        byte[] body = SkuCsvTemplate.build();
+        byte[] body = skuCsvTemplate.build();
 
         return ResponseEntity.ok()
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))

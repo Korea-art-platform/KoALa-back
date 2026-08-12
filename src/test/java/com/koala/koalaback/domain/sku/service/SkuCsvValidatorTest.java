@@ -2,6 +2,8 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.repository.ArtistRepository;
+import com.koala.koalaback.domain.category.entity.SkuCategory;
+import com.koala.koalaback.domain.category.service.SkuCategoryService;
 import com.koala.koalaback.domain.sku.dto.SkuCsvDto;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,8 @@ import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +45,7 @@ class SkuCsvValidatorTest {
 
     @Mock private SkuRepository skuRepository;
     @Mock private ArtistRepository artistRepository;
+    @Mock private SkuCategoryService categoryService;
 
     @BeforeEach
     void setUp() {
@@ -50,6 +55,11 @@ class SkuCsvValidatorTest {
 
         given(artistRepository.findAllByArtistCodeIn(any())).willReturn(List.of(artist));
         given(skuRepository.findExistingSlugs(any())).willReturn(List.of());
+
+        // 카테고리 허용값은 이제 상수가 아니라 db 에서 온다
+        given(categoryService.getActiveCodesByType()).willReturn(Map.of(
+                SkuCategory.TYPE_MAIN, Set.of("LIMITED", "NORMAL"),
+                SkuCategory.TYPE_SUB, Set.of("SCULPTURE", "ART_TOY")));
     }
 
     @Nested
@@ -216,47 +226,58 @@ class SkuCsvValidatorTest {
     }
 
     @Nested
-    @DisplayName("열거값")
-    class Enums {
+    @DisplayName("카테고리")
+    class Categories {
 
         @Test
-        @DisplayName("skuType 은 ARTWORK / GOODS 만 허용하고, 비면 ARTWORK 이 된다")
-        void skuTypeRules() {
-            SkuCsvDto.Row blank = row();
-            blank.setSkuType(null);
-            assertThat(validate(blank).getValidRows().get(0).getRequest().getSkuType())
-                    .isEqualTo("ARTWORK");
+        @DisplayName("대분류·소분류는 필수다 — 비면 상품이 어디에도 안 걸린다")
+        void categoriesRequired() {
+            SkuCsvDto.Row row = row();
+            row.setMainCategory(null);
+            row.setGenre(null);
 
-            SkuCsvDto.Row bad = row();
-            bad.setSkuType("BOOK");
-            assertThat(validate(bad).getErrors())
-                    .extracting(SkuCsvDto.RowError::getField).contains("skuType");
+            assertThat(validate(row).getErrors())
+                    .extracting(SkuCsvDto.RowError::getField)
+                    .contains("mainCategory", "genre");
         }
 
         @Test
-        @DisplayName("genre 는 허용 목록만 받고, 비면 ART_TOY 가 된다")
-        void genreRules() {
-            SkuCsvDto.Row blank = row();
-            blank.setGenre(null);
-            assertThat(validate(blank).getValidRows().get(0).getRequest().getGenre())
-                    .isEqualTo("ART_TOY");
-
+        @DisplayName("등록되지 않은 코드는 거절한다 — 오타를 막지 않으면 필터에서 영영 안 잡힌다")
+        void unknownCodeRejected() {
             SkuCsvDto.Row bad = row();
-            bad.setGenre("ART_TOYY");   // 오타 — 막지 않으면 장르 필터에서 영영 안 잡힌다
+            bad.setGenre("ART_TOYY");
             assertThat(validate(bad).getErrors())
                     .extracting(SkuCsvDto.RowError::getField).contains("genre");
+
+            SkuCsvDto.Row badMain = row();
+            badMain.setMainCategory("LIMITE");
+            assertThat(validate(badMain).getErrors())
+                    .extracting(SkuCsvDto.RowError::getField).contains("mainCategory");
+        }
+
+        @Test
+        @DisplayName("허용값은 db 에서 온다 — 관리자가 추가한 코드도 배포 없이 통과한다")
+        void codesComeFromDb() {
+            given(categoryService.getActiveCodesByType()).willReturn(Map.of(
+                    SkuCategory.TYPE_MAIN, Set.of("NORMAL"),
+                    SkuCategory.TYPE_SUB, Set.of("CERAMIC")));   // 운영에서 새로 추가된 소분류
+
+            SkuCsvDto.Row row = row();
+            row.setGenre("CERAMIC");
+
+            assertThat(validate(row).getValidRows()).hasSize(1);
         }
 
         @Test
         @DisplayName("소문자로 적어도 대문자로 정규화한다")
         void lowercaseNormalized() {
             SkuCsvDto.Row row = row();
-            row.setSkuType("artwork");
+            row.setMainCategory("normal");
             row.setGenre("sculpture");
 
             SkuCsvDto.ParsedRow parsed = validate(row).getValidRows().get(0);
 
-            assertThat(parsed.getRequest().getSkuType()).isEqualTo("ARTWORK");
+            assertThat(parsed.getRequest().getMainCategory()).isEqualTo("NORMAL");
             assertThat(parsed.getRequest().getGenre()).isEqualTo("SCULPTURE");
         }
     }
@@ -266,21 +287,32 @@ class SkuCsvValidatorTest {
     class Edition {
 
         @Test
-        @DisplayName("한정판이면 size 와 number 가 모두 필요하다")
-        void limitedRequiresBoth() {
+        @DisplayName("한정판이면 size 만 채워도 된다 — 번호는 나중에 정할 수 있다")
+        void numberIsOptional() {
             SkuCsvDto.Row row = row();
-            row.setIsLimitedEdition("true");
+            row.setMainCategory("LIMITED");
             row.setEditionSize("100");
             row.setEditionNumber(null);
 
-            assertThat(validate(row).getErrors()).isNotEmpty();
+            assertThat(validate(row).getValidRows()).hasSize(1);
         }
 
         @Test
-        @DisplayName("한정판이 아닌데 에디션 값이 있으면 거절한다 — CHECK 제약이 양방향이다")
+        @DisplayName("번호만 있고 총 수량이 없으면 거절한다 — CHECK 제약 위반이 된다")
+        void numberWithoutSizeRejected() {
+            SkuCsvDto.Row row = row();
+            row.setMainCategory("LIMITED");
+            row.setEditionNumber("7");
+
+            assertThat(validate(row).getErrors())
+                    .extracting(SkuCsvDto.RowError::getField).contains("editionSize");
+        }
+
+        @Test
+        @DisplayName("한정판이 아닌데 에디션 값이 있으면 거절한다")
         void nonLimitedMustBeEmpty() {
             SkuCsvDto.Row row = row();
-            row.setIsLimitedEdition("false");
+            row.setMainCategory("NORMAL");
             row.setEditionSize("100");
 
             assertThat(validate(row).getErrors()).isNotEmpty();
@@ -290,7 +322,7 @@ class SkuCsvValidatorTest {
         @DisplayName("에디션 번호가 총 수량보다 크면 거절한다")
         void numberOverSize() {
             SkuCsvDto.Row row = row();
-            row.setIsLimitedEdition("true");
+            row.setMainCategory("LIMITED");
             row.setEditionSize("10");
             row.setEditionNumber("11");
 
@@ -302,7 +334,7 @@ class SkuCsvValidatorTest {
         @DisplayName("0 이하는 거절한다")
         void zeroOrNegativeRejected() {
             SkuCsvDto.Row row = row();
-            row.setIsLimitedEdition("true");
+            row.setMainCategory("LIMITED");
             row.setEditionSize("0");
             row.setEditionNumber("0");
 
@@ -313,28 +345,11 @@ class SkuCsvValidatorTest {
         @DisplayName("정상 한정판은 통과한다")
         void validLimitedEdition() {
             SkuCsvDto.Row row = row();
-            row.setIsLimitedEdition("true");
+            row.setMainCategory("LIMITED");
             row.setEditionSize("100");
             row.setEditionNumber("7");
 
             assertThat(validate(row).getValidRows()).hasSize(1);
-        }
-
-        @Test
-        @DisplayName("true/false 외에 1·0·y·n 도 받고, 그 밖의 값은 거절한다")
-        void booleanParsing() {
-            for (String yes : List.of("true", "1", "y", "yes", "TRUE")) {
-                SkuCsvDto.Row row = row();
-                row.setIsLimitedEdition(yes);
-                row.setEditionSize("10");
-                row.setEditionNumber("1");
-                assertThat(validate(row).getValidRows()).as("값=%s", yes).hasSize(1);
-            }
-
-            SkuCsvDto.Row bad = row();
-            bad.setIsLimitedEdition("아마도");
-            assertThat(validate(bad).getErrors())
-                    .extracting(SkuCsvDto.RowError::getField).contains("isLimitedEdition");
         }
     }
 
@@ -423,7 +438,8 @@ class SkuCsvValidatorTest {
         row.setName("정상 상품");
         row.setSlug("normal-sku-01");
         row.setListPrice("150000");
-        row.setIsLimitedEdition("false");
+        row.setMainCategory("NORMAL");
+        row.setGenre("SCULPTURE");
         row.setInitialStock("10");
         return row;
     }

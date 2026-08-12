@@ -14,6 +14,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Sku extends BaseTimeEntity {
 
+    /**
+     * 기본 제공 대분류 코드. 대분류는 관리자가 추가할 수 있지만
+     * 이 두 개는 "한정판이면 에디션 정보를 받는다" 규칙 때문에 코드에서도 참조한다.
+     */
+    public static final String MAIN_LIMITED = "LIMITED";
+    public static final String MAIN_NORMAL = "NORMAL";
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -36,6 +43,11 @@ public class Sku extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private String skuType;     // ARTWORK, GOODS
 
+    /** 대분류 코드 — sku_categories(type='MAIN').code. 예: LIMITED, NORMAL */
+    @Column(nullable = false, length = 50)
+    private String mainCategory;
+
+    /** 소분류 코드 — sku_categories(type='SUB').code. 예: SCULPTURE, ART_TOY */
     @Column(nullable = false, length = 50)
     private String genre;
 
@@ -94,10 +106,10 @@ public class Sku extends BaseTimeEntity {
 
     @Builder
     public Sku(String skuCode, Artist artist, String name, String slug,
-               String description, String skuType, String genre, String material,
+               String description, String skuType, String mainCategory, String genre, String material,
                String materialDescription, String packagingTitle, String packagingDescription,
                String currency, BigDecimal listPrice, BigDecimal salePrice,
-               Boolean isLimitedEdition, Integer editionSize, Integer editionNumber,
+               Integer editionSize, Integer editionNumber,
                String primaryImageUrl, BigDecimal widthCm, BigDecimal heightCm,
                BigDecimal depthCm, BigDecimal weightKg,
                String badges) {
@@ -107,6 +119,9 @@ public class Sku extends BaseTimeEntity {
         this.slug = slug;
         this.description = description;
         this.skuType = skuType != null ? skuType : "ARTWORK";
+        this.mainCategory = mainCategory != null && !mainCategory.isBlank()
+                ? mainCategory
+                : MAIN_NORMAL;
         this.genre = genre != null ? genre : "ART_TOY";
         this.material = material;
         this.materialDescription = materialDescription;
@@ -115,7 +130,7 @@ public class Sku extends BaseTimeEntity {
         this.currency = currency != null ? currency : "KRW";
         this.listPrice = listPrice;
         this.salePrice = salePrice;
-        this.isLimitedEdition = isLimitedEdition != null ? isLimitedEdition : false;
+        this.isLimitedEdition = MAIN_LIMITED.equals(this.mainCategory);
         this.editionSize = editionSize;
         this.editionNumber = editionNumber;
         this.primaryImageUrl = primaryImageUrl;
@@ -128,15 +143,16 @@ public class Sku extends BaseTimeEntity {
     }
 
     public void update(String name, String slug, String description,
-                       String skuType, String genre, String material,
+                       String skuType, String mainCategory, String genre, String material,
                        String materialDescription, String packagingTitle, String packagingDescription,
                        BigDecimal listPrice, BigDecimal salePrice, String primaryImageUrl,
-                       Boolean isLimitedEdition, Integer editionSize, Integer editionNumber,
+                       Integer editionSize, Integer editionNumber,
                        String badges) {
         this.name = name;
         this.slug = slug;
         this.description = description;
         if (skuType != null && !skuType.isBlank()) this.skuType = skuType;
+        if (mainCategory != null && !mainCategory.isBlank()) changeMainCategory(mainCategory);
         if (genre    != null && !genre.isBlank())    this.genre = genre;
         this.material = material;
         this.materialDescription = materialDescription;
@@ -145,10 +161,21 @@ public class Sku extends BaseTimeEntity {
         this.listPrice = listPrice;
         this.salePrice = salePrice;
         this.primaryImageUrl = primaryImageUrl;
-        if (isLimitedEdition != null) this.isLimitedEdition = isLimitedEdition;
         this.editionSize = editionSize;
         this.editionNumber = editionNumber;
         this.badges = badges;
+    }
+
+    /**
+     * 대분류 변경. {@code isLimitedEdition} 은 여기서만 따라 바뀐다.
+     *
+     * <p>한정판 여부는 이제 대분류에서 파생되는 값이다. 따로 받으면
+     * "대분류=NORMAL 인데 isLimitedEdition=true" 같은 모순이 생긴다.
+     * 컬럼을 남겨두는 건 기존 화면·쿼리가 이미 쓰고 있어서다.
+     */
+    public void changeMainCategory(String mainCategory) {
+        this.mainCategory = mainCategory;
+        this.isLimitedEdition = MAIN_LIMITED.equals(mainCategory);
     }
 
     public void publish() {

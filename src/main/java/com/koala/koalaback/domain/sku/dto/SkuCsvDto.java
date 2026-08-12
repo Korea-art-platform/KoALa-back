@@ -17,15 +17,14 @@ public class SkuCsvDto {
         private String name;
         private String slug;
         private String description;
-        private String skuType;
-        private String genre;
+        private String mainCategory;   // 대분류 코드 (LIMITED / NORMAL / …)
+        private String genre;          // 소분류 코드 (SCULPTURE / ART_TOY / …)
         private String material;
         private String materialDescription;
         private String packagingTitle;
         private String packagingDescription;
         private String listPrice;
         private String salePrice;
-        private String isLimitedEdition;
         private String editionSize;
         private String editionNumber;
         private String primaryImageUrl;

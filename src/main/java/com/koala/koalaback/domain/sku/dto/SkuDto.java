@@ -31,7 +31,15 @@ public class SkuDto {
 
         private String description;
         private String skuType;
+
+        /** 대분류 코드 — sku_categories(type='MAIN'). 한정판 여부가 여기서 파생된다 */
+        @NotBlank
+        private String mainCategory;
+
+        /** 소분류 코드 — sku_categories(type='SUB') */
+        @NotBlank
         private String genre;
+
         private String material;             // 재질/소재
         private String materialDescription;  // 재질/소재 상세 설명
         private String packagingTitle;       // 포장 섹션 제목
@@ -41,7 +49,6 @@ public class SkuDto {
         private BigDecimal listPrice;
 
         private BigDecimal salePrice;
-        private Boolean isLimitedEdition;
         private Integer editionSize;
         private Integer editionNumber;
         private String badges;      // JSON string: [{"text":"진품 보증","type":"blue"}, ...]
@@ -62,7 +69,13 @@ public class SkuDto {
 
         private String description;
         private String skuType;              // ARTWORK | GOODS
-        private String genre;                // ART_TOY | SCULPTURE | PAINTING | PRINT | PHOTOGRAPH | INSTALLATION | TEXTILE | OTHER
+
+        @NotBlank
+        private String mainCategory;         // 대분류 코드
+
+        @NotBlank
+        private String genre;                // 소분류 코드
+
         private String material;             // 재질/소재
         private String materialDescription;  // 재질/소재 상세 설명
         private String packagingTitle;       // 포장 섹션 제목
@@ -72,7 +85,6 @@ public class SkuDto {
         private BigDecimal listPrice;
 
         private BigDecimal salePrice;
-        private Boolean isLimitedEdition;
         private Integer editionSize;
         private Integer editionNumber;
         private String badges;      // JSON string: [{"text":"진품 보증","type":"blue"}, ...]
@@ -115,6 +127,7 @@ public class SkuDto {
         private String name;
         private String slug;
         private String skuType;
+        private String mainCategory;
         private String genre;
         private BigDecimal listPrice;
         private BigDecimal salePrice;
@@ -136,6 +149,7 @@ public class SkuDto {
                     .name(sku.getName())
                     .slug(sku.getSlug())
                     .skuType(sku.getSkuType())
+                    .mainCategory(sku.getMainCategory())
                     .genre(sku.getGenre())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
@@ -162,6 +176,7 @@ public class SkuDto {
         private String slug;
         private String description;
         private String skuType;
+        private String mainCategory;
         private String genre;
         private String material;
         private String materialDescription;
@@ -200,6 +215,7 @@ public class SkuDto {
                     .slug(sku.getSlug())
                     .description(sku.getDescription())
                     .skuType(sku.getSkuType())
+                    .mainCategory(sku.getMainCategory())
                     .genre(sku.getGenre())
                     .material(sku.getMaterial())
                     .materialDescription(sku.getMaterialDescription())

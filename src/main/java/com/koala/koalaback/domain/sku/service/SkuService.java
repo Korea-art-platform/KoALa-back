@@ -2,6 +2,7 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.service.ArtistService;
+import com.koala.koalaback.domain.category.service.SkuCategoryService;
 import com.koala.koalaback.domain.sku.dto.SkuDto;
 import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.entity.SkuMedia;
@@ -39,6 +40,7 @@ public class SkuService {
     private final SkuMediaRepository skuMediaRepository;
     private final SkuReviewStatsRepository skuReviewStatsRepository;
     private final ArtistService artistService;
+    private final SkuCategoryService categoryService;
     private final StockService stockService;
     private final CodeGenerator codeGenerator;
     private final StorageUploader s3Uploader;
@@ -96,6 +98,9 @@ public class SkuService {
         if (skuRepository.existsBySlug(req.getSlug())) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
+        categoryService.validateCodes(req.getMainCategory(), req.getGenre());
+        validateEdition(req.getMainCategory(), req.getEditionSize(), req.getEditionNumber());
+
         Artist artist = artistService.getArtistEntityByCode(req.getArtistCode());
         Sku sku = Sku.builder()
                 .skuCode(codeGenerator.generateCode())
@@ -104,10 +109,10 @@ public class SkuService {
                 .slug(req.getSlug())
                 .description(req.getDescription())
                 .skuType(req.getSkuType())
+                .mainCategory(req.getMainCategory())
                 .genre(req.getGenre())
                 .listPrice(req.getListPrice())
                 .salePrice(req.getSalePrice())
-                .isLimitedEdition(req.getIsLimitedEdition())
                 .editionSize(req.getEditionSize())
                 .editionNumber(req.getEditionNumber())
                 .badges(req.getBadges())
@@ -129,13 +134,44 @@ public class SkuService {
         if (!sku.getSlug().equals(req.getSlug()) && skuRepository.existsBySlug(req.getSlug())) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
+        categoryService.validateCodes(req.getMainCategory(), req.getGenre());
+        validateEdition(req.getMainCategory(), req.getEditionSize(), req.getEditionNumber());
+
         sku.update(req.getName(), req.getSlug(), req.getDescription(),
-                req.getSkuType(), req.getGenre(), req.getMaterial(),
+                req.getSkuType(), req.getMainCategory(), req.getGenre(), req.getMaterial(),
                 req.getMaterialDescription(), req.getPackagingTitle(), req.getPackagingDescription(),
                 req.getListPrice(), req.getSalePrice(), req.getPrimaryImageUrl(),
-                req.getIsLimitedEdition(), req.getEditionSize(), req.getEditionNumber(),
+                req.getEditionSize(), req.getEditionNumber(),
                 req.getBadges());
         return toSummary(sku);
+    }
+
+    /**
+     * 에디션 정보 검증.
+     *
+     * <p>DB CHECK 제약은 "둘 다 있거나 둘 다 없거나"까지만 본다. 대분류는 관리자가
+     * 추가할 수 있어서 특정 코드를 제약에 박을 수 없기 때문이다.
+     * "일반 상품에는 에디션 번호를 붙일 수 없다"는 여기서 막는다.
+     */
+    private void validateEdition(String mainCategory, Integer editionSize, Integer editionNumber) {
+        boolean hasEdition = editionSize != null || editionNumber != null;
+        if (hasEdition && !Sku.MAIN_LIMITED.equals(mainCategory)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "에디션 정보는 한정판 상품에만 입력할 수 있습니다.");
+        }
+        // 한정판이어도 에디션 번호는 선택 — 총 수량만 정해두고 번호는 나중에 채우는 경우가 있다
+        if (editionNumber != null && editionSize == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "에디션 번호를 입력하려면 총 수량도 함께 입력해야 합니다.");
+        }
+        if (editionSize != null && editionSize <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "에디션 총 수량은 1 이상이어야 합니다.");
+        }
+        if (editionNumber != null && (editionNumber <= 0 || editionNumber > editionSize)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "에디션 번호는 1 이상, 총 수량 이하여야 합니다.");
+        }
     }
 
     @Transactional
@@ -238,10 +274,10 @@ public class SkuService {
         // 대표 이미지로 지정된 경우 SKU.primaryImageUrl 동기화
         if (makePrimary) {
             sku.update(sku.getName(), sku.getSlug(), sku.getDescription(),
-                    sku.getSkuType(), sku.getGenre(), sku.getMaterial(),
+                    sku.getSkuType(), sku.getMainCategory(), sku.getGenre(), sku.getMaterial(),
                     sku.getMaterialDescription(), sku.getPackagingTitle(), sku.getPackagingDescription(),
                     sku.getListPrice(), sku.getSalePrice(), fileUrl,
-                    sku.getIsLimitedEdition(), sku.getEditionSize(), sku.getEditionNumber(),
+                    sku.getEditionSize(), sku.getEditionNumber(),
                     sku.getBadges());
         }
 

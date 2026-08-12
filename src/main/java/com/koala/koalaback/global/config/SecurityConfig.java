@@ -104,6 +104,7 @@ public class SecurityConfig {
                                 "/api/v1/artists/**",
                                 "/api/v1/skus/**",
                                 "/api/v1/banners/**",
+                                "/api/v1/categories",
                                 "/api/v1/notices/**",
                                 "/api/v1/app/version").permitAll();
                         // 팔로우/언팔로우는 로그인 필수

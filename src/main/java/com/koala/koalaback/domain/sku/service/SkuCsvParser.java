@@ -25,7 +25,7 @@ public class SkuCsvParser {
 
     // 없으면 헤더 검증 실패
     private static final List<String> REQUIRED_HEADERS =
-            List.of("artistCode", "name", "slug", "listPrice");
+            List.of("artistCode", "name", "slug", "listPrice", "mainCategory", "genre");
 
     // 엑셀이 utf-8 저장 시 파일 맨 앞에 붙이는 문자
     private static final String BOM = "\uFEFF";
@@ -108,7 +108,7 @@ public class SkuCsvParser {
         row.setName(get(cols, index, "name"));
         row.setSlug(get(cols, index, "slug"));
         row.setDescription(get(cols, index, "description"));
-        row.setSkuType(get(cols, index, "skuType"));
+        row.setMainCategory(get(cols, index, "mainCategory"));
         row.setGenre(get(cols, index, "genre"));
         row.setMaterial(get(cols, index, "material"));
         row.setMaterialDescription(get(cols, index, "materialDescription"));
@@ -116,7 +116,6 @@ public class SkuCsvParser {
         row.setPackagingDescription(get(cols, index, "packagingDescription"));
         row.setListPrice(get(cols, index, "listPrice"));
         row.setSalePrice(get(cols, index, "salePrice"));
-        row.setIsLimitedEdition(get(cols, index, "isLimitedEdition"));
         row.setEditionSize(get(cols, index, "editionSize"));
         row.setEditionNumber(get(cols, index, "editionNumber"));
         row.setPrimaryImageUrl(get(cols, index, "primaryImageUrl"));

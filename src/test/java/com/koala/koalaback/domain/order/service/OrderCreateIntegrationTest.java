@@ -153,10 +153,10 @@ class OrderCreateIntegrationTest extends IntegrationTestSupport {
                 .name(name)
                 .slug("otest-sku-" + uid)
                 .skuType("ARTWORK")
+                .mainCategory(Sku.MAIN_NORMAL)
                 .genre("ART_TOY")
                 .currency("KRW")
                 .listPrice(price)
-                .isLimitedEdition(false)
                 .build();
         sku.publish();   // createOrder 는 ACTIVE 상태만 허용
         skuRepository.save(sku);

@@ -2,6 +2,8 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.repository.ArtistRepository;
+import com.koala.koalaback.domain.category.entity.SkuCategory;
+import com.koala.koalaback.domain.category.repository.SkuCategoryRepository;
 import com.koala.koalaback.domain.sku.dto.SkuCsvDto;
 import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
@@ -41,12 +43,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("csv 일괄 등록")
 class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
 
-    private static final String HEADER = "artistCode,name,slug,listPrice,skuType,genre,"
-            + "salePrice,initialStock,isLimitedEdition,editionSize,editionNumber";
+    private static final String HEADER = "artistCode,name,slug,listPrice,mainCategory,genre,"
+            + "salePrice,initialStock,editionSize,editionNumber";
 
     @Autowired private SkuCsvImportService importService;
     @Autowired private SkuRepository skuRepository;
     @Autowired private ArtistRepository artistRepository;
+    @Autowired private SkuCategoryRepository categoryRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private EntityManagerFactory entityManagerFactory;
 
@@ -60,6 +63,18 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
                 .name("csv 테스트 작가")
                 .slug("csv-test-artist")
                 .build());
+
+        // 스키마는 엔티티로 만들어지므로 Flyway 초기 데이터가 없다.
+        // 카테고리 허용값은 이제 db 에서 오므로 직접 넣어줘야 한다.
+        seedCategory(SkuCategory.TYPE_MAIN, Sku.MAIN_LIMITED, "한정판");
+        seedCategory(SkuCategory.TYPE_MAIN, Sku.MAIN_NORMAL, "일반");
+        seedCategory(SkuCategory.TYPE_SUB, "ART_TOY", "아트 토이");
+    }
+
+    private void seedCategory(String type, String code, String name) {
+        if (categoryRepository.existsByTypeAndCode(type, code)) return;
+        categoryRepository.save(SkuCategory.builder()
+                .type(type).code(code).name(name).sortOrder(1).build());
     }
 
     @AfterEach
@@ -165,7 +180,7 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
     @DisplayName("존재하지 않는 작가 코드는 오류로 돌린다")
     void unknownArtistCode_isRejected() {
         String csv = HEADER + "\n"
-                + "NO-SUCH-ARTIST,없는작가상품,csvtest-noartist,150000,ARTWORK,ART_TOY,,1,false,,\n";
+                + "NO-SUCH-ARTIST,없는작가상품,csvtest-noartist,150000,NORMAL,ART_TOY,,1,,\n";
 
         SkuCsvDto.ImportResult result = importService.importCsv(file(csv));
 
@@ -197,8 +212,8 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("1000행 — 검증 쿼리는 행 수와 무관하게 2회")
-    void thousandRows_validationUsesTwoQueries() {
+    @DisplayName("1000행 — 검증 쿼리는 행 수와 무관하게 3회")
+    void thousandRows_validationUsesConstantQueries() {
         StringBuilder csv = new StringBuilder(HEADER).append("\n");
         for (int i = 1; i <= 1000; i++) {
             csv.append(row("csvtest-bulk-" + i, "대량상품" + i, "150000", "3"));
@@ -218,7 +233,7 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
         System.out.printf("%n[1000행 결과] 소요 %dms, 총 statement %d회 (행당 %.2f회)%n",
                 elapsed, queries, queries / 1000.0);
 
-        // 검증 2회 + 행당 INSERT 3종(sku, review_stats, ledger) 수준이어야 한다.
+        // 검증 3회(카테고리·slug·작가) + 행당 INSERT 3종(sku, review_stats, ledger) 수준이어야 한다.
         // 행마다 조회가 늘어나면 이 상한을 넘는다.
         assertThat(queries).as("행당 4회를 넘으면 어딘가에서 행 단위 조회가 늘어난 것")
                 .isLessThan(1000 * 4);
@@ -230,7 +245,7 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
     private String row(String slug, String name, String listPrice, String initialStock) {
         return String.join(",",
                 artistCode, name, slug, listPrice,
-                "ARTWORK", "ART_TOY", "", initialStock, "false", "", "") + "\n";
+                Sku.MAIN_NORMAL, "ART_TOY", "", initialStock, "", "") + "\n";
     }
 
     private MockMultipartFile file(String csv) {

@@ -2,9 +2,11 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.repository.ArtistRepository;
+import com.koala.koalaback.domain.category.entity.SkuCategory;
+import com.koala.koalaback.domain.category.service.SkuCategoryService;
 import com.koala.koalaback.domain.sku.dto.SkuCsvDto;
 import com.koala.koalaback.domain.sku.dto.SkuDto;
-import com.koala.koalaback.domain.sku.entity.SkuGenre;
+import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -33,10 +35,7 @@ public class SkuCsvValidator {
 
     private final SkuRepository skuRepository;
     private final ArtistRepository artistRepository;
-
-    // ck_skus_type — 위반 시 INSERT 가 실패한다
-    private static final Set<String> SKU_TYPES = Set.of("ARTWORK", "GOODS");
-    private static final String DEFAULT_SKU_TYPE = "ARTWORK";
+    private final SkuCategoryService categoryService;
 
     // url 로 쓰이므로 소문자·숫자·하이픈만. 하이픈 연속/양끝 금지
     private static final Pattern SLUG_PATTERN =
@@ -58,10 +57,13 @@ public class SkuCsvValidator {
     public SkuCsvDto.ValidationResult validate(List<SkuCsvDto.Row> rows) {
         List<SkuCsvDto.RowError> errors = new ArrayList<>();
 
+        // 카테고리는 행마다 조회하지 않고 한 번만 읽는다 (쿼리 1회)
+        Map<String, Set<String>> categoryCodes = categoryService.getActiveCodesByType();
+
         // 1단계 — 행 하나만 보고 판단 가능한 것
         List<Draft> drafts = new ArrayList<>();
         for (SkuCsvDto.Row row : rows) {
-            Draft draft = validateRow(row, errors);
+            Draft draft = validateRow(row, categoryCodes, errors);
             if (draft != null) drafts.add(draft);
         }
 
@@ -77,7 +79,9 @@ public class SkuCsvValidator {
     // ── 1단계: 행 단위 ───────────────────────────────────
 
     /** 오류가 하나라도 있으면 null 을 반환해 이후 단계에서 제외한다 */
-    private Draft validateRow(SkuCsvDto.Row row, List<SkuCsvDto.RowError> errors) {
+    private Draft validateRow(SkuCsvDto.Row row,
+                              Map<String, Set<String>> categoryCodes,
+                              List<SkuCsvDto.RowError> errors) {
         int rowNumber = row.getRowNumber();
         List<SkuCsvDto.RowError> rowErrors = new ArrayList<>();
 
@@ -85,9 +89,10 @@ public class SkuCsvValidator {
         String slug = validateSlug(row.getSlug(), rowNumber, rowErrors);
         String artistCode = requireText(row.getArtistCode(), "artistCode", 40, rowNumber, rowErrors);
 
-        String skuType = validateEnum(row.getSkuType(), "skuType", SKU_TYPES,
-                DEFAULT_SKU_TYPE, rowNumber, rowErrors);
-        String genre = validateGenre(row.getGenre(), rowNumber, rowErrors);
+        String mainCategory = validateCategory(row.getMainCategory(), "mainCategory",
+                categoryCodes.get(SkuCategory.TYPE_MAIN), rowNumber, rowErrors);
+        String genre = validateCategory(row.getGenre(), "genre",
+                categoryCodes.get(SkuCategory.TYPE_SUB), rowNumber, rowErrors);
 
         // decimal(13,2) — 정수부 11자리까지
         BigDecimal listPrice = parseDecimal(row.getListPrice(), "listPrice",
@@ -100,11 +105,9 @@ public class SkuCsvValidator {
                     "판매가가 정가보다 클 수 없습니다. (정가 " + listPrice.toPlainString() + ")"));
         }
 
-        Boolean isLimited = parseBoolean(row.getIsLimitedEdition(), "isLimitedEdition",
-                rowNumber, rowErrors);
         Integer editionSize = parseInt(row.getEditionSize(), "editionSize", rowNumber, rowErrors);
         Integer editionNumber = parseInt(row.getEditionNumber(), "editionNumber", rowNumber, rowErrors);
-        validateEdition(isLimited, editionSize, editionNumber, rowNumber, rowErrors);
+        validateEdition(mainCategory, editionSize, editionNumber, rowNumber, rowErrors);
 
         Integer initialStock = parseInt(row.getInitialStock(), "initialStock", rowNumber, rowErrors);
         if (initialStock != null && initialStock < 0) {
@@ -134,7 +137,7 @@ public class SkuCsvValidator {
         request.setName(name);
         request.setSlug(slug);
         request.setDescription(row.getDescription());
-        request.setSkuType(skuType);
+        request.setMainCategory(mainCategory);
         request.setGenre(genre);
         request.setMaterial(material);
         request.setMaterialDescription(row.getMaterialDescription());
@@ -142,7 +145,6 @@ public class SkuCsvValidator {
         request.setPackagingDescription(row.getPackagingDescription());
         request.setListPrice(listPrice);
         request.setSalePrice(salePrice);
-        request.setIsLimitedEdition(isLimited);
         request.setEditionSize(editionSize);
         request.setEditionNumber(editionNumber);
         request.setPrimaryImageUrl(primaryImageUrl);
@@ -255,58 +257,61 @@ public class SkuCsvValidator {
         return slug;
     }
 
-    /** 비어 있으면 기본값. 값이 있으면 허용 목록에 있어야 한다 */
-    private String validateEnum(String value, String field, Set<String> allowed, String defaultValue,
-                                int rowNumber, List<SkuCsvDto.RowError> errors) {
-        if (value == null) return defaultValue;
+    /**
+     * 카테고리 코드 검증 — 허용값은 상수가 아니라 {@code sku_categories} 에서 온다.
+     *
+     * <p>관리자가 카테고리를 추가하면 배포 없이 바로 csv 에서 쓸 수 있어야 한다.
+     * 비활성 카테고리는 목록에 없으므로 자동으로 거부된다.
+     */
+    private String validateCategory(String value, String field, Set<String> allowed,
+                                    int rowNumber, List<SkuCsvDto.RowError> errors) {
+        if (value == null) {
+            errors.add(SkuCsvDto.RowError.of(rowNumber, field, null, "필수 항목입니다."));
+            return null;
+        }
+        if (allowed == null) allowed = Set.of();
 
         String upper = value.toUpperCase();
         if (!allowed.contains(upper)) {
             errors.add(SkuCsvDto.RowError.of(rowNumber, field, value,
-                    "허용값: " + String.join(", ", allowed)));
+                    "등록되지 않은 카테고리입니다. 사용 가능: "
+                            + allowed.stream().sorted().collect(Collectors.joining(", "))));
             return null;
         }
         return upper;
     }
 
-    private String validateGenre(String value, int rowNumber, List<SkuCsvDto.RowError> errors) {
-        if (value == null) return SkuGenre.DEFAULT.name();
-
-        String upper = value.toUpperCase();
-        if (!SkuGenre.isValid(upper)) {
-            errors.add(SkuCsvDto.RowError.of(rowNumber, "genre", value,
-                    "허용값: " + String.join(", ", SkuGenre.codes())));
-            return null;
-        }
-        return upper;
-    }
-
-    /** ck_skus_edition 은 양방향이다 — 한정판이 아닌데 에디션 값이 있어도 INSERT 가 실패한다 */
-    private void validateEdition(Boolean isLimited, Integer size, Integer number,
+    /**
+     * 에디션 값 검증.
+     *
+     * <p>에디션은 한정판에만 붙는다. 총 수량·번호 모두 선택이지만, 번호만 있고
+     * 총 수량이 없으면 ck_skus_edition 위반으로 INSERT 가 실패한다.
+     */
+    private void validateEdition(String mainCategory, Integer size, Integer number,
                                  int rowNumber, List<SkuCsvDto.RowError> errors) {
-        if (isLimited == null) return;   // 이미 파싱 오류가 기록됨
+        if (mainCategory == null) return;   // 이미 오류가 기록됨
 
-        if (!isLimited) {
+        if (!Sku.MAIN_LIMITED.equals(mainCategory)) {
             if (size != null || number != null) {
                 errors.add(SkuCsvDto.RowError.of(rowNumber, "editionSize", size,
-                        "한정판이 아니면 editionSize·editionNumber 를 비워야 합니다."));
+                        "에디션 정보는 한정판(" + Sku.MAIN_LIMITED + ") 상품에만 입력할 수 있습니다."));
             }
             return;
         }
 
-        if (size == null || number == null) {
-            errors.add(SkuCsvDto.RowError.of(rowNumber, "editionSize", size,
-                    "한정판이면 editionSize 와 editionNumber 가 모두 필요합니다."));
+        if (number != null && size == null) {
+            errors.add(SkuCsvDto.RowError.of(rowNumber, "editionSize", null,
+                    "editionNumber 를 입력하려면 editionSize 도 함께 입력해야 합니다."));
             return;
         }
-        if (size <= 0 || number <= 0) {
+        if (size != null && size <= 0) {
             errors.add(SkuCsvDto.RowError.of(rowNumber, "editionSize", size,
-                    "에디션 번호와 총 수량은 1 이상이어야 합니다."));
+                    "에디션 총 수량은 1 이상이어야 합니다."));
             return;
         }
-        if (number > size) {
+        if (number != null && (number <= 0 || number > size)) {
             errors.add(SkuCsvDto.RowError.of(rowNumber, "editionNumber", number,
-                    "에디션 번호가 총 수량(" + size + ")보다 클 수 없습니다."));
+                    "에디션 번호는 1 이상, 총 수량(" + size + ") 이하여야 합니다."));
         }
     }
 
@@ -360,20 +365,6 @@ public class SkuCsvValidator {
             errors.add(SkuCsvDto.RowError.of(rowNumber, field, value, "정수가 아닙니다."));
             return null;
         }
-    }
-
-    /** 비어 있으면 false. 엑셀에서 흔한 표기를 모두 받는다 */
-    private Boolean parseBoolean(String value, String field,
-                                 int rowNumber, List<SkuCsvDto.RowError> errors) {
-        if (value == null) return Boolean.FALSE;
-
-        String v = value.trim().toLowerCase();
-        if (Set.of("true", "1", "y", "yes", "o").contains(v))  return Boolean.TRUE;
-        if (Set.of("false", "0", "n", "no", "x").contains(v))  return Boolean.FALSE;
-
-        errors.add(SkuCsvDto.RowError.of(rowNumber, field, value,
-                "true / false 로 입력해주세요."));
-        return null;
     }
 
     /** 엑셀이 넣는 천 단위 구분자·공백 제거 */

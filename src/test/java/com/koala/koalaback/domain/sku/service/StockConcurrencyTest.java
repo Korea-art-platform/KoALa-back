@@ -209,10 +209,10 @@ class StockConcurrencyTest extends IntegrationTestSupport {
                 .name("동시성 테스트 상품")
                 .slug("ctest-sku-" + uid)
                 .skuType("ARTWORK")
+                .mainCategory(Sku.MAIN_NORMAL)
                 .genre("ART_TOY")
                 .currency("KRW")
                 .listPrice(BigDecimal.valueOf(10_000))
-                .isLimitedEdition(false)
                 .build();
         sku.publish();
         skuRepository.save(sku);

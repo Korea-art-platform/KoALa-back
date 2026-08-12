@@ -46,7 +46,12 @@ public record OrderCompletedEvent(
     public static final String EVENT_TYPE = "order.completed";
     public static final int CURRENT_SCHEMA_VERSION = 1;
 
-    public record Item(String skuCode, String skuName, int quantity, BigDecimal lineAmount) {}
+    /**
+     * @param artistName 작가명 스냅샷 — 관리자 알림에서 "누구 작품이 팔렸는지"를 바로 보기 위해.
+     *                   v1 로 발행된 옛 이벤트에는 없어 null 일 수 있다(필드 추가는 호환 변경).
+     */
+    public record Item(String skuCode, String skuName, String artistName,
+                       int quantity, BigDecimal lineAmount) {}
 
     public static OrderCompletedEvent of(Long orderId, String orderNo, Long userId,
                                          String ordererName, String ordererEmail,

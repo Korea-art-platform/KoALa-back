@@ -240,6 +240,7 @@ public class PaymentTransactionService {
                 .map(i -> new OrderCompletedEvent.Item(
                         i.getSkuCodeSnapshot(),
                         i.getSkuNameSnapshot(),
+                        i.getArtistNameSnapshot(),
                         i.getQuantity(),
                         i.getLineTotalAmount()))
                 .toList();

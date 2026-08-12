@@ -106,6 +106,6 @@ class OrderEventKafkaTest {
                 BigDecimal.valueOf(3_000),
                 BigDecimal.valueOf(53_000),
                 List.of(new OrderCompletedEvent.Item(
-                        "SKU-1", "테스트 아트토이", 1, BigDecimal.valueOf(50_000))));
+                        "SKU-1", "테스트 아트토이", "테스트 작가", 1, BigDecimal.valueOf(50_000))));
     }
 }

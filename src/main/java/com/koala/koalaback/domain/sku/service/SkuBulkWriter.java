@@ -65,7 +65,7 @@ public class SkuBulkWriter {
                 .name(req.getName())
                 .slug(req.getSlug())
                 .description(req.getDescription())
-                .skuType(req.getSkuType())
+                .mainCategory(req.getMainCategory())
                 .genre(req.getGenre())
                 // createSku 가 빠뜨리고 있는 4개 — csv 컬럼에는 있으므로 여기서는 저장한다
                 .material(req.getMaterial())
@@ -74,7 +74,6 @@ public class SkuBulkWriter {
                 .packagingDescription(req.getPackagingDescription())
                 .listPrice(req.getListPrice())
                 .salePrice(req.getSalePrice())
-                .isLimitedEdition(req.getIsLimitedEdition())
                 .editionSize(req.getEditionSize())
                 .editionNumber(req.getEditionNumber())
                 .primaryImageUrl(req.getPrimaryImageUrl())
