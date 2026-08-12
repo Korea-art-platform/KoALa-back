@@ -12,7 +12,7 @@ SET @exist_col = (
 );
 SET @sql_col = IF(
     @exist_col = 0,
-    'ALTER TABLE artists ADD COLUMN featured_sku_id BIGINT UNSIGNED DEFAULT NULL AFTER is_active',
+    'ALTER TABLE artists ADD COLUMN featured_sku_id BIGINT DEFAULT NULL AFTER is_active',
     'SELECT 1'
 );
 PREPARE stmt FROM @sql_col;

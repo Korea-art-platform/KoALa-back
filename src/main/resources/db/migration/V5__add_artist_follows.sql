@@ -3,9 +3,9 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS artist_follows (
-    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    user_id    BIGINT UNSIGNED NOT NULL,
-    artist_id  BIGINT UNSIGNED NOT NULL,
+    id         BIGINT NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT NOT NULL,
+    artist_id  BIGINT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),

@@ -3,10 +3,10 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS return_requests (
-    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id             BIGINT NOT NULL AUTO_INCREMENT,
     return_no      VARCHAR(40)     NOT NULL UNIQUE COMMENT '반품 고유 번호',
-    order_id       BIGINT UNSIGNED NOT NULL,
-    user_id        BIGINT UNSIGNED NOT NULL,
+    order_id       BIGINT NOT NULL,
+    user_id        BIGINT NOT NULL,
     return_type    VARCHAR(20)     NOT NULL COMMENT 'RETURN | EXCHANGE',
     reason         VARCHAR(30)     NOT NULL COMMENT 'SIMPLE_CHANGE | DEFECT | WRONG_DELIVERY | OTHER',
     reason_detail  TEXT            DEFAULT NULL COMMENT '상세 사유',

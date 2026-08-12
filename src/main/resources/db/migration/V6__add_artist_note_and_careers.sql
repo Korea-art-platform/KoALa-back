@@ -8,8 +8,8 @@ ALTER TABLE artists
 
 -- 2. artist_careers 테이블 신규 생성
 CREATE TABLE IF NOT EXISTS artist_careers (
-    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    artist_id  BIGINT UNSIGNED NOT NULL,
+    id         BIGINT NOT NULL AUTO_INCREMENT,
+    artist_id  BIGINT NOT NULL,
     category   VARCHAR(20)     NOT NULL,   -- '학력' | '개인전' | '그룹전'
     year       INT             NOT NULL,
     content    VARCHAR(500)    NOT NULL,

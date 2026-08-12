@@ -3,7 +3,7 @@
 -- ============================================================
 
 CREATE TABLE artists (
-    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id                BIGINT NOT NULL AUTO_INCREMENT,
     artist_code       VARCHAR(40)     NOT NULL,
     name              VARCHAR(150)    NOT NULL,
     slug              VARCHAR(180)    NOT NULL,
@@ -51,9 +51,9 @@ CREATE TABLE artworks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE skus (
-    id                    BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    id                    BIGINT  NOT NULL AUTO_INCREMENT,
     sku_code              VARCHAR(40)      NOT NULL,
-    artist_id             BIGINT UNSIGNED  NOT NULL,
+    artist_id             BIGINT  NOT NULL,
     name                  VARCHAR(200)     NOT NULL,
     slug                  VARCHAR(220)     NOT NULL,
     description           LONGTEXT,
@@ -63,8 +63,8 @@ CREATE TABLE skus (
     list_price            DECIMAL(13,2)    NOT NULL DEFAULT 0.00,
     sale_price            DECIMAL(13,2),
     is_limited_edition    TINYINT(1)       NOT NULL DEFAULT 0,
-    edition_size          INT UNSIGNED,
-    edition_number        INT UNSIGNED,
+    edition_size          INT,
+    edition_number        INT,
     primary_image_url     VARCHAR(700),
     ar_asset_url          VARCHAR(700),
     ar_preview_image_url  VARCHAR(700),
@@ -126,7 +126,7 @@ CREATE TABLE sku_stock_ledger (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE users (
-    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id              BIGINT NOT NULL AUTO_INCREMENT,
     user_code       VARCHAR(40)     NOT NULL,
     email           VARCHAR(255)    NOT NULL,
     password_hash   VARCHAR(255)    NOT NULL,
@@ -189,9 +189,9 @@ CREATE TABLE cart_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE orders (
-    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id               BIGINT NOT NULL AUTO_INCREMENT,
     order_no         VARCHAR(40)     NOT NULL,
-    user_id          BIGINT UNSIGNED NOT NULL,
+    user_id          BIGINT NOT NULL,
     order_status     VARCHAR(30)     NOT NULL DEFAULT 'PENDING_PAYMENT',
     payment_status   VARCHAR(30)     NOT NULL DEFAULT 'READY',
     currency         CHAR(3)         NOT NULL DEFAULT 'KRW',
@@ -220,15 +220,15 @@ CREATE TABLE orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE order_items (
-    id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    order_id              BIGINT UNSIGNED NOT NULL,
-    sku_id                BIGINT UNSIGNED,
-    artist_id             BIGINT UNSIGNED,
+    id                    BIGINT NOT NULL AUTO_INCREMENT,
+    order_id              BIGINT NOT NULL,
+    sku_id                BIGINT,
+    artist_id             BIGINT,
     sku_code_snapshot     VARCHAR(40)     NOT NULL,
     artist_code_snapshot  VARCHAR(40),
     sku_name_snapshot     VARCHAR(200)    NOT NULL,
     artist_name_snapshot  VARCHAR(150),
-    quantity              INT UNSIGNED    NOT NULL DEFAULT 1,
+    quantity              INT    NOT NULL DEFAULT 1,
     unit_price            DECIMAL(13,2)   NOT NULL,
     discount_amount       DECIMAL(13,2)   NOT NULL DEFAULT 0.00,
     tax_amount            DECIMAL(13,2)   NOT NULL DEFAULT 0.00,
@@ -400,7 +400,7 @@ CREATE TABLE admin_roles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE admins (
-    id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id                   BIGINT NOT NULL AUTO_INCREMENT,
     admin_code           VARCHAR(40)     NOT NULL,
     login_id             VARCHAR(50)     NOT NULL,
     password_hash        VARCHAR(255)    NOT NULL,
