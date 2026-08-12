@@ -38,8 +38,11 @@ public class TossPaymentProvider implements PaymentProvider {
     private final Environment environment;
 
     /**
-     * 기동 시 시크릿 키 유효성 검증.
-     * 운영(prod) 프로필에서 테스트 키 사용 시 즉시 기동 실패.
+     * 기동 시 시크릿 키 검증.
+     *
+     * <p>키가 없으면 기동을 막는다. 테스트 키는 <b>경고만</b> 남긴다 —
+     * 아직 운영 키를 발급받지 못해, 막아 버리면 운영 배포 자체가 불가능하다.
+     * 운영 키를 받으면 prod 프로필에서 {@code test_sk_} 를 거부하도록 바꿔야 한다.
      */
     @PostConstruct
     void validateSecretKey() {
@@ -47,15 +50,13 @@ public class TossPaymentProvider implements PaymentProvider {
             throw new IllegalStateException(
                     "[Toss] toss.secret-key 가 설정되지 않았습니다. 환경변수 TOSS_SECRET_KEY 를 확인하세요.");
         }
-        // TODO: 실제 Toss 운영 키 발급 후 아래 주석 해제
-        // boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
-        // if (isProd && secretKey.startsWith("test_sk_")) {
-        //     throw new IllegalStateException(
-        //             "[Toss] 운영 환경에 테스트 시크릿 키(test_sk_*)를 사용할 수 없습니다. " +
-        //             "TOSS_SECRET_KEY 환경변수에 실제 운영 키를 설정하세요.");
-        // }
         if (secretKey.startsWith("test_sk_")) {
-            log.warn("[Toss] 테스트 시크릿 키 사용 중 — 운영 배포 전 실제 키로 교체 필요");
+            boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+            if (isProd) {
+                log.error("[Toss] ★운영 환경에서 테스트 시크릿 키 사용 중★ — 실결제가 이루어지지 않는다");
+            } else {
+                log.warn("[Toss] 테스트 시크릿 키 사용 중 — 운영 배포 전 실제 키로 교체 필요");
+            }
         }
     }
 
