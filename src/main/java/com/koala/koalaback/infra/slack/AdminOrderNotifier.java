@@ -2,6 +2,7 @@ package com.koala.koalaback.infra.slack;
 
 import com.koala.koalaback.domain.order.event.OrderCompletedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ import java.util.Locale;
  * <p>메시지에 필요한 값은 전부 이벤트 페이로드에서 온다. 여기서 DB 를 다시 읽지 않는다 —
  * 이 시점은 트랜잭션 밖이라 지연로딩 컬렉션에 접근할 수 없다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AdminOrderNotifier {
@@ -32,11 +34,23 @@ public class AdminOrderNotifier {
     private static final DateTimeFormatter TIME_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd HH:mm");
 
+    /**
+     * 주문 알림 발송.
+     *
+     * <p>여기서 예외가 나가면 <b>주문 확인 메일이 아예 나가지 않는다.</b>
+     * 커밋 후 리스너에서 이 메서드가 메일보다 먼저 호출되기 때문이다.
+     * 알림은 주문 처리의 결과이지 조건이 아니므로, 무슨 일이 있어도 삼킨다.
+     */
     public void notifyOrderCompleted(OrderCompletedEvent event) {
-        SlackNotifier slack = slackProvider.getIfAvailable();
-        if (slack == null) return;
+        try {
+            SlackNotifier slack = slackProvider.getIfAvailable();
+            if (slack == null) return;
 
-        slack.send(buildMessage(event));
+            slack.send(buildMessage(event));
+        } catch (Exception e) {
+            log.warn("관리자 주문 알림 실패 (주문은 정상): orderNo={}, error={}",
+                    event != null ? event.orderNo() : null, e.getMessage());
+        }
     }
 
     /** 슬랙 mrkdwn — 알림 목록에서 첫 줄만 보이므로 금액을 첫 줄에 둔다 */
