@@ -14,9 +14,14 @@
 -- 상품이 쓰고 있으면 절대 지우지 않는다.
 -- 지워 버리면 그 상품은 드롭다운에도, 메인 페이지 어느 섹션에도 걸리지 않는 미아가 된다.
 -- (지금은 해당 없지만, 이 스크립트가 다른 환경에서 돌 때를 위한 안전장치다)
+-- COLLATE 를 명시하는 이유:
+-- sku_categories 는 마이그레이션이 만들어 utf8mb4_0900_ai_ci 인데,
+-- skus 는 Hibernate 가 만들어 utf8mb4_unicode_ci 다. 두 컬럼을 그냥 비교하면
+-- "Illegal mix of collations" (1267) 로 실패한다.
+-- 같은 DB 안에서도 테이블마다 collation 이 다를 수 있다는 것을 전제해야 한다.
 DELETE FROM sku_categories
 WHERE type = 'SUB'
   AND code IN ('PAINTING', 'PRINT', 'PHOTOGRAPH', 'INSTALLATION', 'TEXTILE', 'OTHER')
   AND code NOT IN (
-      SELECT DISTINCT genre FROM skus WHERE genre IS NOT NULL
+      SELECT DISTINCT genre COLLATE utf8mb4_0900_ai_ci FROM skus WHERE genre IS NOT NULL
   );
