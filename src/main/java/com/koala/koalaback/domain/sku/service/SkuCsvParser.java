@@ -30,7 +30,15 @@ public class SkuCsvParser {
     // 엑셀이 utf-8 저장 시 파일 맨 앞에 붙이는 문자
     private static final String BOM = "\uFEFF";
 
-    @Value("${koala.csv.max-rows:5000}")
+    /**
+     * 한 번에 올릴 수 있는 최대 행 수.
+     *
+     * <p>CloudFront 응답 대기 상한(기본 30초)에 맞춘 값이다. 실측 1,000행 약 19초,
+     * 5,000행 약 95초. 상한을 넘기면 저장은 계속 진행되는데 CloudFront 가 먼저 끊어,
+     * <b>화면에는 실패로 보이면서 상품은 등록되는</b> 상태가 된다. 관리자는 실패한 줄 알고
+     * 다시 올리게 되고, 그러면 재고가 두 배로 쌓인다.
+     */
+    @Value("${koala.csv.max-rows:1000}")
     private int maxRows;
 
     public List<SkuCsvDto.Row> parse(InputStream in) {
