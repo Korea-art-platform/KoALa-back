@@ -5,6 +5,7 @@ import com.koala.koalaback.domain.order.dto.OrderDto;
 import com.koala.koalaback.domain.order.service.OrderService;
 import com.koala.koalaback.global.response.ApiResponse;
 import com.koala.koalaback.global.response.PageResponse;
+import com.koala.koalaback.infra.delivery.Carrier;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +14,9 @@ import org.springframework.data.domain.Sort;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin/api/v1/orders")
@@ -75,4 +79,20 @@ public class AdminOrderController {
         orderService.markDelivered(orderNo);
         return ApiResponse.ok();
     }
+
+    /**
+     * 운송장 등록 화면의 택배사 목록.
+     *
+     * <p>화면에 목록을 박아 두지 않고 서버에서 내려주는 이유는, 이 코드가 <b>조회 API 가 쓰는
+     * 값</b>이기 때문이다. 양쪽에 따로 적어 두면 한쪽만 고쳤을 때 운송장은 등록되는데
+     * 자동 추적만 조용히 멈춘다.
+     */
+    @GetMapping("/carriers")
+    public ApiResponse<List<CarrierResponse>> getCarriers() {
+        return ApiResponse.ok(Arrays.stream(Carrier.values())
+                .map(c -> new CarrierResponse(c.getCode(), c.getDisplayName()))
+                .toList());
+    }
+
+    public record CarrierResponse(String code, String name) {}
 }
