@@ -55,13 +55,22 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 새 jar 를 koalaback.jar 로 교체
+            set -u
+
+            # ── 직전 jar 를 보관한다 ────────────────────────────────────────
+            # 이게 없으면 새 jar 가 기동에 실패했을 때 되돌릴 것이 없다.
+            # 실제로 마이그레이션 하나가 깨져 서비스가 몇 시간 내려간 적이 있다.
+            if [ -f /opt/koala/koalaback.jar ]; then
+              cp -f /opt/koala/koalaback.jar /opt/koala/koalaback.jar.prev
+            fi
+
             mv /opt/koala/arsoback-0.0.1-SNAPSHOT.jar /opt/koala/koalaback.jar
 
-            # systemd 서비스 재시작
-            sudo systemctl restart koala
+            # ── 기동 확인 ──────────────────────────────────────────────────
+            # 재시작 루프가 돌면 판정이 흔들리므로 stop 후 start 한다.
+            sudo systemctl stop koala || true
+            sudo systemctl start koala
 
-            # 기동 확인 (최대 120초 대기)
             for i in $(seq 1 24); do
               sleep 5
               if curl -sf http://localhost:8080/actuator/health > /dev/null; then
@@ -71,6 +80,38 @@ jobs:
               echo "Waiting... ($i/24)"
             done
 
-            echo "Health check failed — 최근 로그:"
-            sudo journalctl -u koala -n 50 --no-pager
+            # ── 여기부터는 새 버전이 뜨지 못한 상황 ────────────────────────
+            echo "::error::기동 실패 — 이전 버전으로 되돌립니다"
+            sudo journalctl -u koala -n 60 --no-pager || true
+
+            if [ ! -f /opt/koala/koalaback.jar.prev ]; then
+              echo "이전 jar 가 없어 롤백할 수 없습니다 (최초 배포로 보임)"
+              sudo systemctl stop koala || true
+              exit 1
+            fi
+
+            # 재시작 루프를 먼저 끊는다. 살아 있는 채로 두면 깨진 버전이
+            # 계속 올라오면서 마이그레이션 실패 기록을 다시 만든다.
+            sudo systemctl stop koala || true
+
+            # 실패한 마이그레이션 기록을 지운다. 남겨 두면 이전 버전마저 기동하지 못한다.
+            # 스키마는 건드리지 않는다 — '실패했다'는 기록 행만 지운다.
+            sudo docker exec koala-mysql sh -c \
+              'mysql -uroot -p$MYSQL_ROOT_PASSWORD koala -e "DELETE FROM flyway_schema_history WHERE success = 0;"' \
+              2>/dev/null || echo "마이그레이션 기록 정리 생략(해당 없음)"
+
+            cp -f /opt/koala/koalaback.jar.prev /opt/koala/koalaback.jar
+            sudo systemctl start koala
+
+            for i in $(seq 1 24); do
+              sleep 5
+              if curl -sf http://localhost:8080/actuator/health > /dev/null; then
+                echo "::error::롤백 완료 — 서비스는 이전 버전으로 복구되었습니다. 이번 변경은 반영되지 않았습니다."
+                exit 1
+              fi
+              echo "Rollback waiting... ($i/24)"
+            done
+
+            echo "::error::롤백도 실패 — 수동 확인이 필요합니다"
+            sudo journalctl -u koala -n 60 --no-pager || true
             exit 1
