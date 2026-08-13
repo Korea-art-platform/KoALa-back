@@ -1,7 +1,9 @@
 package com.koala.koalaback.global.exception;
 
+import com.koala.koalaback.infra.slack.ServerErrorAlerter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +16,11 @@ import java.util.List;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    /** 500 만 알린다. 4xx 는 대부분 잘못된 요청이라 알림 가치가 없다 */
+    private final ServerErrorAlerter serverErrorAlerter;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e, HttpServletRequest req) {
@@ -77,6 +83,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnknown(Exception e, HttpServletRequest req) {
         log.error("[500] {} {} — {}: {}", req.getMethod(), req.getRequestURI(),
                 e.getClass().getSimpleName(), e.getMessage(), e);
+        serverErrorAlerter.report(e, req.getMethod(), req.getRequestURI());
         ErrorCode ec = ErrorCode.INTERNAL_ERROR;
         return ResponseEntity
                 .status(ec.getStatus())

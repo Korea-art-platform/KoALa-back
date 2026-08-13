@@ -115,3 +115,31 @@ jobs:
             echo "::error::롤백도 실패 — 수동 확인이 필요합니다"
             sudo journalctl -u koala -n 60 --no-pager || true
             exit 1
+
+      # ── 7. 실패했을 때만 슬랙으로 알린다 ────────────────────────────────────
+      # 성공은 알리지 않는다. 애플리케이션이 기동하면서 스스로 기동 알림을 보내므로
+      # 여기서 또 보내면 배포 한 번에 알림이 두 개 올라온다.
+      #
+      # 워크플로가 여기까지 온 경우는 셋 중 하나다 — 빌드 실패, 전송 실패,
+      # 그리고 기동 실패(롤백에 성공했더라도 이 워크플로는 실패로 끝난다).
+      # 어느 쪽이든 사람이 봐야 한다.
+      - name: Notify deploy failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # 시크릿이 등록돼 있지 않으면 조용히 넘어간다.
+          # 알림을 못 보내는 것 때문에 배포 로그에 또 다른 실패를 남길 이유가 없다.
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "SLACK_WEBHOOK_URL 시크릿이 없어 알림을 생략합니다"
+            exit 0
+          fi
+
+          TEXT="🚨 *배포 실패* \`${GITHUB_REF_NAME}\`
+          커밋 \`${GITHUB_SHA:0:7}\` · ${GITHUB_ACTOR}
+          <${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|실행 로그 보기>
+          _기동 실패였다면 이전 버전으로 롤백돼 서비스는 살아 있습니다._"
+
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "$(jq -n --arg text "$TEXT" '{text: $text}')" \
+            "$SLACK_WEBHOOK_URL" > /dev/null || echo "슬랙 알림 발송 실패"
