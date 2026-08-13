@@ -62,9 +62,10 @@ public class ReturnRequestTransactionService {
         }
 
         // 환불 금액: 명시하면 그 금액, 없으면 전액
-        BigDecimal refundAmt = req.getRefundAmount() != null
-                ? req.getRefundAmount()
-                : returnRequest.getOrder().getTotalAmount();
+        BigDecimal orderTotal = returnRequest.getOrder().getTotalAmount();
+        BigDecimal refundAmt = req.getRefundAmount() != null ? req.getRefundAmount() : orderTotal;
+
+        validateRefundAmount(refundAmt, orderTotal);
 
         returnRequest.approve(refundAmt, req.getAdminMemo());
 
@@ -88,6 +89,24 @@ public class ReturnRequestTransactionService {
                 .orElse(null);
 
         return new ReturnDecision(refundPaymentNo, refundAmt);
+    }
+
+    /**
+     * 환불 금액 검증.
+     *
+     * <p>이 값은 <b>관리자가 직접 입력</b>하고 그대로 PG 로 넘어가 돈이 나간다.
+     * 결제 승인은 고객이 낸 금액과 대조할 수 있지만 환불은 대조할 상대가 주문 총액뿐이라,
+     * 여기서 막지 않으면 숫자를 하나 잘못 눌러도 그대로 나간다.
+     */
+    private void validateRefundAmount(BigDecimal refundAmount, BigDecimal orderTotal) {
+        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "환불 금액은 1원 이상이어야 합니다.");
+        }
+        if (refundAmount.compareTo(orderTotal) > 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "환불 금액이 주문 금액(" + orderTotal.toPlainString() + "원)을 넘을 수 없습니다.");
+        }
     }
 
     @Transactional(readOnly = true)

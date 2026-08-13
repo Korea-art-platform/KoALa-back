@@ -168,6 +168,17 @@ public class PaymentTransactionService {
         BigDecimal cancelAmount = req.getCancelAmount() != null
                 ? req.getCancelAmount() : payment.getApprovedAmount();
 
+        // 승인 금액보다 많이 돌려줄 수는 없다. 반품 쪽에서 한 번 걸러지지만
+        // 환불 경로가 그것만은 아니므로 돈이 나가는 지점에서 한 번 더 막는다.
+        if (cancelAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "환불 금액은 1원 이상이어야 합니다.");
+        }
+        if (cancelAmount.compareTo(payment.getApprovedAmount()) > 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "환불 금액이 승인 금액(" + payment.getApprovedAmount().toPlainString() + "원)을 넘을 수 없습니다.");
+        }
+
         payment.markCancelInProgress();
         recordEvent(payment, "CANCEL_REQUESTED", "PENDING", cancelAmount, null, null);
 

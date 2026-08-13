@@ -1,9 +1,12 @@
 package com.koala.koalaback.domain.returnrequest.dto;
 
 import com.koala.koalaback.domain.returnrequest.entity.ReturnRequest;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,13 +28,22 @@ public class ReturnRequestDto {
     }
 
     /** 관리자 처리 (승인/거절) */
-    @Getter
+    @Getter @Setter
     public static class AdminProcessRequest {
         @NotBlank
-        private String action;       // APPROVE | REJECT
+        @Pattern(regexp = "APPROVE|REJECT", message = "action 은 APPROVE 또는 REJECT 여야 합니다.")
+        private String action;
 
-        private BigDecimal refundAmount; // 승인 시 환불 금액 (null = 전액)
-        private String adminMemo;        // 처리 메모
+        /**
+         * 승인 시 환불 금액. 비우면 전액.
+         *
+         * <p>상한(주문 총액)은 값을 알아야 검사할 수 있어 서비스에서 본다.
+         * 여기서는 형식만 막는다 — 0 이하는 어떤 주문에서도 말이 되지 않는다.
+         */
+        @DecimalMin(value = "1", message = "환불 금액은 1원 이상이어야 합니다.")
+        private BigDecimal refundAmount;
+
+        private String adminMemo;
     }
 
     @Getter
