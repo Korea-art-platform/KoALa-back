@@ -8,11 +8,16 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,8 +42,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("마이그레이션 체인")
 class MigrationChainTest {
 
-    /** 운영에 실제로 적용된 마지막 버전 */
-    private static final String LATEST_VERSION = "22";
+    /**
+     * 기대 버전을 상수로 박지 않고 <b>마이그레이션 파일에서 읽는다.</b>
+     *
+     * <p>박아 두면 마이그레이션을 추가할 때마다 이 숫자도 같이 고쳐야 하고,
+     * 잊으면 <b>체인은 멀쩡한데 테스트만 빨갛게</b> 뜬다. 그러면 진짜 고장과
+     * 숫자 갱신을 잊은 것을 구분할 수 없어 결국 이 테스트를 믿지 않게 된다.
+     */
+    private static String expectedLatestVersion() {
+        Pattern versionPattern = Pattern.compile("^V(\\d+)__");
+        try (var files = Files.list(Path.of("src/main/resources/db/migration"))) {
+            return files.map(p -> p.getFileName().toString())
+                    .map(versionPattern::matcher)
+                    .filter(Matcher::find)
+                    .map(m -> Integer.parseInt(m.group(1)))
+                    .max(Integer::compareTo)
+                    .map(String::valueOf)
+                    .orElseThrow(() -> new IllegalStateException("마이그레이션 파일을 찾지 못했다"));
+        } catch (IOException e) {
+            throw new IllegalStateException("마이그레이션 디렉터리를 읽지 못했다", e);
+        }
+    }
 
     @Test
     @DisplayName("빈 DB 에 V1 부터 끝까지 순서대로 적용된다")
@@ -66,8 +90,8 @@ class MigrationChainTest {
                             .isFalse());
 
             assertThat(flyway.info().current().getVersion().toString())
-                    .as("마지막 버전")
-                    .isEqualTo(LATEST_VERSION);
+                    .as("마지막 버전 — 파일에 있는 최신 마이그레이션까지 적용됐는가")
+                    .isEqualTo(expectedLatestVersion());
         }
     }
 
@@ -91,7 +115,7 @@ class MigrationChainTest {
                     "users", "admins", "artists", "skus", "sku_media", "sku_stock_ledger",
                     "carts", "cart_items", "orders", "order_items", "order_shipments",
                     "payments", "payment_events", "return_requests",
-                    "notices", "inquiries", "sku_categories");
+                    "notices", "inquiries", "sku_categories", "artist_settlements");
         }
     }
 
