@@ -2,6 +2,7 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.entity.SkuStockLedger;
+import com.koala.koalaback.domain.sku.event.StockDepletedEvent;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import com.koala.koalaback.domain.sku.repository.SkuStockLedgerRepository;
 import com.koala.koalaback.global.exception.BusinessException;
@@ -11,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class StockService {
     private final SkuRepository skuRepository;
     private final StockCacheService stockCacheService;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 재고 조회 — Redis 캐시 우선, 없으면 DB 집계
@@ -101,6 +104,10 @@ public class StockService {
 
         if (current - quantity == 0) {
             sku.markOutOfStock();
+            // 커밋 이후에 알린다 — 롤백되면 재고는 그대로인데 품절 알림만 나간다
+            eventPublisher.publishEvent(new StockDepletedEvent(
+                    sku.getSkuCode(), sku.getName(),
+                    sku.getArtist() != null ? sku.getArtist().getName() : null));
         }
     }
 

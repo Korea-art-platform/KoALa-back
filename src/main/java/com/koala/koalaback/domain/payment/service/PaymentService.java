@@ -13,6 +13,7 @@ import com.koala.koalaback.domain.payment.repository.PaymentRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import com.koala.koalaback.global.util.CodeGenerator;
+import com.koala.koalaback.infra.slack.AdminAlertNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,8 @@ public class PaymentService {
     private final List<PaymentProvider> providers;
     private final ObjectMapper objectMapper;
     private final PaymentTransactionService paymentTransactionService;
+    /** 돈이 붕 뜬 상태를 사람에게 알린다 — 지금까지는 서버 로그에만 남았다 */
+    private final AdminAlertNotifier adminAlertNotifier;
 
     @Transactional
     public PaymentDto.PrepareResponse prepare(Long userId, PaymentDto.PrepareRequest req) {
@@ -165,6 +168,8 @@ public class PaymentService {
             // 거래번호가 없으면 취소를 호출할 방법이 없다
             log.error("★수동 확인 필요★ 거래번호가 없어 보상 취소 불가 — orderNo={}, amount={}",
                     ctx.orderNo(), amount);
+            adminAlertNotifier.notifyManualRefundNeeded(
+                    ctx.orderNo(), amount, null, "거래번호가 없어 취소를 호출할 수 없습니다.");
             recordSafely(() -> paymentTransactionService.applyConfirmInDoubt(
                     ctx.paymentId(), "COMPENSATE_NO_TX_ID", "저장 실패 후 거래번호 없어 취소 불가"));
             return;
@@ -194,6 +199,9 @@ public class PaymentService {
                         + "orderNo={}, pgTransactionId={}, amount={}, code={}, message={}",
                 ctx.orderNo(), pgTransactionId, amount,
                 cancelResult.failureCode(), cancelResult.failureMessage());
+
+        adminAlertNotifier.notifyManualRefundNeeded(
+                ctx.orderNo(), amount, pgTransactionId, cancelResult.failureMessage());
 
         recordSafely(() -> paymentTransactionService.applyConfirmInDoubt(
                 ctx.paymentId(), "COMPENSATE_FAILED", "저장 실패 후 보상 취소도 실패했습니다."));
@@ -257,6 +265,8 @@ public class PaymentService {
 
         paymentTransactionService.applyConfirmInDoubt(
                 ctx.paymentId(), result.failureCode(), result.failureMessage());
+        adminAlertNotifier.notifyPaymentInDoubt(
+                ctx.orderNo(), ctx.amount(), "PG 재조회 실패 — 승인 여부를 알 수 없습니다.");
         throw new BusinessException(ErrorCode.PAYMENT_IN_DOUBT);
     }
 
@@ -298,6 +308,8 @@ public class PaymentService {
             // 되돌리면 재시도로 이중 환불이 날 수 있어 IN_DOUBT 로 잠근다.
             paymentTransactionService.applyCancelInDoubt(
                     ctx.paymentId(), ctx.cancelAmount(), result.failureMessage());
+            adminAlertNotifier.notifyCancelInDoubt(
+                    paymentNo, ctx.cancelAmount(), result.failureMessage());
             throw new BusinessException(ErrorCode.PAYMENT_IN_DOUBT);
         }
 

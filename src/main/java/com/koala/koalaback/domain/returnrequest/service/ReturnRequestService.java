@@ -7,6 +7,7 @@ import com.koala.koalaback.domain.payment.repository.PaymentRepository;
 import com.koala.koalaback.domain.payment.service.PaymentService;
 import com.koala.koalaback.domain.returnrequest.dto.ReturnRequestDto;
 import com.koala.koalaback.domain.returnrequest.entity.ReturnRequest;
+import com.koala.koalaback.domain.returnrequest.event.ReturnRequestedEvent;
 import com.koala.koalaback.domain.returnrequest.repository.ReturnRequestRepository;
 import com.koala.koalaback.domain.sku.service.StockService;
 import com.koala.koalaback.domain.user.entity.User;
@@ -17,6 +18,7 @@ import com.koala.koalaback.global.response.PageResponse;
 import com.koala.koalaback.global.util.CodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -38,6 +40,7 @@ public class ReturnRequestService {
     private final PaymentService paymentService;
     private final StockService stockService;
     private final CodeGenerator codeGenerator;
+    private final ApplicationEventPublisher eventPublisher;
     /** 반품 처리의 DB 단계 — 자기호출을 피하려고 별도 빈으로 분리했다 */
     private final ReturnRequestTransactionService returnRequestTransactionService;
 
@@ -73,6 +76,11 @@ public class ReturnRequestService {
         returnRequestRepository.save(returnRequest);
         log.info("Return request created: returnNo={}, orderNo={}, userId={}",
                 returnRequest.getReturnNo(), req.getOrderNo(), userId);
+
+        // 커밋 이후에 관리자 알림이 나간다 — 어드민을 열어 보지 않아도 접수를 알 수 있게
+        eventPublisher.publishEvent(new ReturnRequestedEvent(
+                returnRequest.getReturnNo(), order.getOrderNo(),
+                req.getReturnType(), req.getReason(), order.getOrdererName()));
 
         return ReturnRequestDto.ReturnResponse.from(returnRequest);
     }

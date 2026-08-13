@@ -8,6 +8,7 @@ import com.koala.koalaback.domain.order.repository.OrderRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import com.koala.koalaback.global.util.CodeGenerator;
+import com.koala.koalaback.infra.slack.AdminAlertNotifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +53,7 @@ class PaymentConfirmPolicyTest {
     @Mock private ObjectMapper objectMapper;
     @Mock private PaymentTransactionService paymentTransactionService;
     @Mock private PaymentProvider provider;
+    @Mock private AdminAlertNotifier adminAlertNotifier;
 
     private PaymentService paymentService;
     private PaymentDto.ConfirmRequest request;
@@ -62,7 +64,8 @@ class PaymentConfirmPolicyTest {
 
         paymentService = new PaymentService(
                 paymentRepository, paymentEventRepository, orderRepository,
-                codeGenerator, List.of(provider), objectMapper, paymentTransactionService);
+                codeGenerator, List.of(provider), objectMapper, paymentTransactionService,
+                adminAlertNotifier);
 
         request = mock(PaymentDto.ConfirmRequest.class);
 
