@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 public class ReturnRequestDto {
 
-    @Getter
+    @Getter @Setter
     public static class CreateRequest {
         @NotBlank
         private String orderNo;      // 반품 대상 주문번호

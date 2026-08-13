@@ -188,12 +188,16 @@ public class SecurityConfig {
 
         if (isProd) {
             // 프로덕션: 실제 도메인만 허용 (localhost 제외)
+            //
+            // 앱인토스 출처(*.toss.im)는 제거했다. 연동 자체가 철회되어 쓰는 곳이 없는데,
+            // 와일드카드 출처는 그 도메인 아래 아무 서브도메인에서나 인증 쿠키를 실어
+            // 우리 API 를 부를 수 있게 열어 둔다. 쓰지 않는 문은 닫아 둔다.
             config.setAllowedOriginPatterns(List.of(
                     "https://koala-art.co.kr",
                     "https://www.koala-art.co.kr",
-                    "capacitor://localhost",        // Capacitor 모바일 앱 (네이티브 WebView)
-                    "https://*.toss.im",            // 앱인토스 미니앱 WebView
-                    "https://*.apps-in-toss.toss.im" // 앱인토스 CDN
+                    // 모바일 앱은 현재 계획이 없지만 KoALa-mobile 저장소가 남아 있어 유지한다.
+                    // 고정 스킴이라 와일드카드처럼 넓게 열리지 않는다.
+                    "capacitor://localhost"
             ));
         } else {
             // 로컬/개발: localhost 개발 서버 허용
