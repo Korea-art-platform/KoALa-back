@@ -59,6 +59,7 @@ public class BannerService {
                 .description(req.getDescription())
                 .imageUrl(req.getImageUrl())
                 .mobileImageUrl(req.getMobileImageUrl())
+                .videoUrl(req.getVideoUrl())
                 .linkUrl(req.getLinkUrl())
                 .linkTarget(req.getLinkTarget())
                 .bgColor(req.getBgColor())
@@ -80,7 +81,7 @@ public class BannerService {
 
         banner.update(req.getTitle(), req.getSubtitle(),
                 req.getBadge(), req.getDescription(),
-                req.getImageUrl(), req.getMobileImageUrl(),
+                req.getImageUrl(), req.getMobileImageUrl(), req.getVideoUrl(),
                 req.getLinkUrl(), req.getLinkTarget(),
                 req.getBgColor(), req.getTextColor(),
                 req.getSortOrder(), req.getVisibleFrom(),

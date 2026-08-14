@@ -32,6 +32,8 @@ public class BannerDto {
         @Size(max = 700)
         private String mobileImageUrl;
 
+        private String videoUrl;
+
         @Size(max = 700)
         private String linkUrl;
 
@@ -63,6 +65,8 @@ public class BannerDto {
         @Size(max = 700)
         private String mobileImageUrl;
 
+        private String videoUrl;
+
         @Size(max = 700)
         private String linkUrl;
 
@@ -86,6 +90,8 @@ public class BannerDto {
         private String description;
         private String imageUrl;
         private String mobileImageUrl;
+
+        private String videoUrl;
         private String linkUrl;
         private String linkTarget;
         private String bgColor;
@@ -107,6 +113,7 @@ public class BannerDto {
                     .description(b.getDescription())
                     .imageUrl(b.getImageUrl())
                     .mobileImageUrl(b.getMobileImageUrl())
+                    .videoUrl(b.getVideoUrl())
                     .linkUrl(b.getLinkUrl())
                     .linkTarget(b.getLinkTarget())
                     .bgColor(b.getBgColor())

@@ -40,6 +40,9 @@ public class Banner extends BaseTimeEntity {
     private String mobileImageUrl;
 
     @Column(length = 700)
+    private String videoUrl;
+
+    @Column(length = 700)
     private String linkUrl;
 
     @Column(nullable = false, length = 20)
@@ -73,7 +76,8 @@ public class Banner extends BaseTimeEntity {
     @Builder
     public Banner(String bannerCode, String bannerType, String title, String subtitle,
                   String badge, String description,
-                  String imageUrl, String mobileImageUrl, String linkUrl, String linkTarget,
+                  String imageUrl, String mobileImageUrl, String videoUrl,
+                  String linkUrl, String linkTarget,
                   String bgColor, String textColor, Integer sortOrder,
                   LocalDateTime visibleFrom, LocalDateTime visibleTo, Admin createdByAdmin) {
         this.bannerCode = bannerCode;
@@ -84,6 +88,7 @@ public class Banner extends BaseTimeEntity {
         this.description = description;
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
+        this.videoUrl = videoUrl;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget != null ? linkTarget : "SELF";
         this.bgColor = bgColor;
@@ -96,7 +101,8 @@ public class Banner extends BaseTimeEntity {
     }
 
     public void update(String title, String subtitle, String badge, String description,
-                       String imageUrl, String mobileImageUrl, String linkUrl, String linkTarget,
+                       String imageUrl, String mobileImageUrl, String videoUrl,
+                       String linkUrl, String linkTarget,
                        String bgColor, String textColor, Integer sortOrder,
                        LocalDateTime visibleFrom, LocalDateTime visibleTo,
                        Admin updatedByAdmin) {
@@ -106,6 +112,7 @@ public class Banner extends BaseTimeEntity {
         this.description = description;
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
+        this.videoUrl = videoUrl;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget;
         this.bgColor = bgColor;
@@ -117,6 +124,8 @@ public class Banner extends BaseTimeEntity {
     }
 
     public void updateImageUrl(String url) { this.imageUrl = url; }
+
+    public void updateVideoUrl(String url) { this.videoUrl = url; }
 
     public void activate()   { this.isActive = true; }
     public void deactivate() { this.isActive = false; }
