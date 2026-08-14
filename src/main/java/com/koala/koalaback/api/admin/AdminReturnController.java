@@ -17,28 +17,23 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminReturnController {
-
     private final ReturnRequestService returnRequestService;
 
-    /** 전체 반품/교환 목록 — status 필터 지원 (없으면 전체) */
     @GetMapping
     public ApiResponse<PageResponse<ReturnRequestDto.ReturnResponse>> getReturns(
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
-
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ApiResponse.ok(returnRequestService.getAdminReturnRequests(status, pageable));
     }
 
-    /** 반품 상세 조회 */
     @GetMapping("/{returnNo}")
     public ApiResponse<ReturnRequestDto.ReturnResponse> getReturn(
             @PathVariable String returnNo) {
         return ApiResponse.ok(returnRequestService.getAdminReturnDetail(returnNo));
     }
 
-    /** 승인 또는 거절 처리 */
     @PatchMapping("/{returnNo}/process")
     public ApiResponse<ReturnRequestDto.ReturnResponse> processReturn(
             @PathVariable String returnNo,
@@ -46,7 +41,6 @@ public class AdminReturnController {
         return ApiResponse.ok(returnRequestService.processReturnRequest(returnNo, req));
     }
 
-    /** 완료 처리 (교환 완료 등) */
     @PatchMapping("/{returnNo}/complete")
     public ApiResponse<ReturnRequestDto.ReturnResponse> completeReturn(
             @PathVariable String returnNo) {

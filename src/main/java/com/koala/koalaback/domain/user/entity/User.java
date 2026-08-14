@@ -15,7 +15,6 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(exclude = "addresses")
 public class User extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -37,13 +36,13 @@ public class User extends BaseTimeEntity {
     private String phone;
 
     @Column(nullable = false, length = 20)
-    private String status;  // ACTIVE, INACTIVE, SUSPENDED
+    private String status;
 
     @Column(length = 20)
-    private String oauthProvider;   // KAKAO, NAVER (일반 회원은 null)
+    private String oauthProvider;
 
     @Column(length = 100)
-    private String oauthId;         // 소셜 로그인 고유 ID
+    private String oauthId;
 
     private LocalDateTime lastLoginAt;
     private LocalDateTime deletedAt;
@@ -57,8 +56,6 @@ public class User extends BaseTimeEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAddress> addresses = new ArrayList<>();
 
-    // ── 일반 회원가입용 Builder ───────────────────────────
-
     @Builder
     public User(String userCode, String email, String passwordHash,
                 String name, String phone) {
@@ -69,8 +66,6 @@ public class User extends BaseTimeEntity {
         this.phone = phone;
         this.status = "ACTIVE";
     }
-
-    // ── 소셜 로그인용 Builder ─────────────────────────────
 
     public static User createOAuthUser(String userCode, String email, String name, String oauthProvider, String oauthId) {
         User user = new User();
@@ -83,8 +78,6 @@ public class User extends BaseTimeEntity {
         user.status = "ACTIVE";
         return user;
     }
-
-    // ── 메서드 ────────────────────────────────────────────
 
     public void updateProfile(String name, String phone) {
         this.name = name;
@@ -113,12 +106,10 @@ public class User extends BaseTimeEntity {
         this.status = "INACTIVE";
     }
 
-    /** 앱인토스 연결 해제 처리 */
     public void disconnectToss() {
         this.tossDisconnectedAt = LocalDateTime.now();
     }
 
-    /** FCM 토큰 저장/갱신 */
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }

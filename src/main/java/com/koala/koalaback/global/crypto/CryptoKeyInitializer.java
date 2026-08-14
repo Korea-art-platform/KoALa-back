@@ -5,14 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * 앱 기동 시 PII 암호화 키를 {@link AesGcmCryptoConverter}에 주입한다.
- * 키는 환경변수 PII_ENCRYPTION_KEY (Base64, 32바이트) 로 주입.
- */
 @Slf4j
 @Configuration
 public class CryptoKeyInitializer {
-
     @Value("${pii.encryption.key:}")
     private String piiKey;
 

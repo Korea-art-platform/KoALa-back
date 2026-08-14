@@ -27,7 +27,6 @@ import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ReviewServiceTest {
-
     @InjectMocks
     private ReviewService reviewService;
 
@@ -39,7 +38,6 @@ class ReviewServiceTest {
     @Test
     @DisplayName("리뷰 작성 성공")
     void createReview_success() {
-        // given
         Long userId = 1L;
         ReviewDto.CreateRequest req = mock(ReviewDto.CreateRequest.class);
         given(req.getOrderItemId()).willReturn(1L);
@@ -63,10 +61,8 @@ class ReviewServiceTest {
         given(codeGenerator.generateReviewCode()).willReturn("REV-TESTCODE");
         given(skuReviewRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-        // when
         ReviewDto.ReviewResponse result = reviewService.createReview(userId, req);
 
-        // then
         assertThat(result).isNotNull();
         assertThat(result.getReviewCode()).isEqualTo("REV-TESTCODE");
         then(orderItem).should().markReviewWritten();
@@ -75,13 +71,11 @@ class ReviewServiceTest {
     @Test
     @DisplayName("리뷰 작성 실패 — 이미 작성된 리뷰")
     void createReview_fail_already_exists() {
-        // given
         Long userId = 1L;
         ReviewDto.CreateRequest req = mock(ReviewDto.CreateRequest.class);
         given(req.getOrderItemId()).willReturn(1L);
         given(skuReviewRepository.existsByOrderItemId(1L)).willReturn(true);
 
-        // when & then
         assertThatThrownBy(() -> reviewService.createReview(userId, req))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
@@ -91,12 +85,11 @@ class ReviewServiceTest {
     @Test
     @DisplayName("리뷰 삭제 실패 — 본인 리뷰 아님")
     void deleteReview_fail_not_owner() {
-        // given
         Long userId = 1L;
         String reviewCode = "REV-001";
 
         User anotherUser = mock(User.class);
-        given(anotherUser.getId()).willReturn(99L); // 다른 유저
+        given(anotherUser.getId()).willReturn(99L);
 
         SkuReview review = mock(SkuReview.class);
         given(review.getUser()).willReturn(anotherUser);
@@ -104,7 +97,6 @@ class ReviewServiceTest {
         given(skuReviewRepository.findByReviewCode(reviewCode))
                 .willReturn(Optional.of(review));
 
-        // when & then
         assertThatThrownBy(() -> reviewService.deleteReview(userId, reviewCode))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())

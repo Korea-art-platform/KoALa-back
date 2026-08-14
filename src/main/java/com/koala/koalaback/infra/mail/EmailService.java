@@ -18,12 +18,8 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 public class EmailService {
-
     private final JavaMailSender mailSender;
 
-    // ── 주문 완료 알림 ─────────────────────────────────────────
-
-    /** 주문 확정(결제 완료) 시 고객에게 발송되는 확인 이메일 */
     @Async
     public void sendOrderConfirmEmail(OrderConfirmData data) {
         try {
@@ -41,7 +37,6 @@ public class EmailService {
         }
     }
 
-    /** 주문 확인 이메일에 담을 데이터 */
     public record OrderConfirmData(
             String toEmail,
             String ordererName,
@@ -148,8 +143,6 @@ public class EmailService {
                 fmt.format(data.totalAmount())
         );
     }
-
-    // ── 비밀번호 재설정 ────────────────────────────────────────
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String token) {

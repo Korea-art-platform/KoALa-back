@@ -21,13 +21,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BannerService {
-
     private final BannerRepository bannerRepository;
     private final AdminService adminService;
     private final CodeGenerator codeGenerator;
     private final StorageUploader storageUploader;
-
-    // ── 유저 공개 조회 ────────────────────────────────────
 
     public List<BannerDto.BannerResponse> getVisibleBanners(String bannerType) {
         return bannerRepository
@@ -36,8 +33,6 @@ public class BannerService {
                 .map(BannerDto.BannerResponse::from)
                 .toList();
     }
-
-    // ── 어드민 조회 ───────────────────────────────────────
 
     public List<BannerDto.BannerResponse> getAllBanners() {
         return bannerRepository.findByDeletedAtIsNullOrderBySortOrderAsc()
@@ -49,8 +44,6 @@ public class BannerService {
     public BannerDto.BannerResponse getBanner(String bannerCode) {
         return BannerDto.BannerResponse.from(getBannerEntityByCode(bannerCode));
     }
-
-    // ── 어드민 CRUD ───────────────────────────────────────
 
     @Transactional
     public BannerDto.BannerResponse createBanner(Long adminId,
@@ -111,16 +104,14 @@ public class BannerService {
         getBannerEntityByCode(bannerCode).softDelete();
     }
 
-    /** 이미지 파일 업로드 → URL 반환 (배너 생성 전 미리 업로드용) */
     public String uploadImage(MultipartFile file) {
         return storageUploader.upload(file, "banners");
     }
 
-    /** 기존 배너 이미지 교체 */
     @Transactional
     public BannerDto.BannerResponse updateImage(String bannerCode, MultipartFile file) {
         Banner banner = getBannerEntityByCode(bannerCode);
-        // 기존 이미지 삭제 시도 (로컬 파일이면 삭제, S3/외부 URL이면 무시)
+
         if (banner.getImageUrl() != null && !banner.getImageUrl().isBlank()) {
             storageUploader.delete(banner.getImageUrl());
         }
@@ -128,8 +119,6 @@ public class BannerService {
         banner.updateImageUrl(newUrl);
         return BannerDto.BannerResponse.from(banner);
     }
-
-    // ── Private helpers ───────────────────────────────────
 
     private Banner getBannerEntityByCode(String bannerCode) {
         return bannerRepository.findByBannerCode(bannerCode)

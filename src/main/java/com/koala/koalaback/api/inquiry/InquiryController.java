@@ -18,10 +18,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class InquiryController {
-
     private final InquiryService inquiryService;
 
-    /** 문의 등록 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<InquiryDto.InquiryResponse> create(
@@ -30,7 +28,6 @@ public class InquiryController {
         return ApiResponse.ok(inquiryService.createInquiry(userId, req));
     }
 
-    /** 내 문의 목록 */
     @GetMapping
     public ApiResponse<PageResponse<InquiryDto.InquiryResponse>> myList(
             @AuthenticationPrincipal Long userId,
@@ -40,7 +37,6 @@ public class InquiryController {
                 PageRequest.of(page, size, Sort.by("createdAt").descending())));
     }
 
-    /** 내 문의 상세 */
     @GetMapping("/{inquiryCode}")
     public ApiResponse<InquiryDto.InquiryResponse> myDetail(
             @AuthenticationPrincipal Long userId,
@@ -48,7 +44,6 @@ public class InquiryController {
         return ApiResponse.ok(inquiryService.getMyInquiry(userId, inquiryCode));
     }
 
-    /** 문의 삭제 (답변 전만) */
     @DeleteMapping("/{inquiryCode}")
     public ApiResponse<Void> delete(
             @AuthenticationPrincipal Long userId,

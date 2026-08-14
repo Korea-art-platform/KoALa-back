@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderItem {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

@@ -12,7 +12,6 @@ import java.util.Map;
 
 @Getter
 public class CustomOAuth2User implements OAuth2User {
-
     private final User user;
     private final Map<String, Object> attributes;
 

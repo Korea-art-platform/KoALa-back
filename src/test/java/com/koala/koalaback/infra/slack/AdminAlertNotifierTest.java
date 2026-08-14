@@ -16,16 +16,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-/**
- * 운영 알림 — 메시지 내용과, <b>알림이 업무 흐름을 막지 않는다</b>는 보장.
- *
- * <p>두 번째가 더 중요하다. 이 알림들은 전부 되돌릴 수 없는 자리에서 호출된다.
- * 결제는 이미 승인됐고, 반품은 이미 저장됐다. 여기서 예외가 새어 나가면
- * 알림이 없는 것보다 나쁜 상태가 된다.
- */
 @DisplayName("운영 알림")
 class AdminAlertNotifierTest {
-
     @SuppressWarnings("unchecked")
     private final ObjectProvider<SlackNotifier> provider = mock(ObjectProvider.class);
     private final AdminAlertNotifier notifier = new AdminAlertNotifier(provider);
@@ -33,7 +25,6 @@ class AdminAlertNotifierTest {
     @Nested
     @DisplayName("메시지 내용")
     class MessageContent {
-
         @Test
         @DisplayName("반품 신청 — 접수번호·주문번호·신청자·사유가 들어간다")
         void returnRequested() {
@@ -117,7 +108,6 @@ class AdminAlertNotifierTest {
     @Nested
     @DisplayName("알림 실패가 업무를 막지 않는다")
     class NeverBreaksCallerFlow {
-
         @Test
         @DisplayName("슬랙이 꺼져 있으면(빈 없음) 조용히 통과한다")
         void slackDisabled() {
@@ -154,7 +144,6 @@ class AdminAlertNotifierTest {
             SlackNotifier slack = mock(SlackNotifier.class);
             given(provider.getIfAvailable()).willReturn(slack);
 
-            // returnType 이 null 이어도 조립이 터지지 않아야 하고, 터지더라도 새어 나가면 안 된다
             assertThatCode(() -> notifier.notifyReturnRequested(null, null, null, null, null))
                     .doesNotThrowAnyException();
         }

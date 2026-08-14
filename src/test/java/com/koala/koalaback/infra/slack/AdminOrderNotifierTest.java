@@ -13,7 +13,6 @@ import static org.mockito.Mockito.mock;
 
 @DisplayName("관리자 주문 알림 메시지")
 class AdminOrderNotifierTest {
-
     @SuppressWarnings("unchecked")
     private final AdminOrderNotifier notifier =
             new AdminOrderNotifier(mock(ObjectProvider.class));
@@ -25,11 +24,11 @@ class AdminOrderNotifierTest {
                 new OrderCompletedEvent.Item("SKU-1", "푸른 곰", "김작가", 2, new BigDecimal("300000"))));
 
         assertThat(message)
-                .contains("450,000원")      // 총액 — 알림 목록 첫 줄
+                .contains("450,000원")
                 .contains("ORD-20260812-1")
                 .contains("홍길동")
                 .contains("푸른 곰")
-                .contains("김작가")         // 발송 주체가 작가별로 갈린다
+                .contains("김작가")
                 .contains("× 2");
     }
 

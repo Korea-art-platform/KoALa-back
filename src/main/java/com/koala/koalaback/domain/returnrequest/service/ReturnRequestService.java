@@ -32,7 +32,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReturnRequestService {
-
     private final ReturnRequestRepository returnRequestRepository;
     private final OrderRepository orderRepository;
     private final UserService userService;
@@ -41,21 +40,18 @@ public class ReturnRequestService {
     private final StockService stockService;
     private final CodeGenerator codeGenerator;
     private final ApplicationEventPublisher eventPublisher;
-    /** 반품 처리의 DB 단계 — 자기호출을 피하려고 별도 빈으로 분리했다 */
+
     private final ReturnRequestTransactionService returnRequestTransactionService;
 
-    /** 사용자 — 반품/교환 신청 */
     @Transactional
     public ReturnRequestDto.ReturnResponse createReturnRequest(Long userId, ReturnRequestDto.CreateRequest req) {
         Order order = orderRepository.findByOrderNoAndUserId(req.getOrderNo(), userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        // 배송완료 상태만 반품 신청 가능
         if (!"DELIVERED".equals(order.getOrderStatus())) {
             throw new BusinessException(ErrorCode.RETURN_REQUEST_NOT_ALLOWED);
         }
 
-        // 이미 진행 중인 반품 요청이 있는지 확인 (REJECTED 제외)
         boolean alreadyExists = returnRequestRepository
                 .existsByOrderIdAndStatusNot(order.getId(), "REJECTED");
         if (alreadyExists) {
@@ -77,7 +73,6 @@ public class ReturnRequestService {
         log.info("Return request created: returnNo={}, orderNo={}, userId={}",
                 returnRequest.getReturnNo(), req.getOrderNo(), userId);
 
-        // 커밋 이후에 관리자 알림이 나간다 — 어드민을 열어 보지 않아도 접수를 알 수 있게
         eventPublisher.publishEvent(new ReturnRequestedEvent(
                 returnRequest.getReturnNo(), order.getOrderNo(),
                 req.getReturnType(), req.getReason(), order.getOrdererName()));
@@ -85,7 +80,6 @@ public class ReturnRequestService {
         return ReturnRequestDto.ReturnResponse.from(returnRequest);
     }
 
-    /** 사용자 — 내 반품 목록 */
     public List<ReturnRequestDto.ReturnResponse> getMyReturnRequests(Long userId) {
         return returnRequestRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
@@ -93,7 +87,6 @@ public class ReturnRequestService {
                 .toList();
     }
 
-    /** 사용자 — 특정 주문의 반품 상태 확인 */
     public ReturnRequestDto.ReturnResponse getMyReturnByOrderNo(Long userId, String orderNo) {
         Order order = orderRepository.findByOrderNoAndUserId(orderNo, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
@@ -102,7 +95,6 @@ public class ReturnRequestService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RETURN_REQUEST_NOT_FOUND));
     }
 
-    /** 관리자 — 전체 반품 목록 */
     public PageResponse<ReturnRequestDto.ReturnResponse> getAdminReturnRequests(String status, Pageable pageable) {
         return PageResponse.of(
                 returnRequestRepository.findByStatusFilter(status, pageable)
@@ -110,30 +102,15 @@ public class ReturnRequestService {
         );
     }
 
-    /** 관리자 — 반품 상세 */
     public ReturnRequestDto.ReturnResponse getAdminReturnDetail(String returnNo) {
         return ReturnRequestDto.ReturnResponse.from(getByReturnNo(returnNo));
     }
 
-    /**
-     * 관리자 — 승인 또는 거절 처리.
-     *
-     * <p>{@code NOT_SUPPORTED} 로 클래스 레벨의 읽기 트랜잭션을 무력화한다.
-     * 이 메서드에 트랜잭션이 열려 있으면 아래 PG 환불 호출이 다시 트랜잭션 안에 갇힌다.
-     * <pre>
-     * ① applyDecision  [트랜잭션] 승인/거절 + 재고 복구 → 커밋
-     * ② paymentService.cancel  [트랜잭션 밖] PG 환불 (best-effort)
-     * </pre>
-     *
-     * <p>환불은 best-effort 다 — 실패해도 반품 승인은 유지하고 실패 이벤트만 남겨 수동 처리한다.
-     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReturnRequestDto.ReturnResponse processReturnRequest(String returnNo, ReturnRequestDto.AdminProcessRequest req) {
-        // ① DB 단계
         ReturnRequestTransactionService.ReturnDecision decision =
                 returnRequestTransactionService.applyDecision(returnNo, req);
 
-        // ② 환불 — 트랜잭션 밖
         if (decision.needsRefund()) {
             try {
                 paymentService.cancel(decision.refundPaymentNo(),
@@ -151,14 +128,13 @@ public class ReturnRequestService {
         return returnRequestTransactionService.getDetail(returnNo);
     }
 
-    /** 관리자 — 완료 처리 (교환 완료 등) */
     @Transactional
     public ReturnRequestDto.ReturnResponse completeReturnRequest(String returnNo) {
         ReturnRequest returnRequest = getByReturnNo(returnNo);
         if (!"APPROVED".equals(returnRequest.getStatus())) {
             throw new BusinessException(ErrorCode.RETURN_REQUEST_NOT_ALLOWED);
         }
-        // 교환(EXCHANGE) 완료 처리 시 재고 복구 — 반품은 APPROVE 시점에 이미 처리됨
+
         if ("EXCHANGE".equals(returnRequest.getReturnType())) {
             returnRequest.getOrder().getOrderItems().forEach(item -> {
                 if (item.getSku() != null) {

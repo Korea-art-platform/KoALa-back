@@ -19,37 +19,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// csv 파싱만 담당. db 는 모른다
 @Component
 public class SkuCsvParser {
-
-    // 없으면 헤더 검증 실패
     private static final List<String> REQUIRED_HEADERS =
             List.of("artistCode", "name", "slug", "listPrice", "mainCategory", "genre");
 
-    // 엑셀이 utf-8 저장 시 파일 맨 앞에 붙이는 문자
     private static final String BOM = "\uFEFF";
 
-    /**
-     * 한 번에 올릴 수 있는 최대 행 수.
-     *
-     * <p>CloudFront 응답 대기 상한(기본 30초)에 맞춘 값이다. 실측 1,000행 약 19초,
-     * 5,000행 약 95초. 상한을 넘기면 저장은 계속 진행되는데 CloudFront 가 먼저 끊어,
-     * <b>화면에는 실패로 보이면서 상품은 등록되는</b> 상태가 된다. 관리자는 실패한 줄 알고
-     * 다시 올리게 되고, 그러면 재고가 두 배로 쌓인다.
-     */
     @Value("${koala.csv.max-rows:1000}")
     private int maxRows;
 
     public List<SkuCsvDto.Row> parse(InputStream in) {
         try (CSVReader reader = new CSVReader(
                 new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)))) {
-
             Map<String, Integer> headerIndex = readHeader(reader);
 
             List<SkuCsvDto.Row> rows = new ArrayList<>();
             String[] cols;
-            int rowNumber = 1;   // 헤더가 1행
+            int rowNumber = 1;
 
             while ((cols = reader.readNext()) != null) {
                 rowNumber++;
@@ -66,23 +53,18 @@ public class SkuCsvParser {
                 throw new BusinessException(ErrorCode.CSV_EMPTY_FILE, "등록할 행이 없습니다.");
             }
             return rows;
-
         } catch (IOException | CsvValidationException e) {
             throw new BusinessException(ErrorCode.CSV_PARSE_FAILED);
         }
     }
 
-    // ── 헤더 ─────────────────────────────────────────────
-
     private Map<String, Integer> readHeader(CSVReader reader)
             throws IOException, CsvValidationException {
-
         String[] header = reader.readNext();
         if (header == null) {
             throw new BusinessException(ErrorCode.CSV_EMPTY_FILE);
         }
 
-        // 컬럼 순서는 자유. 이름으로 위치를 찾는다
         Map<String, Integer> index = new HashMap<>();
         for (int i = 0; i < header.length; i++) {
             index.put(normalize(header[i]), i);
@@ -100,13 +82,10 @@ public class SkuCsvParser {
         return index;
     }
 
-    // bom 제거 + 공백 제거 + 대소문자 무시
     private String normalize(String header) {
         if (header == null) return "";
         return header.replace(BOM, "").trim().toLowerCase();
     }
-
-    // ── 행 ───────────────────────────────────────────────
 
     private SkuCsvDto.Row toRow(String[] cols, Map<String, Integer> index, int rowNumber) {
         SkuCsvDto.Row row = new SkuCsvDto.Row();
@@ -136,7 +115,6 @@ public class SkuCsvParser {
         return row;
     }
 
-    // 없는 컬럼 / 짧은 행 / 빈 칸은 전부 null
     private String get(String[] cols, Map<String, Integer> index, String header) {
         Integer i = index.get(normalize(header));
         if (i == null || i >= cols.length || cols[i] == null) return null;
@@ -145,7 +123,6 @@ public class SkuCsvParser {
         return value.isEmpty() ? null : value;
     }
 
-    // 엑셀이 만드는 빈 줄
     private boolean isBlankRow(String[] cols) {
         return Arrays.stream(cols).allMatch(c -> c == null || c.isBlank());
     }

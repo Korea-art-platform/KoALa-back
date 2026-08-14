@@ -33,17 +33,10 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
-/**
- * 결제 승인 DB 단계 검증 — 사전 검증과 상태 전이.
- *
- * <p>PG 호출은 이 클래스에 들어오지 않으므로(설계상 트랜잭션 밖) 여기서는
- * "검증이 제대로 막는가", "성공 시 주문이 PAID 로 가는가"만 본다.
- */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("결제 승인 DB 단계")
 class PaymentTransactionServiceTest {
-
     @InjectMocks private PaymentTransactionService paymentTransactionService;
 
     @Mock private PaymentRepository paymentRepository;
@@ -54,7 +47,6 @@ class PaymentTransactionServiceTest {
     @Test
     @DisplayName("금액이 다르면 승인을 거부한다 — 위변조된 금액으로 결제되지 않는다")
     void beginConfirm_amountMismatch_isRejected() {
-        // given — 주문은 53,000원인데 승인 요청은 1,000원
         Order order = givenOrder();
         Payment payment = givenPayment(order, "READY", BigDecimal.valueOf(53_000));
         given(orderRepository.findByOrderNo("ORD-1")).willReturn(Optional.of(order));
@@ -63,7 +55,6 @@ class PaymentTransactionServiceTest {
 
         PaymentDto.ConfirmRequest req = confirmRequest(BigDecimal.valueOf(1_000));
 
-        // when & then
         assertThatThrownBy(() -> paymentTransactionService.beginConfirm(1L, req))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
@@ -118,7 +109,7 @@ class PaymentTransactionServiceTest {
 
         assertThat(payment.getStatus()).isEqualTo("CAPTURED");
         assertThat(order.getOrderStatus()).as("주문이 결제완료로 전이").isEqualTo("PAID");
-        // 후처리(메일)는 커밋 후 처리되도록 이벤트로만 발행한다
+
         then(eventPublisher).should().publishEvent(any(Object.class));
     }
 
@@ -151,8 +142,6 @@ class PaymentTransactionServiceTest {
                 .as("만료 스케줄러가 건너뛰어야 할 상태").isTrue();
         assertThat(order.getOrderStatus()).as("주문은 그대로").isEqualTo(before);
     }
-
-    // ── Helpers ───────────────────────────────────────────
 
     private Order givenOrder() {
         User user = mock(User.class);

@@ -32,16 +32,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ArtistService {
-
     private final ArtistRepository artistRepository;
     private final ArtistMediaRepository artistMediaRepository;
     private final ArtistFollowRepository artistFollowRepository;
     private final ArtistCareerRepository artistCareerRepository;
-    private final SkuRepository skuRepository;   // 작가 삭제 시 연관 상품 cascade용 (SkuService 순환 참조 방지)
+    private final SkuRepository skuRepository;
     private final StorageUploader s3Uploader;
     private final CodeGenerator codeGenerator;
-
-    // ── 유저용 ────────────────────────────────────────────
 
     public PageResponse<ArtistDto.SummaryResponse> getArtists(Pageable pageable) {
         Page<Artist> page = artistRepository.findByDeletedAtIsNullAndIsActiveTrue(pageable);
@@ -51,13 +48,11 @@ public class ArtistService {
             return PageResponse.of(page.map(ArtistDto.SummaryResponse::from));
         }
 
-        // 미디어 배치 로드 (N+1 방지)
         Map<Long, List<ArtistMedia>> mediaByArtist = artistMediaRepository
                 .findByArtistIdIn(ids)
                 .stream()
                 .collect(Collectors.groupingBy(m -> m.getArtist().getId()));
 
-        // 팔로워 수 배치 로드 (N+1 방지)
         Map<Long, Long> followByArtist = artistFollowRepository
                 .countsByArtistIds(ids)
                 .stream()
@@ -66,7 +61,6 @@ public class ArtistService {
                         ArtistFollowRepository.FollowCountProjection::getCnt
                 ));
 
-        // 대표 작품 배치 로드 (N+1 방지)
         List<Long> featuredSkuIds = page.getContent().stream()
                 .map(Artist::getFeaturedSkuId)
                 .filter(Objects::nonNull)
@@ -113,9 +107,6 @@ public class ArtistService {
                 .ifPresent(artistFollowRepository::delete);
     }
 
-    // ── 어드민용 ──────────────────────────────────────────
-
-    /** 삭제되지 않은 작가 전체 (공개/비공개 무관) */
     public PageResponse<ArtistDto.SummaryResponse> getAdminArtists(Pageable pageable) {
         Page<Artist> page = artistRepository.findByDeletedAtIsNull(pageable);
         return PageResponse.of(page.map(ArtistDto.SummaryResponse::from));
@@ -152,7 +143,6 @@ public class ArtistService {
         getArtistEntityByCode(artistCode).deactivate();
     }
 
-    /** 어드민: 작가의 작품 목록 조회 (대표 작품 선택용) */
     public List<ArtistDto.ArtistSkuItem> getArtistSkus(String artistCode) {
         Artist artist = getArtistEntityByCode(artistCode);
         return skuRepository.findByArtistIdAndDeletedAtIsNull(artist.getId())
@@ -179,15 +169,11 @@ public class ArtistService {
     public void deleteArtist(String artistCode) {
         Artist artist = getArtistEntityByCode(artistCode);
 
-        // 연관된 상품(SKU) 모두 soft-delete
         skuRepository.findByArtistIdAndDeletedAtIsNull(artist.getId())
                 .forEach(sku -> sku.softDelete());
 
-        // 작가 soft-delete
         artist.softDelete();
     }
-
-    // ── 미디어 관리 (어드민) ──────────────────────────────
 
     @Transactional
     public ArtistDto.MediaResponse addMedia(String artistCode,
@@ -210,7 +196,6 @@ public class ArtistService {
                 .build();
         artistMediaRepository.save(media);
 
-        // 프로필 사진 업로드 시 artist.profileImageUrl 자동 동기화
         if ("PROFILE".equals(req.getMediaRole())) {
             artist.updateProfileImage(fileUrl);
         }
@@ -218,12 +203,10 @@ public class ArtistService {
         return ArtistDto.MediaResponse.from(media);
     }
 
-    /** YouTube 등 외부 URL을 파일 업로드 없이 미디어로 등록 */
     @Transactional
     public ArtistDto.MediaResponse addMediaUrl(String artistCode, ArtistDto.MediaUrlRequest req) {
         Artist artist = getArtistEntityByCode(artistCode);
 
-        // 같은 role의 기존 미디어를 한 번에 삭제 (인터뷰 영상은 1개만 유지)
         artistMediaRepository.deleteByArtistIdAndMediaRole(artist.getId(), req.getMediaRole());
 
         int order = req.getSortOrder() != null ? req.getSortOrder() : 0;
@@ -255,8 +238,6 @@ public class ArtistService {
                 .findByArtistIdOrderBySortOrderAsc(artist.getId())
                 .stream().map(ArtistDto.MediaResponse::from).toList();
     }
-
-    // ── 약력 관리 (어드민) ────────────────────────────────
 
     @Transactional
     public ArtistDto.CareerResponse addCareer(String artistCode, ArtistDto.CareerAddRequest req) {
@@ -294,8 +275,6 @@ public class ArtistService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         artistCareerRepository.delete(career);
     }
-
-    // ── 공통 ──────────────────────────────────────────────
 
     public Artist getArtistEntityByCode(String artistCode) {
         return artistRepository.findByArtistCode(artistCode)

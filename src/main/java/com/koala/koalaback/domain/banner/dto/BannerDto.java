@@ -9,13 +9,10 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 public class BannerDto {
-
-    // ── Requests ──────────────────────────────────────────
-
     @Getter
     public static class CreateRequest {
         @NotBlank
-        private String bannerType;  // MAIN, SUB, EVENT, PROMOTION, ARTIST
+        private String bannerType;
 
         @NotBlank @Size(max = 200)
         private String title;
@@ -30,7 +27,7 @@ public class BannerDto {
         private String description;
 
         @Size(max = 700)
-        private String imageUrl;   // URL 직접 입력 또는 업로드 후 채워짐
+        private String imageUrl;
 
         @Size(max = 700)
         private String mobileImageUrl;
@@ -38,7 +35,7 @@ public class BannerDto {
         @Size(max = 700)
         private String linkUrl;
 
-        private String linkTarget;  // SELF, BLANK (기본값 SELF)
+        private String linkTarget;
         private String bgColor;
         private String textColor;
         private Integer sortOrder;
@@ -76,8 +73,6 @@ public class BannerDto {
         private LocalDateTime visibleFrom;
         private LocalDateTime visibleTo;
     }
-
-    // ── Responses ─────────────────────────────────────────
 
     @Getter
     @Builder

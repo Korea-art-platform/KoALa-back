@@ -9,8 +9,6 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 public class InquiryDto {
-
-    // ── 사용자: 문의 등록 ──────────────────────────────────────
     @Getter
     public static class CreateRequest {
         @NotBlank
@@ -21,20 +19,18 @@ public class InquiryDto {
         private String content;
 
         @NotBlank
-        private String category;   // ORDER / PRODUCT / PAYMENT / DELIVERY / RETURN / OTHER
+        private String category;
 
-        private String orderNo;    // 주문번호 연결 (선택, ex: KL-20240115123045-ABCD)
+        private String orderNo;
         private Boolean isSecret;
     }
 
-    // ── 어드민: 답변 등록 ──────────────────────────────────────
     @Getter
     public static class AnswerRequest {
         @NotBlank
         private String answerContent;
     }
 
-    // ── 응답 ──────────────────────────────────────────────────
     @Getter
     @Builder
     public static class InquiryResponse {
@@ -78,7 +74,6 @@ public class InquiryDto {
                     .build();
         }
 
-        /** 비밀글: 본인 또는 어드민만 content/answer 노출 */
         public static InquiryResponse fromMasked(Inquiry q, boolean isOwnerOrAdmin) {
             InquiryResponse r = from(q);
             if (q.getIsSecret() && !isOwnerOrAdmin) {

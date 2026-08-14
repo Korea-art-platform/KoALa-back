@@ -10,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface SkuReviewRepository extends JpaRepository<SkuReview, Long> {
-
     boolean existsByOrderItemId(Long orderItemId);
 
     Optional<SkuReview> findByReviewCode(String reviewCode);

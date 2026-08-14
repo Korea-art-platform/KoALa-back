@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentEvent {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

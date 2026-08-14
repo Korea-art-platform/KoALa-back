@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 public class PaymentController {
-
     private final PaymentService paymentService;
 
     @PostMapping("/api/v1/payments/prepare")

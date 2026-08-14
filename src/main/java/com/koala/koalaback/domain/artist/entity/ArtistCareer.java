@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ArtistCareer {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -18,10 +17,10 @@ public class ArtistCareer {
     private Artist artist;
 
     @Column(nullable = false, length = 20)
-    private String category;   // 학력 | 개인전 | 그룹전
+    private String category;
 
     @Column(nullable = true)
-    private Integer year;   // null = 연도 미공개
+    private Integer year;
 
     @Column(nullable = false, length = 1000)
     private String content;

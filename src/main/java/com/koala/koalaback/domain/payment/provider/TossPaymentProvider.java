@@ -26,24 +26,15 @@ import java.util.regex.Pattern;
 @Component
 @RequiredArgsConstructor
 public class TossPaymentProvider implements PaymentProvider {
-
     private static final String TOSS_API_BASE = "https://api.tosspayments.com/v1/payments";
 
-    /** 기본값 없음 — 미설정 시 애플리케이션 기동 실패 (운영 환경 미설정 방지) */
     @Value("${toss.secret-key}")
     private String secretKey;
 
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;  // Spring 관리 빈 주입 (JacksonConfig)
+    private final ObjectMapper objectMapper;
     private final Environment environment;
 
-    /**
-     * 기동 시 시크릿 키 검증.
-     *
-     * <p>키가 없으면 기동을 막는다. 테스트 키는 <b>경고만</b> 남긴다 —
-     * 아직 운영 키를 발급받지 못해, 막아 버리면 운영 배포 자체가 불가능하다.
-     * 운영 키를 받으면 prod 프로필에서 {@code test_sk_} 를 거부하도록 바꿔야 한다.
-     */
     @PostConstruct
     void validateSecretKey() {
         if (secretKey == null || secretKey.isBlank()) {
@@ -67,7 +58,7 @@ public class TossPaymentProvider implements PaymentProvider {
     public PaymentConfirmResult confirm(String paymentKey, String orderId, BigDecimal amount) {
         try {
             HttpHeaders headers = buildHeaders();
-            // Toss API: KRW는 소수점 없는 정수(Long) 필수 — BigDecimal 그대로 전송 시 오류
+
             Map<String, Object> body = Map.of(
                     "paymentKey", paymentKey,
                     "orderId", orderId,
@@ -87,22 +78,18 @@ public class TossPaymentProvider implements PaymentProvider {
                     toJson(res)
             );
         } catch (HttpClientErrorException e) {
-            // 4xx — Toss 가 요청을 명시적으로 거절했다. 승인되지 않은 것이 확실하다.
             String body = e.getResponseBodyAsString();
             String code = extractJsonField(body, "code");
             String msg  = extractJsonField(body, "message");
             log.error("Toss confirm rejected: orderId={}, code={}, message={}", orderId, code, msg);
             return PaymentConfirmResult.rejected(code, msg);
         } catch (HttpServerErrorException e) {
-            // 5xx — Toss 내부에서 승인이 완료됐을 수도 있다. 실패로 단정하면 안 된다.
             log.error("Toss confirm 5xx — 승인 여부 미확정: orderId={}, status={}", orderId, e.getStatusCode());
             return PaymentConfirmResult.unknown("TOSS_SERVER_ERROR", e.getMessage());
         } catch (ResourceAccessException e) {
-            // 타임아웃·연결 실패 — 가장 위험한 케이스. 요청이 전달되어 승인됐을 수 있다.
             log.error("Toss confirm 응답 없음 — 승인 여부 미확정: orderId={}, error={}", orderId, e.getMessage());
             return PaymentConfirmResult.unknown("TOSS_NO_RESPONSE", e.getMessage());
         } catch (Exception e) {
-            // 분류할 수 없는 오류는 안전한 쪽(미확정)으로 처리한다.
             log.error("Toss confirm error — 승인 여부 미확정: orderId={}, error={}", orderId, e.getMessage());
             return PaymentConfirmResult.unknown("TOSS_ERROR", e.getMessage());
         }
@@ -136,11 +123,9 @@ public class TossPaymentProvider implements PaymentProvider {
                     toJson(res)
             );
         } catch (HttpClientErrorException.NotFound e) {
-            // PG 에 결제 자체가 없다 — 승인되지 않은 것이 확실하다.
             log.info("Toss lookup: orderId={} 결제 없음(미승인 확정)", orderId);
             return new PaymentLookupResult(true, false, false, null, null, null, null);
         } catch (Exception e) {
-            // 재조회조차 실패 — 여전히 알 수 없다.
             log.error("Toss lookup 실패: orderId={}, error={}", orderId, e.getMessage());
             return PaymentLookupResult.unavailable();
         }
@@ -184,7 +169,6 @@ public class TossPaymentProvider implements PaymentProvider {
         }
     }
 
-    /** Map → 유효한 JSON 문자열 변환 */
     private String toJson(Map<String, Object> map) {
         try {
             return objectMapper.writeValueAsString(map);
@@ -194,7 +178,6 @@ public class TossPaymentProvider implements PaymentProvider {
         }
     }
 
-    /** Toss 에러 응답 JSON에서 특정 필드 값 추출 */
     private String extractJsonField(String json, String field) {
         if (json == null || json.isBlank()) return null;
         Matcher m = Pattern.compile("\"" + field + "\"\\s*:\\s*\"([^\"]+)\"").matcher(json);

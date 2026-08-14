@@ -22,11 +22,6 @@ public class PasswordResetToken {
     @Column(nullable = false)
     private boolean isUsed;
 
-    /**
-     * verifyCode 성공 시 true 로 설정됩니다.
-     * resetPassword 는 isVerified = true 인 토큰만 수락해
-     * 코드 확인 단계를 건너뛴 직접 재설정 시도를 차단합니다.
-     */
     @Column(nullable = false)
     private boolean isVerified;
 
@@ -53,5 +48,4 @@ public class PasswordResetToken {
     public void use(){
         this.isUsed = true;
     }
-
 }

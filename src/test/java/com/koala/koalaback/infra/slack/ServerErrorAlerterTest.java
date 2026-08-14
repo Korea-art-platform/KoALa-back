@@ -18,17 +18,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * 500 알림의 폭주 억제.
- *
- * <p>이 클래스의 값어치는 알림을 <b>보내는 것</b>이 아니라 <b>안 보내는 것</b>에 있다.
- * DB 커넥션이 마르면 같은 예외가 초당 수십 건 터지는데, 그대로 흘려보내면 채널이 잠겨
- * 주문·환불 알림이 묻힌다. 그래서 억제 규칙을 테스트로 고정한다.
- */
 @DisplayName("500 알림 억제")
 class ServerErrorAlerterTest {
-
-    private static final long COOLDOWN_MS = 600_000L;   // 10분
+    private static final long COOLDOWN_MS = 600_000L;
     private static final int MAX_PER_HOUR = 20;
 
     private AdminAlertNotifier notifier;
@@ -71,7 +63,6 @@ class ServerErrorAlerterTest {
         now.addAndGet(COOLDOWN_MS + 1);
         alerter.report(new IllegalStateException("boom"), "GET", "/api/v1/skus");
 
-        // 첫 건이 나가고 49건이 묻혔다
         verify(notifier).notifyServerError(anyString(), anyString(), anyString(), anyString(), eq(49));
     }
 
@@ -82,12 +73,11 @@ class ServerErrorAlerterTest {
             alerter.report(new IllegalStateException("boom"), "GET", "/a");
         }
         now.addAndGet(COOLDOWN_MS + 1);
-        alerter.report(new IllegalStateException("boom"), "GET", "/a");   // 묻힘 4건 보고
+        alerter.report(new IllegalStateException("boom"), "GET", "/a");
 
         now.addAndGet(COOLDOWN_MS + 1);
-        alerter.report(new IllegalStateException("boom"), "GET", "/a");   // 그 사이 억제 없음
+        alerter.report(new IllegalStateException("boom"), "GET", "/a");
 
-        // 0 → 4 → 0. 마지막이 4로 다시 나오면 카운트가 초기화되지 않은 것이다
         InOrder inOrder = inOrder(notifier);
         inOrder.verify(notifier).notifyServerError(anyString(), anyString(), anyString(), anyString(), eq(0));
         inOrder.verify(notifier).notifyServerError(anyString(), anyString(), anyString(), anyString(), eq(4));
@@ -108,7 +98,6 @@ class ServerErrorAlerterTest {
     @Test
     @DisplayName("서로 다른 오류가 쏟아져도 시간당 상한을 넘지 않는다")
     void globalHourlyCapHolds() {
-        // 경로를 전부 다르게 해 쿨다운을 우회한다 — 상한이 없으면 100건이 전부 나간다
         for (int i = 0; i < 100; i++) {
             alerter.report(new IllegalStateException("boom"), "GET", "/api/" + i);
         }
@@ -137,7 +126,6 @@ class ServerErrorAlerterTest {
                 .notifyServerError(anyString(), any(), anyString(), anyString(), anyInt());
 
         alerter.report(new IllegalStateException("boom"), "GET", "/a");
-        // 예외가 전파되면 이 지점에 오지 못한다
     }
 
     @Test
@@ -152,7 +140,6 @@ class ServerErrorAlerterTest {
     @Test
     @DisplayName("추적 대상이 상한을 넘으면 비우고 계속 동작한다 — 메모리가 무한히 늘지 않는다")
     void evictsWhenTooManyDistinctKeys() {
-        // 상한(20/시간)에 걸리지 않도록 창을 계속 넘기면서 서로 다른 키를 600개 만든다
         for (int i = 0; i < 600; i++) {
             now.addAndGet(3_600_001L);
             alerter.report(new IllegalStateException("boom"), "GET", "/api/" + i);

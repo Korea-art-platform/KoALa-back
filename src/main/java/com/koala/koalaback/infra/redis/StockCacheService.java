@@ -14,15 +14,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class StockCacheService {
-
     private static final String STOCK_KEY_PREFIX = "stock:";
     private static final Duration TTL = Duration.ofMinutes(10);
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    /**
-     * 재고 캐시 저장
-     */
     public void set(Long skuId, int stock) {
         try {
             redisTemplate.opsForValue().set(STOCK_KEY_PREFIX + skuId, stock, TTL);
@@ -32,9 +28,6 @@ public class StockCacheService {
         }
     }
 
-    /**
-     * 재고 캐시 조회 — 없으면 null 반환
-     */
     public Integer get(Long skuId) {
         try {
             Object val = redisTemplate.opsForValue().get(STOCK_KEY_PREFIX + skuId);
@@ -45,17 +38,10 @@ public class StockCacheService {
         }
     }
 
-    /**
-     * 재고 캐시 일괄 저장 — 목록 조회의 캐시 미스분을 채울 때 호출
-     */
     public void setAll(Map<Long, Integer> stocks) {
         stocks.forEach(this::set);
     }
 
-    /**
-     * 재고 캐시 일괄 조회(MGET) — 히트한 skuId 만 담아 반환.
-     * 미스는 키 자체를 넣지 않으므로 호출측에서 DB 집계 대상으로 판단한다.
-     */
     public Map<Long, Integer> getAll(List<Long> skuIds) {
         if (skuIds.isEmpty()) {
             return Map.of();
@@ -83,9 +69,6 @@ public class StockCacheService {
         }
     }
 
-    /**
-     * 재고 캐시 삭제 — 재고 변동 시 호출
-     */
     public void evict(Long skuId) {
         try {
             redisTemplate.delete(STOCK_KEY_PREFIX + skuId);
@@ -95,10 +78,6 @@ public class StockCacheService {
         }
     }
 
-    /**
-     * 캐시 미스 시 DB 조회 후 캐시 저장 패턴
-     * StockService.getStock()에서 호출
-     */
     public int getOrLoad(Long skuId, java.util.function.Supplier<Integer> loader) {
         Integer cached = get(skuId);
         if (cached != null) {

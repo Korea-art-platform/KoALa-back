@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AdminRoleRepository extends JpaRepository<AdminRole, Long> {
-
     Optional<AdminRole> findByRoleCode(String roleCode);
 
     List<AdminRole> findByIsActiveTrue();

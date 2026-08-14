@@ -3,7 +3,6 @@ package com.koala.koalaback.global.security.oauth2;
 import java.util.Map;
 
 public class KakaoOAuth2UserInfo implements OAuth2UserInfo {
-
     private final Map<String, Object> attributes;
 
     public KakaoOAuth2UserInfo(Map<String, Object> attributes) {

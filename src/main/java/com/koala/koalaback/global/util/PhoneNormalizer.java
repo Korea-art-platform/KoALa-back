@@ -6,14 +6,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PhoneNormalizer {
-
     private static final String E164_REGEX = "^\\+[1-9][0-9]{6,14}$";
 
-    /**
-     * 한국 번호를 E.164 포맷으로 변환
-     * 01012345678 → +821012345678
-     * 010-1234-5678 → +821012345678
-     */
     public String normalize(String phone) {
         if (phone == null || phone.isBlank()) return null;
 

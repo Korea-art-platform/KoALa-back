@@ -2,11 +2,7 @@ package com.koala.koalaback.domain.payment.dto;
 
 import java.math.BigDecimal;
 
-/**
- * 일별 매출 집계 DTO — JPQL new 생성자 표현식용 (Hibernate 7 호환)
- */
 public class DailyRevenueDto {
-
     private String date;
     private BigDecimal revenue;
     private long orderCount;

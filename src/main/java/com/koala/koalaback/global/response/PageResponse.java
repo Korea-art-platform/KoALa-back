@@ -7,7 +7,6 @@ import java.util.List;
 
 @Getter
 public class PageResponse<T> {
-
     private final List<T> content;
     private final int page;
     private final int size;

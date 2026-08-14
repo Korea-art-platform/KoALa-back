@@ -18,12 +18,9 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NoticeService {
-
     private final NoticeRepository noticeRepository;
     private final AdminService adminService;
     private final CodeGenerator codeGenerator;
-
-    // ── 공개 조회 ──────────────────────────────────────────
 
     public List<NoticeDto.NoticeResponse> getPublicNotices() {
         return noticeRepository
@@ -39,8 +36,6 @@ public class NoticeService {
         return NoticeDto.NoticeResponse.from(notice);
     }
 
-    // ── 어드민 조회 ────────────────────────────────────────
-
     public List<NoticeDto.NoticeResponse> getAllNotices() {
         return noticeRepository
                 .findByDeletedAtIsNullOrderByIsPinnedDescCreatedAtDesc()
@@ -52,8 +47,6 @@ public class NoticeService {
     public NoticeDto.NoticeResponse getNotice(String noticeCode) {
         return NoticeDto.NoticeResponse.from(getNoticeByCode(noticeCode));
     }
-
-    // ── 어드민 CRUD ────────────────────────────────────────
 
     @Transactional
     public NoticeDto.NoticeResponse createNotice(Long adminId, NoticeDto.CreateRequest req) {
@@ -91,8 +84,6 @@ public class NoticeService {
     public void deleteNotice(String noticeCode) {
         getNoticeByCode(noticeCode).softDelete();
     }
-
-    // ── private ────────────────────────────────────────────
 
     private Notice getNoticeByCode(String noticeCode) {
         return noticeRepository.findByNoticeCodeAndDeletedAtIsNull(noticeCode)

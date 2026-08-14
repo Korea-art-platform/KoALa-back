@@ -6,17 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * 운송장 조회 응답 해석.
- *
- * <p>여기서 틀리면 <b>배송완료를 놓치거나 잘못 찍는다.</b> 잘못 찍으면 고객은 받지도 않은
- * 물건에 대해 반품 기한이 돌기 시작하고, 놓치면 반품 신청 자체를 할 수 없다.
- *
- * <p>특히 "조회 실패"와 "배송 안 됨"을 섞지 않는 것이 핵심이다.
- */
 @DisplayName("운송장 조회 응답 해석")
 class SweetTrackerDeliveryTrackerTest {
-
     private final SweetTrackerDeliveryTracker tracker =
             new SweetTrackerDeliveryTracker(new ObjectMapper(), "dummy-key", 5000);
 
@@ -72,7 +63,6 @@ class SweetTrackerDeliveryTrackerTest {
     @Test
     @DisplayName("지원하지 않는 택배사는 호출조차 하지 않고 UNKNOWN")
     void unsupportedCarrierIsUnknown() {
-        // 예전 자유 입력으로 저장된 값 — 코드가 아니라 이름이 들어 있다
         assertThat(tracker.track("CJ대한통운", "123456789"))
                 .isEqualTo(DeliveryTracker.Status.UNKNOWN);
     }

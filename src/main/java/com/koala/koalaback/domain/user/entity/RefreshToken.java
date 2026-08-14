@@ -10,7 +10,6 @@ import org.springframework.data.redis.core.TimeToLive;
 @Builder
 @RedisHash("refresh_token")
 public class RefreshToken {
-
     @Id
     private String userId;
 

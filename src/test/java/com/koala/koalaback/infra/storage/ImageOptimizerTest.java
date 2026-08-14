@@ -16,15 +16,8 @@ import java.io.ByteArrayOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * 업로드 이미지 최적화 검증.
- *
- * <p>상품 이미지가 원본 그대로 올라가 1장에 800KB를 넘던 문제를 업로드 시점에 줄인다.
- * 다만 "줄이려다 원본을 망치는" 경우가 더 위험하므로, 건드리지 않아야 할 케이스를 함께 검증한다.
- */
 @DisplayName("업로드 이미지 최적화")
 class ImageOptimizerTest {
-
     private static final int MAX_DIMENSION = 1600;
 
     private ImageOptimizer optimizer;
@@ -115,8 +108,6 @@ class ImageOptimizerTest {
         assertThat(result.bytes()).isEqualTo(garbage);
     }
 
-    // ── Helpers ───────────────────────────────────────────
-
     private MockMultipartFile file(String name, String contentType, byte[] bytes) {
         return new MockMultipartFile("file", name, contentType, bytes);
     }
@@ -133,13 +124,6 @@ class ImageOptimizerTest {
         return out.toByteArray();
     }
 
-    /**
-     * 그라디언트 + 도형으로 실제 작품 사진과 비슷한 압축 특성을 만든다.
-     *
-     * <p>픽셀 단위 랜덤 노이즈로 만들면 JPEG 이 거의 압축하지 못해, 축소본이 원본보다
-     * 커지는 비현실적인 상황이 된다(실제로 3000x2000 노이즈 = 716KB, 축소본 = 885KB).
-     * 그런 입력에서는 최적화기가 원본을 그대로 쓰는 게 맞아 크기 비교 검증이 성립하지 않는다.
-     */
     private BufferedImage photoLike(int width, int height, int type) {
         BufferedImage image = new BufferedImage(width, height, type);
         Graphics2D g = image.createGraphics();

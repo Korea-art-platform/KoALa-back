@@ -21,7 +21,6 @@ import java.util.UUID;
 @Profile("!local")
 @RequiredArgsConstructor
 public class S3StorageUploader implements StorageUploader {
-
     private final S3Client s3Client;
     private final ImageOptimizer imageOptimizer;
 
@@ -31,17 +30,9 @@ public class S3StorageUploader implements StorageUploader {
     @Value("${koala.cdn-base-url}")
     private String cdnBaseUrl;
 
-    /**
-     * 파일 업로드
-     * @param file      업로드할 파일
-     * @param directory S3 저장 경로 (예: "skus/SKU-001/360")
-     * @return CDN URL
-     */
     public String upload(MultipartFile file, String directory) {
         validateFile(file);
 
-        // 원본 그대로 올리면 상품 이미지 1장이 800KB 를 넘는다 — 업로드 시점에 한 번 줄인다.
-        // 포맷·확장자는 유지되므로 key 생성이나 저장 URL 형식에는 영향이 없다.
         ImageOptimizer.OptimizedImage optimized = imageOptimizer.optimize(file);
 
         String key = buildKey(directory, file.getOriginalFilename());
@@ -58,16 +49,12 @@ public class S3StorageUploader implements StorageUploader {
             log.info("S3 upload success: key={}, size={}KB, optimized={}",
                     key, optimized.size() / 1024, optimized.changed());
             return cdnBaseUrl + "/" + key;
-
         } catch (RuntimeException e) {
             log.error("S3 upload failed: key={}", key, e);
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
     }
 
-    /**
-     * byte[] 직접 업로드 — 리사이즈 후 썸네일 저장 시 사용
-     */
     public String uploadBytes(byte[] bytes, String directory,
                               String filename, String contentType) {
         String key = buildKey(directory, filename);
@@ -83,16 +70,12 @@ public class S3StorageUploader implements StorageUploader {
             );
             log.info("S3 upload bytes success: key={}", key);
             return cdnBaseUrl + "/" + key;
-
         } catch (Exception e) {
             log.error("S3 upload bytes failed: key={}", key, e);
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
     }
 
-    /**
-     * 파일 삭제
-     */
     public void delete(String fileUrl) {
         String key = fileUrl.replace(cdnBaseUrl + "/", "");
         try {
@@ -106,8 +89,6 @@ public class S3StorageUploader implements StorageUploader {
         }
     }
 
-    // ── Private helpers ───────────────────────────────────
-
     private String buildKey(String directory, String originalFilename) {
         String uuid = UUID.randomUUID().toString().replace("-", "");
         String ext = extractExtension(originalFilename);
@@ -120,7 +101,6 @@ public class S3StorageUploader implements StorageUploader {
     }
 
     private void validateFile(MultipartFile file) {
-        // Content-Type(1차) + 매직바이트(2차) + 크기 검증
         FileValidator.validateImageOrVideo(file);
     }
 }

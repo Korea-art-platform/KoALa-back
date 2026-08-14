@@ -17,7 +17,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminNoticeController {
-
     private final NoticeService noticeService;
 
     @GetMapping

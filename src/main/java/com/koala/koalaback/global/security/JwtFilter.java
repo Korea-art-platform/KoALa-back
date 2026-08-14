@@ -20,7 +20,6 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
-
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
@@ -55,7 +54,6 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     private String resolveToken(HttpServletRequest request) {
-        // 1. Authorization header (Bearer token)
         String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
             return bearerToken.substring(BEARER_PREFIX.length());
@@ -63,9 +61,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String uri = request.getRequestURI();
 
-        // 2. Admin HttpOnly cookie — /admin/api/** 경로에서만 신뢰
-        //    유저 API 경로에서 admin_token 쿠키를 수락하면 어드민 토큰으로
-        //    일반 사용자 API를 호출할 수 있으므로 경로를 엄격히 제한
         if (uri.startsWith("/admin/api/")) {
             Cookie adminCookie = WebUtils.getCookie(request, "admin_token");
             if (adminCookie != null && StringUtils.hasText(adminCookie.getValue())) {
@@ -73,7 +68,6 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
-        // 3. 일반 사용자 HttpOnly cookie — /admin/** 경로에서는 사용 안 함
         if (!uri.startsWith("/admin/")) {
             Cookie accessCookie = WebUtils.getCookie(request, "accessToken");
             if (accessCookie != null) {

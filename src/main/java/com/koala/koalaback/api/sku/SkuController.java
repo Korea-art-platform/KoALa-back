@@ -17,10 +17,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 public class SkuController {
-
     private final SkuService skuService;
-
-    // ── Public ────────────────────────────────────────────
 
     @GetMapping("/api/v1/skus")
     public ApiResponse<PageResponse<SkuDto.SummaryResponse>> getSkus(
@@ -33,11 +30,6 @@ public class SkuController {
             @PathVariable String skuCode) {
         return ApiResponse.ok(skuService.getSkuByCode(skuCode));
     }
-
- /*   @GetMapping("/api/v1/skus/{slug}")
-    public ApiResponse<SkuDto.DetailResponse> getSku(@PathVariable String slug) {
-        return ApiResponse.ok(skuService.getSkuBySlug(slug));
-    }*/
 
     @GetMapping("/api/v1/skus/genre-counts")
     public ApiResponse<Map<String, Long>> getGenreCounts() {
@@ -55,6 +47,4 @@ public class SkuController {
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.ok(skuService.getSkusByArtist(artistCode, pageable));
     }
-
-
 }

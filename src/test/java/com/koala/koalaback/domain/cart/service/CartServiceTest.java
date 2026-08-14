@@ -27,7 +27,6 @@ import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTest {
-
     @InjectMocks
     private CartService cartService;
 
@@ -40,7 +39,6 @@ class CartServiceTest {
     @Test
     @DisplayName("장바구니 상품 추가 성공")
     void addItem_success() {
-        // given
         Long userId = 1L;
         CartDto.AddItemRequest req = mock(CartDto.AddItemRequest.class);
         given(req.getSkuCode()).willReturn("SKU-001");
@@ -59,10 +57,8 @@ class CartServiceTest {
         given(cartItemRepository.findByCartIdAndSkuId(any(), any())).willReturn(Optional.empty());
         given(cartItemRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-        // when
         CartDto.CartResponse result = cartService.addItem(userId, req);
 
-        // then
         assertThat(result).isNotNull();
         then(cartItemRepository).should().save(any(CartItem.class));
     }
@@ -70,7 +66,6 @@ class CartServiceTest {
     @Test
     @DisplayName("장바구니 상품 추가 실패 — 재고 부족")
     void addItem_fail_out_of_stock() {
-        // given
         Long userId = 1L;
         CartDto.AddItemRequest req = mock(CartDto.AddItemRequest.class);
         given(req.getSkuCode()).willReturn("SKU-001");
@@ -86,7 +81,6 @@ class CartServiceTest {
         given(skuService.getSkuEntityByCode("SKU-001")).willReturn(sku);
         given(stockService.getStock(1L)).willReturn(3);
 
-        // when & then
         assertThatThrownBy(() -> cartService.addItem(userId, req))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())

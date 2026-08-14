@@ -22,15 +22,12 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserService {
-
     private final UserRepository userRepository;
     private final UserAddressRepository userAddressRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final CodeGenerator codeGenerator;
-
-    // ── 회원가입 ──────────────────────────────────────────
 
     @Transactional
     public UserDto.TokenResponse signup(UserDto.SignupRequest req) {
@@ -49,8 +46,6 @@ public class UserService {
         userRepository.save(user);
         return issueTokens(user);
     }
-
-    // ── 로그인 ────────────────────────────────────────────
 
     @Transactional
     public UserDto.TokenResponse login(UserDto.LoginRequest req) {
@@ -77,14 +72,10 @@ public class UserService {
         return issueTokens(user);
     }
 
-    // ── 로그아웃 ──────────────────────────────────────────
-
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.deleteByUserId(String.valueOf(userId));
     }
-
-    // ── 토큰 재발급 ───────────────────────────────────────
 
     @Transactional
     public UserDto.TokenResponse refresh(String refreshToken) {
@@ -105,13 +96,9 @@ public class UserService {
         return issueTokens(user);
     }
 
-    // ── 프로필 조회 ───────────────────────────────────────
-
     public UserDto.ProfileResponse getProfile(Long userId) {
         return UserDto.ProfileResponse.from(getUserById(userId));
     }
-
-    // ── 프로필 수정 ───────────────────────────────────────
 
     @Transactional
     public UserDto.ProfileResponse updateProfile(Long userId,
@@ -125,8 +112,6 @@ public class UserService {
         return UserDto.ProfileResponse.from(user);
     }
 
-    // ── 비밀번호 변경 ─────────────────────────────────────
-
     @Transactional
     public void changePassword(Long userId, UserDto.ChangePasswordRequest req) {
         User user = getUserById(userId);
@@ -138,8 +123,6 @@ public class UserService {
         user.updatePassword(passwordEncoder.encode(req.getNewPassword()));
     }
 
-    // ── 회원 탈퇴 ─────────────────────────────────────────
-
     @Transactional
     public void withdraw(Long userId) {
         User user = getUserById(userId);
@@ -147,16 +130,12 @@ public class UserService {
         refreshTokenRepository.deleteByUserId(String.valueOf(userId));
     }
 
-    // ── 주소 조회 ─────────────────────────────────────────
-
     public List<UserDto.AddressResponse> getAddresses(Long userId) {
         return userAddressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
                 .stream()
                 .map(UserDto.AddressResponse::from)
                 .toList();
     }
-
-    // ── 주소 추가 ─────────────────────────────────────────
 
     @Transactional
     public UserDto.AddressResponse createAddress(Long userId,
@@ -166,7 +145,6 @@ public class UserService {
         boolean isDefault = user.getAddresses().isEmpty() ||
                 Boolean.TRUE.equals(req.getIsDefault());
 
-        // 기본 배송지로 지정 시 기존 기본 해제
         if (isDefault) {
             userAddressRepository.clearDefaultByUserId(userId);
         }
@@ -182,11 +160,8 @@ public class UserService {
                 .isDefault(isDefault)
                 .build();
 
-        // 명시적 save로 IDENTITY 전략 ID 즉시 확보
         return UserDto.AddressResponse.from(userAddressRepository.save(address));
     }
-
-    // ── 주소 수정 ─────────────────────────────────────────
 
     @Transactional
     public UserDto.AddressResponse updateAddress(Long userId, Long addressId,
@@ -194,7 +169,6 @@ public class UserService {
         UserAddress address = userAddressRepository.findByIdAndUserId(addressId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // isDefault: true로 변경 시 다른 주소 기본 해제 → 현재 주소 기본 설정
         if (Boolean.TRUE.equals(req.getIsDefault()) && !Boolean.TRUE.equals(address.getIsDefault())) {
             userAddressRepository.clearDefaultByUserId(userId);
         }
@@ -212,8 +186,6 @@ public class UserService {
         return UserDto.AddressResponse.from(address);
     }
 
-    // ── 기본 배송지 설정 ──────────────────────────────────
-
     @Transactional
     public void setDefaultAddress(Long userId, Long addressId) {
         UserAddress address = userAddressRepository.findByIdAndUserId(addressId, userId)
@@ -222,8 +194,6 @@ public class UserService {
         address.setDefault(true);
     }
 
-    // ── 주소 삭제 ─────────────────────────────────────────
-
     @Transactional
     public void deleteAddress(Long userId, Long addressId) {
         UserAddress address = userAddressRepository.findByIdAndUserId(addressId, userId)
@@ -231,52 +201,37 @@ public class UserService {
         userAddressRepository.delete(address);
     }
 
-    // ── FCM 토큰 ──────────────────────────────────────────
-
     @Transactional
     public void saveFcmToken(Long userId, String token) {
         getUserById(userId).updateFcmToken(token);
     }
-
-    // ── 공통 유틸 ─────────────────────────────────────────
 
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
-    /**
-     * 전화번호를 E.164 국제 표준 형식으로 변환
-     * 예: "010-7748-8672" → "+821077488672"
-     * 예: "+82107748672" → "+821077488672" (그대로 유지)
-     */
     private String formatPhoneToE164(String phone) {
         if (phone == null || phone.trim().isEmpty()) {
             return null;
         }
 
-        // 숫자만 추출
         String cleaned = phone.replaceAll("[^0-9]", "");
 
-        // 빈 문자열이면 null 반환
         if (cleaned.isEmpty()) {
             return null;
         }
 
-        // 0으로 시작하는 한국 로컬 번호면 +82로 변환 (첫 0 제거)
         if (cleaned.startsWith("0")) {
             return "+82" + cleaned.substring(1);
         }
 
-        // 이미 +로 시작하거나 다른 국가 코드면 그대로 반환
         if (cleaned.length() < 10) {
-            return null; // 너무 짧은 번호는 null
+            return null;
         }
 
         return "+" + cleaned;
     }
-
-    // ── 토큰 발급 공통 로직 ───────────────────────────────
 
     public UserDto.TokenResponse issueTokens(User user) {
         String accessToken = jwtProvider.createAccessToken(user.getId(), "USER");

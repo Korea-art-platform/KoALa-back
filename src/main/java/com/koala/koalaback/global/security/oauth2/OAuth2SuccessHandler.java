@@ -20,7 +20,6 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
-
     private final JwtProvider jwtProvider;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -46,7 +45,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken  = jwtProvider.createAccessToken(user.getId(), "USER");
         String refreshToken = jwtProvider.createRefreshToken(user.getId());
 
-        // 리프레시 토큰 Redis 저장
         long expirySeconds = refreshTokenExpiryMs / 1000;
         refreshTokenRepository.save(
                 RefreshToken.builder()
@@ -56,7 +54,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                         .build()
         );
 
-        // HttpOnly 쿠키로 토큰 전달 (URL 노출 방지)
         String sameSite = secureCookies ? "None" : "Lax";
         response.addHeader("Set-Cookie",
                 ResponseCookie.from("accessToken", accessToken)

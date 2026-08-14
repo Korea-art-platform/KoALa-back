@@ -18,14 +18,12 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SkuReview extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true, length = 40)
     private String reviewCode;
 
-    // @OneToOne 대신 @ManyToOne 사용 — order_item_id UNIQUE 제약은 DB 스키마에서 보장
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_item_id", nullable = false, unique = true)
     private OrderItem orderItem;

@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class OrderDto {
-
     @Getter
     public static class CreateRequest {
         @NotBlank
@@ -54,9 +53,9 @@ public class OrderDto {
     @Getter
     public static class AdminCancelRequest {
         @NotBlank
-        private String reason;            // 취소 사유 (필수)
+        private String reason;
         @Positive
-        private BigDecimal cancelAmount;  // null 이면 전액 환불, 값이 있으면 양수만
+        private BigDecimal cancelAmount;
     }
 
     @Getter

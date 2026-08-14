@@ -12,15 +12,11 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 public class UserDto {
-
-    // ── Requests ──────────────────────────────────────────
-
     @Getter
     public static class SignupRequest {
         @NotBlank @Email
         private String email;
 
-        /** 8~64자, 영문자 + 숫자/특수문자 각 1자 이상 포함 */
         @NotBlank
         @Size(min = 8, max = 64)
         @Pattern(
@@ -73,8 +69,6 @@ public class UserDto {
         private String refreshToken;
     }
 
-    // ── Responses ─────────────────────────────────────────
-
     @Getter
     @Builder
     public static class TokenResponse {
@@ -117,8 +111,6 @@ public class UserDto {
         }
     }
 
-    // ── Address Requests ──────────────────────────────────
-
     @Getter
     public static class AddressCreateRequest {
         private String label;
@@ -157,11 +149,8 @@ public class UserDto {
 
         private String address2;
 
-        /** null 이면 현재 값 유지, true 이면 기본 배송지로 설정 */
         private Boolean isDefault;
     }
-
-    // ── Address Response ──────────────────────────────────
 
     @Getter
     @Builder
@@ -189,7 +178,6 @@ public class UserDto {
         }
     }
 
-    /** FCM 토큰 저장 요청 */
     public record PushTokenRequest(
             @NotBlank String token
     ) {}

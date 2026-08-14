@@ -13,7 +13,6 @@ import java.io.IOException;
 @Slf4j
 @Component
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
-
     @Value("${oauth2.redirect-uri:http://localhost:3000/oauth2/callback}")
     private String redirectUri;
 

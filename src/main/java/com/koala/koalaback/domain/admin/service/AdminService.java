@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminService {
-
     private final AdminRepository adminRepository;
     private final AdminAuditLogRepository adminAuditLogRepository;
     private final PasswordEncoder passwordEncoder;
@@ -33,8 +32,6 @@ public class AdminService {
     private final CodeGenerator codeGenerator;
     private final SkuService skuService;
     private final StockService stockService;
-
-    // ── 로그인 ────────────────────────────────────────────
 
     @Transactional
     public AdminDto.TokenResponse login(AdminDto.LoginRequest req, HttpServletRequest httpReq) {
@@ -58,7 +55,6 @@ public class AdminService {
         admin.updateLastLogin(clientIp);
         String token = jwtProvider.createAccessToken(admin.getId(), "ADMIN");
 
-        // 감사 로그
         saveAuditLog(admin, "LOGIN", "admins", admin.getId(),
                 httpReq.getRequestURI(), httpReq.getMethod(),
                 clientIp, null, null, null);
@@ -67,13 +63,9 @@ public class AdminService {
         return new AdminDto.TokenResponse(token);
     }
 
-    // ── 내 정보 조회 ──────────────────────────────────────
-
     public AdminDto.AdminResponse getMyInfo(Long adminId) {
         return AdminDto.AdminResponse.from(getAdminById(adminId));
     }
-
-    // ── 재고 조정 ─────────────────────────────────────────
 
     @Transactional
     public void adjustStock(Long adminId, AdminDto.StockAdjustRequest req,
@@ -84,7 +76,7 @@ public class AdminService {
         int after = before + req.getDelta();
 
         Admin admin = getAdminById(adminId);
-        int actualAfter = stockService.getStock(sku.getId()); // 실제 조정 후 재고 (계산값 아님)
+        int actualAfter = stockService.getStock(sku.getId());
         saveAuditLog(admin, "STOCK_ADJUST", "skus", sku.getId(),
                 httpReq.getRequestURI(), httpReq.getMethod(),
                 resolveClientIp(httpReq),
@@ -93,8 +85,6 @@ public class AdminService {
                 req.getMemo());
     }
 
-    // ── 감사 로그 조회 ────────────────────────────────────
-
     public com.koala.koalaback.global.response.PageResponse<AdminAuditLog> getAuditLogs(
             Long adminId, Pageable pageable) {
         return com.koala.koalaback.global.response.PageResponse.of(
@@ -102,16 +92,11 @@ public class AdminService {
         );
     }
 
-    // ── Package-level helpers ─────────────────────────────
-
     public Admin getAdminById(Long adminId) {
         return adminRepository.findById(adminId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ADMIN_NOT_FOUND));
     }
 
-    // ── Private helpers ───────────────────────────────────
-
-    /** 감사로그용 IP 추출 — 스푸핑 방지 로직 포함 (@see IpResolverUtil) */
     private String resolveClientIp(HttpServletRequest request) {
         return IpResolverUtil.resolve(request);
     }

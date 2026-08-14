@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class PaymentDto {
-
     @Getter
     public static class PrepareRequest {
         @NotBlank
@@ -45,7 +44,6 @@ public class PaymentDto {
         @NotBlank
         private String reason;
 
-        // null 이면 전액 취소, 값이 있으면 부분취소 금액(양수만 허용)
         @Positive
         private BigDecimal cancelAmount;
     }
@@ -76,7 +74,7 @@ public class PaymentDto {
         private LocalDateTime approvedAt;
         private LocalDateTime failedAt;
         private LocalDateTime cancelledAt;
-        /** 미확정(IN_DOUBT) 건의 원인 파악용 — PG 가 준 실패/오류 메시지 */
+
         private String failureCode;
         private String failureMessage;
         private LocalDateTime createdAt;

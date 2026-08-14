@@ -16,9 +16,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public class ArtistDto {
-
-    // ── Requests ──────────────────────────────────────────
-
     @Getter
     public static class CreateRequest {
         @NotBlank @Size(max = 150)
@@ -48,26 +45,25 @@ public class ArtistDto {
     @Getter
     public static class MediaAddRequest {
         @NotBlank
-        private String mediaType;   // IMAGE | VIDEO
+        private String mediaType;
 
         @NotBlank
-        private String mediaRole;   // PROFILE | GALLERY | INTERVIEW_VIDEO | INTERVIEW_IMAGE
+        private String mediaRole;
 
         private String title;
         private Integer sortOrder;
     }
 
-    /** 외부 URL(YouTube 등) 등록 요청 — 파일 업로드 없이 URL만 저장 */
     @Getter
     public static class MediaUrlRequest {
         @NotBlank
-        private String fileUrl;     // YouTube embed URL 등 외부 URL
+        private String fileUrl;
 
         @NotBlank
-        private String mediaType;   // VIDEO
+        private String mediaType;
 
         @NotBlank
-        private String mediaRole;   // INTERVIEW_VIDEO
+        private String mediaRole;
 
         private String title;
         private Integer sortOrder;
@@ -76,9 +72,9 @@ public class ArtistDto {
     @Getter
     public static class CareerAddRequest {
         @NotBlank
-        private String category;   // 학력 | 개인전 | 그룹전 | 수상 | 소장 | 방송
+        private String category;
 
-        @Min(1900) @Max(2100)   // null 허용 — 연도 미공개
+        @Min(1900) @Max(2100)
         private Integer year;
 
         @NotBlank @Size(max = 1000)
@@ -92,7 +88,7 @@ public class ArtistDto {
         @NotBlank
         private String category;
 
-        @Min(1900) @Max(2100)   // null 허용 — 연도 미공개
+        @Min(1900) @Max(2100)
         private Integer year;
 
         @NotBlank @Size(max = 1000)
@@ -100,8 +96,6 @@ public class ArtistDto {
 
         private Integer sortOrder;
     }
-
-    // ── Responses ─────────────────────────────────────────
 
     @Getter
     @Builder
@@ -117,7 +111,6 @@ public class ArtistDto {
         private Long followCount;
         private FeaturedSkuInfo featuredSku;
 
-        /** 단순 조회 (미디어/팔로워 수 불필요한 경우) */
         public static SummaryResponse from(Artist a) {
             return SummaryResponse.builder()
                     .id(a.getId())
@@ -132,7 +125,6 @@ public class ArtistDto {
                     .build();
         }
 
-        /** 목록 조회 — 미디어·팔로워 수·대표 작품 배치 로드 */
         public static SummaryResponse fromWithMedia(Artist a,
                                                     List<ArtistMedia> media,
                                                     long followCount,
@@ -152,7 +144,6 @@ public class ArtistDto {
         }
     }
 
-    /** 대표 작품 정보 — artist lab 카드 표시용 */
     @Getter
     @Builder
     public static class FeaturedSkuInfo {
@@ -175,7 +166,6 @@ public class ArtistDto {
         }
     }
 
-    /** 어드민 대표 작품 선택 목록용 */
     @Getter
     @Builder
     public static class ArtistSkuItem {

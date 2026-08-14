@@ -38,7 +38,6 @@ import java.util.List;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final JwtProvider jwtProvider;
     private final TokenBlacklistService tokenBlacklistService;
     private final RateLimitFilter rateLimitFilter;
@@ -59,15 +58,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // ── 보안 헤더 ──────────────────────────────────────────
                 .headers(headers -> headers
-                        // HSTS: HTTPS 강제 (1년, 서브도메인 포함)
+
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000)
                                 .preload(true)
                         )
-                        // CSP: XSS 방어
+
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives(
                                         "default-src 'self'; " +
@@ -75,18 +73,18 @@ public class SecurityConfig {
                                         "style-src 'self' 'unsafe-inline'; " +
                                         "img-src 'self' data: https:; " +
                                         "font-src 'self' data:; " +
-                                        // Sentry 에러 전송 + Toss 결제 API 허용
+
                                         "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io " +
                                                 "https://*.tosspayments.com https://*.toss.im; " +
-                                        // Toss 결제 위젯은 iframe 사용
+
                                         "frame-src https://*.tosspayments.com https://*.toss.im; " +
                                         "frame-ancestors 'none'; " +
                                         "upgrade-insecure-requests"
                                 )
                         )
-                        // Clickjacking 방어
+
                         .frameOptions(frame -> frame.deny())
-                        // MIME 스니핑 방지
+
                         .contentTypeOptions(contentType -> {})
                 )
 
@@ -107,7 +105,7 @@ public class SecurityConfig {
                                 "/api/v1/categories",
                                 "/api/v1/notices/**",
                                 "/api/v1/app/version").permitAll();
-                        // 팔로우/언팔로우는 로그인 필수
+
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(HttpMethod.DELETE, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(
@@ -115,10 +113,8 @@ public class SecurityConfig {
                                 "/login/oauth2/**").permitAll();
                         auth.requestMatchers("/webhook/**").permitAll();
 
-                        // Admin 로그인은 인증 없이 허용 (나머지 /admin/api/**는 ADMIN 전용)
                         auth.requestMatchers(HttpMethod.POST, "/admin/api/v1/auth/login").permitAll();
 
-                        // Swagger: 프로덕션에서는 ADMIN 전용, 개발환경에서는 공개
                         if (isProd) {
                             auth.requestMatchers("/swagger-ui/**", "/api-docs/**").hasRole("ADMIN");
                         } else {
@@ -127,15 +123,11 @@ public class SecurityConfig {
 
                         auth.requestMatchers("/actuator/health").permitAll();
                         auth.requestMatchers("/error").permitAll();
-                        auth.requestMatchers("/uploads/**").permitAll(); // 로컬 개발용 정적 파일
+                        auth.requestMatchers("/uploads/**").permitAll();
                         auth.requestMatchers("/admin/api/**").hasRole("ADMIN");
                         auth.anyRequest().authenticated();
                 })
-                // ── 인증 실패 처리 ────────────────────────────────────────
-                // oauth2Login의 기본 동작은 미인증 요청을 OAuth2 로그인 페이지로 302 리다이렉트.
-                // API 요청(/api/**)은 리다이렉트 대신 401 JSON을 반환해야 함.
-                // 그렇지 않으면 Axios가 Kakao HTML 페이지를 응답으로 받고
-                // res.data.data 가 undefined 가 되어 프론트 에러 발생.
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -164,10 +156,6 @@ public class SecurityConfig {
                 .build();
     }
 
-    /**
-     * RateLimitFilter가 @Component이므로 Spring Boot가 Servlet 필터로 자동 등록함.
-     * Security 필터 체인에만 등록하고 Servlet 레벨 이중 실행을 방지.
-     */
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
@@ -187,22 +175,15 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         if (isProd) {
-            // 프로덕션: 실제 도메인만 허용 (localhost 제외)
-            //
-            // 앱인토스 출처(*.toss.im)는 제거했다. 연동 자체가 철회되어 쓰는 곳이 없는데,
-            // 와일드카드 출처는 그 도메인 아래 아무 서브도메인에서나 인증 쿠키를 실어
-            // 우리 API 를 부를 수 있게 열어 둔다. 쓰지 않는 문은 닫아 둔다.
             config.setAllowedOriginPatterns(List.of(
                     "https://koala-art.co.kr",
                     "https://www.koala-art.co.kr",
-                    // 모바일 앱은 현재 계획이 없지만 KoALa-mobile 저장소가 남아 있어 유지한다.
-                    // 고정 스킴이라 와일드카드처럼 넓게 열리지 않는다.
+
                     "capacitor://localhost"
             ));
         } else {
-            // 로컬/개발: localhost 개발 서버 허용
             config.setAllowedOriginPatterns(List.of(
-                    "http://localhost:[*]",   // 로컬 모든 포트 허용 (5173, 5174 등)
+                    "http://localhost:[*]",
                     "capacitor://localhost",
                     "http://localhost"
             ));
@@ -217,8 +198,7 @@ public class SecurityConfig {
                 "Origin",
                 "Cache-Control"
         ));
-        // HttpOnly 쿠키는 JS에서 직접 접근 불가 — Set-Cookie 노출 불필요
-        // config.setExposedHeaders(List.of("Set-Cookie"));
+
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

@@ -20,7 +20,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminBannerController {
-
     private final BannerService bannerService;
 
     @GetMapping
@@ -68,7 +67,6 @@ public class AdminBannerController {
         return ApiResponse.ok();
     }
 
-    /** 배너 생성 전 이미지를 미리 업로드하고 URL만 반환 */
     @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, String>> uploadBannerImage(
@@ -77,7 +75,6 @@ public class AdminBannerController {
         return ApiResponse.ok(Map.of("imageUrl", url));
     }
 
-    /** 기존 배너 이미지 교체 업로드 */
     @PatchMapping(value = "/{bannerCode}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<BannerDto.BannerResponse> updateBannerImage(
             @PathVariable String bannerCode,

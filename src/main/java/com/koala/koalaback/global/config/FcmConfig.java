@@ -14,7 +14,6 @@ import java.io.InputStream;
 @Slf4j
 @Configuration
 public class FcmConfig {
-
     @PostConstruct
     public void initFirebase() {
         try {

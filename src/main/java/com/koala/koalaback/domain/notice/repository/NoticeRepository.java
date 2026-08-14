@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
-
     Optional<Notice> findByNoticeCodeAndDeletedAtIsNull(String noticeCode);
 
     List<Notice> findByDeletedAtIsNullOrderByIsPinnedDescCreatedAtDesc();

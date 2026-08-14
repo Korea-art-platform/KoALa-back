@@ -23,12 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.timeout;
 
-/**
- * 주문 이벤트 발행 → Kafka → 컨슈머 수신까지 실제로 도는지 검증한다.
- *
- * <p>DB 없이 Kafka 경로만 확인하려고 컨텍스트를 좁게 잡았다
- * (전체 {@code @SpringBootTest} 는 MySQL/Flyway 가 필요하다).
- */
 @SpringBootTest(classes = OrderEventKafkaTest.TestApp.class)
 @EmbeddedKafka(partitions = 3, topics = {"order.completed", "order.completed.DLT"})
 @TestPropertySource(properties = {
@@ -37,7 +31,6 @@ import static org.mockito.Mockito.timeout;
 })
 @DisplayName("주문 이벤트 Kafka 발행·수신")
 class OrderEventKafkaTest {
-
     @Configuration
     @Import({KafkaConfig.class, OrderCompletedEmailConsumer.class})
     static class TestApp {
@@ -49,7 +42,6 @@ class OrderEventKafkaTest {
 
     @Autowired private KafkaTemplate<String, Object> kafkaTemplate;
 
-    /** 메일 발송은 이 테스트의 관심사가 아니다 — 컨슈머까지 도달했는지만 본다 */
     @MockitoBean private EmailService emailService;
 
     @Test
@@ -59,7 +51,6 @@ class OrderEventKafkaTest {
 
         kafkaTemplate.send(OrderCompletedEvent.TOPIC, event.partitionKey(), event);
 
-        // 컨슈머가 역직렬화까지 성공해서 메일 발송을 호출해야 한다
         then(emailService).should(timeout(15_000))
                 .sendOrderConfirmEmail(any(EmailService.OrderConfirmData.class));
     }

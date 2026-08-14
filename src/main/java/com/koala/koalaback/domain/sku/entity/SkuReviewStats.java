@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SkuReviewStats {
-
     @Id
     @Column(name = "sku_id")
     private Long skuId;

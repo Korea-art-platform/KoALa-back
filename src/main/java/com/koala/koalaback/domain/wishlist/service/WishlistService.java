@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class WishlistService {
-
     private final WishlistItemRepository wishlistItemRepository;
     private final UserService userService;
     private final SkuService skuService;

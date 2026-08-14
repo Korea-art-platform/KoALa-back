@@ -14,7 +14,6 @@ public record ErrorResponse(
         OffsetDateTime timestamp,
         List<FieldError> fieldErrors
 ) {
-
     public static ErrorResponse of(ErrorCode errorCode, String path) {
         return new ErrorResponse(
                 false,

@@ -20,7 +20,6 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 public class UserController {
-
     private final UserService userService;
     private final TokenBlacklistService tokenBlacklistService;
 
@@ -32,8 +31,6 @@ public class UserController {
 
     @Value("${app.secure-cookies:false}")
     private boolean secureCookies;
-
-    // ── Auth ──────────────────────────────────────────────
 
     @PostMapping("/api/v1/auth/signup")
     @ResponseStatus(HttpStatus.CREATED)
@@ -79,8 +76,6 @@ public class UserController {
         return ApiResponse.ok();
     }
 
-    // ── Profile ───────────────────────────────────────────
-
     @GetMapping("/api/v1/users/me")
     public ApiResponse<UserDto.ProfileResponse> getProfile(
             @AuthenticationPrincipal Long userId) {
@@ -109,8 +104,6 @@ public class UserController {
         return ApiResponse.ok();
     }
 
-    // ── FCM ───────────────────────────────────────────────
-
     @PostMapping("/api/v1/users/me/push-token")
     public ApiResponse<Void> savePushToken(
             @AuthenticationPrincipal Long userId,
@@ -118,8 +111,6 @@ public class UserController {
         userService.saveFcmToken(userId, req.token());
         return ApiResponse.ok();
     }
-
-    // ── Address ───────────────────────────────────────────
 
     @GetMapping("/api/v1/users/me/addresses")
     public ApiResponse<List<UserDto.AddressResponse>> getAddresses(
@@ -158,8 +149,6 @@ public class UserController {
         userService.deleteAddress(userId, addressId);
         return ApiResponse.ok();
     }
-
-    // ── Cookie helpers ────────────────────────────────────
 
     private void setTokenCookies(HttpServletResponse response, UserDto.TokenResponse tokens) {
         String sameSite = secureCookies ? "None" : "Lax";

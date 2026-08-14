@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ArtistMedia {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -19,10 +18,10 @@ public class ArtistMedia {
     private Artist artist;
 
     @Column(nullable = false, length = 20)
-    private String mediaType;   // IMAGE, VIDEO
+    private String mediaType;
 
     @Column(nullable = false, length = 30)
-    private String mediaRole;   // PROFILE, INTERVIEW_IMAGE, INTERVIEW_VIDEO, GALLERY
+    private String mediaRole;
 
     @Column(nullable = false, length = 700)
     private String fileUrl;

@@ -22,14 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class InquiryService {
-
     private final InquiryRepository inquiryRepository;
     private final UserRepository    userRepository;
     private final OrderRepository   orderRepository;
     private final AdminService      adminService;
     private final CodeGenerator     codeGenerator;
-
-    // ── 사용자: 문의 등록 ────────────────────────────────────
 
     @Transactional
     public InquiryDto.InquiryResponse createInquiry(Long userId, InquiryDto.CreateRequest req) {
@@ -54,8 +51,6 @@ public class InquiryService {
         return InquiryDto.InquiryResponse.from(inquiryRepository.save(inquiry));
     }
 
-    // ── 사용자: 내 문의 목록 ─────────────────────────────────
-
     public PageResponse<InquiryDto.InquiryResponse> getMyInquiries(Long userId, Pageable pageable) {
         return PageResponse.of(
                 inquiryRepository
@@ -64,8 +59,6 @@ public class InquiryService {
         );
     }
 
-    // ── 사용자: 내 문의 상세 ─────────────────────────────────
-
     public InquiryDto.InquiryResponse getMyInquiry(Long userId, String inquiryCode) {
         Inquiry inquiry = getByCode(inquiryCode);
         if (!inquiry.getUser().getId().equals(userId)) {
@@ -73,8 +66,6 @@ public class InquiryService {
         }
         return InquiryDto.InquiryResponse.from(inquiry);
     }
-
-    // ── 사용자: 문의 삭제 (답변 전만) ────────────────────────
 
     @Transactional
     public void deleteMyInquiry(Long userId, String inquiryCode) {
@@ -88,8 +79,6 @@ public class InquiryService {
         inquiry.softDelete();
     }
 
-    // ── 어드민: 전체 목록 ────────────────────────────────────
-
     public PageResponse<InquiryDto.InquiryResponse> getAllInquiries(String status, Pageable pageable) {
         var page = (status != null && !status.isBlank())
                 ? inquiryRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status, pageable)
@@ -98,13 +87,9 @@ public class InquiryService {
         return PageResponse.of(page.map(InquiryDto.InquiryResponse::from));
     }
 
-    // ── 어드민: 상세 조회 ────────────────────────────────────
-
     public InquiryDto.InquiryResponse getInquiry(String inquiryCode) {
         return InquiryDto.InquiryResponse.from(getByCode(inquiryCode));
     }
-
-    // ── 어드민: 답변 등록/수정 ────────────────────────────────
 
     @Transactional
     public InquiryDto.InquiryResponse answerInquiry(Long adminId, String inquiryCode,
@@ -115,14 +100,10 @@ public class InquiryService {
         return InquiryDto.InquiryResponse.from(inquiry);
     }
 
-    // ── 어드민: 종결 처리 ────────────────────────────────────
-
     @Transactional
     public void closeInquiry(String inquiryCode) {
         getByCode(inquiryCode).close();
     }
-
-    // ── private ───────────────────────────────────────────────
 
     private Inquiry getByCode(String inquiryCode) {
         return inquiryRepository.findByInquiryCodeAndDeletedAtIsNull(inquiryCode)

@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReturnRequest extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -29,18 +28,15 @@ public class ReturnRequest extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /** RETURN | EXCHANGE */
     @Column(nullable = false, length = 20)
     private String returnType;
 
-    /** SIMPLE_CHANGE | DEFECT | WRONG_DELIVERY | OTHER */
     @Column(nullable = false, length = 30)
     private String reason;
 
     @Column(columnDefinition = "TEXT")
     private String reasonDetail;
 
-    /** REQUESTED | APPROVED | REJECTED | COMPLETED */
     @Column(nullable = false, length = 20)
     private String status;
 

@@ -15,9 +15,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class SkuDto {
-
-    // ── Requests ──────────────────────────────────────────
-
     @Getter @Setter
     public static class CreateRequest {
         @NotBlank
@@ -32,18 +29,16 @@ public class SkuDto {
         private String description;
         private String skuType;
 
-        /** 대분류 코드 — sku_categories(type='MAIN'). 한정판 여부가 여기서 파생된다 */
         @NotBlank
         private String mainCategory;
 
-        /** 소분류 코드 — sku_categories(type='SUB') */
         @NotBlank
         private String genre;
 
-        private String material;             // 재질/소재
-        private String materialDescription;  // 재질/소재 상세 설명
-        private String packagingTitle;       // 포장 섹션 제목
-        private String packagingDescription; // 포장 섹션 설명
+        private String material;
+        private String materialDescription;
+        private String packagingTitle;
+        private String packagingDescription;
 
         @NotNull @PositiveOrZero
         private BigDecimal listPrice;
@@ -51,7 +46,7 @@ public class SkuDto {
         private BigDecimal salePrice;
         private Integer editionSize;
         private Integer editionNumber;
-        private String badges;      // JSON string: [{"text":"진품 보증","type":"blue"}, ...]
+        private String badges;
         private String primaryImageUrl;
         private BigDecimal widthCm;
         private BigDecimal heightCm;
@@ -68,18 +63,18 @@ public class SkuDto {
         private String slug;
 
         private String description;
-        private String skuType;              // ARTWORK | GOODS
+        private String skuType;
 
         @NotBlank
-        private String mainCategory;         // 대분류 코드
+        private String mainCategory;
 
         @NotBlank
-        private String genre;                // 소분류 코드
+        private String genre;
 
-        private String material;             // 재질/소재
-        private String materialDescription;  // 재질/소재 상세 설명
-        private String packagingTitle;       // 포장 섹션 제목
-        private String packagingDescription; // 포장 섹션 설명
+        private String material;
+        private String materialDescription;
+        private String packagingTitle;
+        private String packagingDescription;
 
         @NotNull @PositiveOrZero
         private BigDecimal listPrice;
@@ -87,25 +82,23 @@ public class SkuDto {
         private BigDecimal salePrice;
         private Integer editionSize;
         private Integer editionNumber;
-        private String badges;      // JSON string: [{"text":"진품 보증","type":"blue"}, ...]
+        private String badges;
         private String primaryImageUrl;
     }
 
-    /** 미디어 업로드 요청 (MAIN / DETAIL / GALLERY 이미지) */
     @Getter
     public static class MediaAddRequest {
         @NotBlank
-        private String mediaType;   // IMAGE | VIDEO
+        private String mediaType;
 
         @NotBlank
-        private String mediaRole;   // MAIN | DETAIL | GALLERY
+        private String mediaRole;
 
         private String altText;
         private Integer sortOrder;
         private Boolean isPrimary;
     }
 
-    /** 360도 프레임 업로드 아이템 — S3 업로드 후 URL과 각도를 함께 전달 */
     @Getter
     public static class FrameUploadItem {
         @NotBlank
@@ -116,8 +109,6 @@ public class SkuDto {
         @NotNull
         private BigDecimal angleDegree;
     }
-
-    // ── Responses ─────────────────────────────────────────
 
     @Getter
     @Builder

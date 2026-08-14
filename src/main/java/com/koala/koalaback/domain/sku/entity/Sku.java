@@ -13,11 +13,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Sku extends BaseTimeEntity {
-
-    /**
-     * 기본 제공 대분류 코드. 대분류는 관리자가 추가할 수 있지만
-     * 이 두 개는 "한정판이면 에디션 정보를 받는다" 규칙 때문에 코드에서도 참조한다.
-     */
     public static final String MAIN_LIMITED = "LIMITED";
     public static final String MAIN_NORMAL = "NORMAL";
 
@@ -41,27 +36,25 @@ public class Sku extends BaseTimeEntity {
     private String description;
 
     @Column(nullable = false, length = 20)
-    private String skuType;     // ARTWORK, GOODS
+    private String skuType;
 
-    /** 대분류 코드 — sku_categories(type='MAIN').code. 예: LIMITED, NORMAL */
     @Column(nullable = false, length = 50)
     private String mainCategory;
 
-    /** 소분류 코드 — sku_categories(type='SUB').code. 예: SCULPTURE, ART_TOY */
     @Column(nullable = false, length = 50)
     private String genre;
 
     @Column(length = 300)
-    private String material;          // 재질/소재 (예: 레진, 아크릴, 캔버스에 유화)
+    private String material;
 
     @Lob
-    private String materialDescription; // 재질/소재 상세 설명 (상세 페이지 표시용)
+    private String materialDescription;
 
     @Column(length = 200)
-    private String packagingTitle;       // 포장 섹션 제목
+    private String packagingTitle;
 
     @Lob
-    private String packagingDescription; // 포장 섹션 설명
+    private String packagingDescription;
 
     @Column(nullable = false, length = 3)
     private String currency;
@@ -79,7 +72,7 @@ public class Sku extends BaseTimeEntity {
     private Integer editionNumber;
 
     @Column(columnDefinition = "JSON")
-    private String badges;              // e.g. [{"text":"진품 보증","type":"blue"}]
+    private String badges;
 
     @Column(length = 700)
     private String primaryImageUrl;
@@ -99,7 +92,7 @@ public class Sku extends BaseTimeEntity {
     private BigDecimal weightKg;
 
     @Column(nullable = false, length = 20)
-    private String status;      // DRAFT, ACTIVE, OUT_OF_STOCK, DISCONTINUED
+    private String status;
 
     private LocalDateTime publishedAt;
     private LocalDateTime deletedAt;
@@ -166,13 +159,6 @@ public class Sku extends BaseTimeEntity {
         this.badges = badges;
     }
 
-    /**
-     * 대분류 변경. {@code isLimitedEdition} 은 여기서만 따라 바뀐다.
-     *
-     * <p>한정판 여부는 이제 대분류에서 파생되는 값이다. 따로 받으면
-     * "대분류=NORMAL 인데 isLimitedEdition=true" 같은 모순이 생긴다.
-     * 컬럼을 남겨두는 건 기존 화면·쿼리가 이미 쓰고 있어서다.
-     */
     public void changeMainCategory(String mainCategory) {
         this.mainCategory = mainCategory;
         this.isLimitedEdition = MAIN_LIMITED.equals(mainCategory);

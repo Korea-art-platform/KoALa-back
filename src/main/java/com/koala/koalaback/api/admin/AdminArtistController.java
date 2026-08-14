@@ -21,10 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminArtistController {
-
     private final ArtistService artistService;
-
-    // ── 기본 CRUD ─────────────────────────────────────────
 
     @GetMapping
     public ApiResponse<PageResponse<ArtistDto.SummaryResponse>> getArtists(
@@ -66,8 +63,6 @@ public class AdminArtistController {
         return ApiResponse.ok();
     }
 
-    // ── 대표 작품 관리 ────────────────────────────────────
-
     @GetMapping("/{artistCode}/skus")
     public ApiResponse<List<ArtistDto.ArtistSkuItem>> getArtistSkus(
             @PathVariable String artistCode) {
@@ -86,8 +81,6 @@ public class AdminArtistController {
         artistService.clearFeaturedSku(artistCode);
         return ApiResponse.ok();
     }
-
-    // ── 미디어 관리 ───────────────────────────────────────
 
     @GetMapping("/{artistCode}/media")
     public ApiResponse<List<ArtistDto.MediaResponse>> getMedia(
@@ -119,8 +112,6 @@ public class AdminArtistController {
         artistService.deleteMedia(artistCode, mediaId);
         return ApiResponse.ok();
     }
-
-    // ── 약력 관리 ─────────────────────────────────────────
 
     @PostMapping("/{artistCode}/careers")
     @ResponseStatus(HttpStatus.CREATED)

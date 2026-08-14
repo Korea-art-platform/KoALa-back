@@ -27,7 +27,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReviewService {
-
     private final SkuReviewRepository skuReviewRepository;
     private final SkuReviewMediaRepository skuReviewMediaRepository;
     private final SkuReviewStatsRepository skuReviewStatsRepository;

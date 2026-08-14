@@ -27,33 +27,15 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * 작가 정산.
- *
- * <h3>확정 전과 후가 다르게 동작한다</h3>
- * <ul>
- *   <li><b>확정 전</b> — 조회할 때마다 주문에서 계산한다. 반품이 더 들어오면 숫자가 바뀐다.</li>
- *   <li><b>확정 후</b> — 저장된 스냅샷을 그대로 보여준다. 무슨 일이 있어도 바뀌지 않는다.</li>
- * </ul>
- *
- * <p>이렇게 나눈 이유는, 다시 계산하면 <b>이미 지급한 달의 금액이 나중에 달라지기</b> 때문이다.
- * 장부와 실제 송금액이 어긋나면 맞추는 데 드는 비용이 훨씬 크다.
- *
- * <h3>반올림</h3>
- * <p>수수료를 원 단위로 반올림하고, 지급액은 <b>빼서</b> 구한다.
- * 둘 다 따로 반올림하면 수수료 + 지급액 ≠ 순매출이 되어 1원씩 새는 장부가 된다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SettlementService {
-
     private final SettlementAggregationRepository aggregationRepository;
     private final ArtistSettlementRepository settlementRepository;
     private final ArtistRepository artistRepository;
 
-    /** 한 달치 정산 — 확정됐으면 스냅샷, 아니면 지금 계산한 값 */
     public SettlementDto.PeriodSummaryResponse getPeriod(String periodYm) {
         YearMonth period = parsePeriod(periodYm);
 
@@ -65,16 +47,6 @@ public class SettlementService {
         return summarize(periodYm, settlementRepository.existsByPeriodYm(periodYm), items);
     }
 
-    /**
-     * 정산 확정 — 지금 계산된 값을 굳힌다.
-     *
-     * <p>이미 확정된 달은 다시 확정할 수 없다. 다시 확정하면 지급 상태가 초기화되어
-     * 같은 달을 두 번 지급하게 된다.
-     *
-     * <p>지급액이 0 이하인 작가는 행을 만들지 않는다. 매출이 없었거나 반품이 매출보다
-     * 많았던 경우인데, 후자는 <b>다음 달로 넘겨 차감해야 할 빚</b>이라 자동 처리 대상이 아니다.
-     * 그런 달은 로그에 남겨 사람이 보게 한다.
-     */
     @Transactional
     public SettlementDto.PeriodSummaryResponse confirm(String periodYm) {
         YearMonth period = parsePeriod(periodYm);
@@ -111,7 +83,6 @@ public class SettlementService {
         return getPeriod(periodYm);
     }
 
-    /** 지급 완료 표시 — 실제 송금은 밖에서 이뤄지고, 여기는 기록만 남긴다 */
     @Transactional
     public void markPaid(Long settlementId, String memo) {
         ArtistSettlement settlement = settlementRepository.findById(settlementId)
@@ -134,15 +105,6 @@ public class SettlementService {
         }
     }
 
-    // ---------------------------------------------------------------- 계산
-
-    /**
-     * 기간의 작가별 정산액을 계산한다.
-     *
-     * <p>매출과 반품을 각각 집계한 뒤 작가 단위로 합친다. <b>반품만 있고 매출이 없는 작가</b>도
-     * 결과에 들어가야 한다 — 지난달 판매분이 이번 달에 반품된 경우가 그렇다.
-     * 매출 쪽만 순회하면 그 작가가 통째로 빠진다.
-     */
     List<SettlementDto.ArtistSettlementResponse> calculate(YearMonth period) {
         LocalDateTime start = period.atDay(1).atStartOfDay();
         LocalDateTime end = period.plusMonths(1).atDay(1).atStartOfDay();
@@ -160,7 +122,7 @@ public class SettlementService {
         List<SettlementDto.ArtistSettlementResponse> result = new ArrayList<>();
         for (Long artistId : artistIds) {
             Artist artist = artists.get(artistId);
-            if (artist == null) continue;   // 작가가 지워진 옛 데이터
+            if (artist == null) continue;
 
             result.add(build(artistId, artist.getName(), period.toString(),
                     gross.getOrDefault(artistId, BigDecimal.ZERO),
@@ -171,24 +133,16 @@ public class SettlementService {
         return result;
     }
 
-    /** 수수료율이 비어 있는 옛 행을 기본값으로 메운다 — null 이면 계산 전체가 터진다 */
     private BigDecimal rateOf(Artist artist) {
         return artist.getCommissionRate() != null
                 ? artist.getCommissionRate()
                 : Artist.DEFAULT_COMMISSION_RATE;
     }
 
-    /**
-     * 금액 계산 — 정산 로직의 전부가 여기 모여 있다.
-     *
-     * <p>{@code payout = net - commission} 으로 구한다. 곱셈을 두 번 하면 반올림이 두 번
-     * 일어나 합계가 어긋난다.
-     */
     private SettlementDto.ArtistSettlementResponse build(
             Long artistId, String artistName, String periodYm,
             BigDecimal gross, BigDecimal refund, BigDecimal rate,
             Long settlementId, String status, LocalDateTime paidAt) {
-
         BigDecimal net = gross.subtract(refund).setScale(2, RoundingMode.HALF_UP);
         BigDecimal commission = net.multiply(rate).setScale(0, RoundingMode.HALF_UP)
                 .setScale(2, RoundingMode.UNNECESSARY);
@@ -224,7 +178,6 @@ public class SettlementService {
     private SettlementDto.PeriodSummaryResponse summarize(
             String periodYm, boolean confirmed,
             List<SettlementDto.ArtistSettlementResponse> items) {
-
         return new SettlementDto.PeriodSummaryResponse(
                 periodYm, confirmed, items.size(),
                 sum(items, SettlementDto.ArtistSettlementResponse::grossAmount),

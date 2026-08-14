@@ -30,18 +30,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 작가 정산.
- *
- * <p>실제 MySQL 로 돌린다. 집계가 <b>네이티브 SQL</b> 이라 목으로는 아무것도 검증되지 않는다 —
- * 세 테이블 조인, 비율 배분, NULLIF 가 전부 DB 쪽 동작이다.
- *
- * <p>여기서 틀리면 작가님께 잘못된 금액이 나간다. 그래서 "합계가 맞는가" 보다
- * <b>"어떤 건이 정산에 들어오고 들어오지 않는가"</b>를 먼저 고정한다.
- */
 @DisplayName("작가 정산")
 class SettlementServiceTest extends IntegrationTestSupport {
-
     @Autowired private SettlementService settlementService;
     @Autowired private ArtistRepository artistRepository;
     @Autowired private OrderRepository orderRepository;
@@ -51,7 +41,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
     @Autowired private ArtistSettlementRepository settlementRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
-    /** 지난달 — 확정이 가능한 유일한 구간(이번 달은 아직 안 끝났다) */
     private static final YearMonth LAST_MONTH = YearMonth.now().minusMonths(1);
     private static final String PERIOD = LAST_MONTH.toString();
 
@@ -66,14 +55,12 @@ class SettlementServiceTest extends IntegrationTestSupport {
         jdbcTemplate.update("DELETE FROM users");
     }
 
-    // ──────────────────────────────────────────────── 무엇이 정산에 들어오는가
-
     @Test
     @DisplayName("배송완료된 주문만 정산에 들어간다")
     void onlyDeliveredCounts() {
         Artist artist = givenArtist("김작가", "0.2000");
         givenDeliveredOrder(artist, "100000", LAST_MONTH);
-        givenShippedOrder(artist, "500000", LAST_MONTH);   // 아직 배송 중 — 제외돼야 한다
+        givenShippedOrder(artist, "500000", LAST_MONTH);
 
         SettlementDto.PeriodSummaryResponse result = settlementService.getPeriod(PERIOD);
 
@@ -106,8 +93,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         assertThat(result.totalGross()).isEqualByComparingTo("400000");
     }
 
-    // ──────────────────────────────────────────────── 금액 계산
-
     @Test
     @DisplayName("수수료 20% — 지급액은 순매출에서 수수료를 뺀 값이다")
     void commissionAndPayout() {
@@ -124,7 +109,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
     @Test
     @DisplayName("수수료 + 지급액 = 순매출. 1원도 새지 않는다")
     void amountsAlwaysReconcile() {
-        // 33.33% — 나누어떨어지지 않아 반올림이 개입하는 값
         Artist artist = givenArtist("김작가", "0.3333");
         givenDeliveredOrder(artist, "123457", LAST_MONTH);
 
@@ -150,8 +134,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         assertThat(payoutOf(items, pricey.getId())).isEqualByComparingTo("70000");
     }
 
-    // ──────────────────────────────────────────────── 반품 차감
-
     @Test
     @DisplayName("승인된 반품은 그 달의 차감으로 잡힌다")
     void approvedReturnIsDeducted() {
@@ -164,7 +146,7 @@ class SettlementServiceTest extends IntegrationTestSupport {
 
         assertThat(item.refundAmount()).isEqualByComparingTo("30000");
         assertThat(item.netAmount()).isEqualByComparingTo("70000");
-        assertThat(item.payoutAmount()).isEqualByComparingTo("56000");   // 70,000 × 80%
+        assertThat(item.payoutAmount()).isEqualByComparingTo("56000");
     }
 
     @Test
@@ -172,7 +154,7 @@ class SettlementServiceTest extends IntegrationTestSupport {
     void pendingReturnIsNotDeducted() {
         Artist artist = givenArtist("김작가", "0.2000");
         Order order = givenDeliveredOrder(artist, "100000", LAST_MONTH);
-        givenRequestedReturn(order);   // REQUESTED 상태 그대로
+        givenRequestedReturn(order);
 
         assertThat(settlementService.getPeriod(PERIOD).items().get(0).refundAmount())
                 .isEqualByComparingTo("0");
@@ -194,7 +176,7 @@ class SettlementServiceTest extends IntegrationTestSupport {
     void refundIsProratedAcrossArtists() {
         Artist a = givenArtist("김작가", "0.2000");
         Artist b = givenArtist("이작가", "0.2000");
-        // 한 주문에 8만원(A) + 2만원(B) = 10만원, 전액 환불
+
         Order order = givenDeliveredOrderWithTwoArtists(a, "80000", b, "20000", LAST_MONTH);
         givenApprovedReturn(order, "100000", LAST_MONTH);
 
@@ -219,8 +201,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         assertThat(result.items().get(0).netAmount()).isEqualByComparingTo("-100000");
     }
 
-    // ──────────────────────────────────────────────── 확정과 지급
-
     @Test
     @DisplayName("확정하면 금액이 굳는다 — 이후 반품이 들어와도 바뀌지 않는다")
     void confirmedAmountsAreFrozen() {
@@ -230,7 +210,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         settlementService.confirm(PERIOD);
         BigDecimal afterConfirm = settlementService.getPeriod(PERIOD).items().get(0).payoutAmount();
 
-        // 확정 뒤에 같은 달로 반품이 승인됐다
         givenApprovedReturn(order, "50000", LAST_MONTH);
 
         assertThat(settlementService.getPeriod(PERIOD).items().get(0).payoutAmount())
@@ -296,8 +275,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         assertThat(settlementService.getPeriod(PERIOD).confirmed()).isTrue();
     }
 
-    // ──────────────────────────────────────────────── 수수료율
-
     @Test
     @DisplayName("수수료율은 0 이상 1 미만만 허용한다")
     void commissionRateBounds() {
@@ -340,8 +317,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         assertThat(result.totalPayout()).isEqualByComparingTo("0");
     }
 
-    // ──────────────────────────────────────────────── fixtures
-
     private Artist givenArtist(String name, String rate) {
         String unique = UUID.randomUUID().toString().substring(0, 8);
         Artist artist = artistRepository.save(Artist.builder()
@@ -367,17 +342,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         return saveOrder(artist, amount, null, null, "SHIPPED", shippedIn);
     }
 
-    /**
-     * 주문 한 건 저장. 두 번째 작가는 생략 가능하다.
-     *
-     * <p>주문 흐름(장바구니 → 주문 생성)을 타지 않고 직접 만든다. 검증 대상은 정산이지
-     * 주문 생성이 아니고, 흐름을 타면 배송완료 상태까지 여러 단계를 거쳐야 한다.
-     *
-     * <p><b>배송지는 주문을 저장한 뒤 마지막에 넣는다.</b> {@code Order.shipment} 가
-     * {@code orphanRemoval = true} 라, 배송지를 먼저 저장해 두고 주문을 다시 저장하면
-     * 메모리의 shipment 필드가 null 이라는 이유로 방금 넣은 배송지 행이 지워진다.
-     * 그래서 상태 변경도 저장 전에 끝내고, 저장 이후에는 주문을 다시 건드리지 않는다.
-     */
     private Order saveOrder(Artist artistA, String amountA, Artist artistB, String amountB,
                             String orderStatus, YearMonth deliveredIn) {
         BigDecimal total = new BigDecimal(amountA)
@@ -406,7 +370,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
         }
         orderRepository.saveAndFlush(order);
 
-        // 배송지는 FK 를 들고 있는 쪽이라 따로 저장한다 (Order 에는 setter 가 없다)
         orderShipmentRepository.saveAndFlush(OrderShipment.builder()
                 .order(order)
                 .recipientName("홍길동")
@@ -415,7 +378,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
                 .address1("서울시")
                 .build());
 
-        // 배송완료 시각을 원하는 달로 옮긴다 — 엔티티는 항상 now() 를 쓴다
         jdbcTemplate.update("UPDATE order_shipments SET delivered_at = ? WHERE order_id = ?",
                 midMonth(deliveredIn), order.getId());
 
@@ -477,7 +439,6 @@ class SettlementServiceTest extends IntegrationTestSupport {
                 .build());
     }
 
-    /** 달의 한가운데 — 경계(1일 00:00, 말일 23:59)에 걸려 헷갈리지 않게 */
     private LocalDateTime midMonth(YearMonth ym) {
         return ym.atDay(15).atTime(12, 0);
     }

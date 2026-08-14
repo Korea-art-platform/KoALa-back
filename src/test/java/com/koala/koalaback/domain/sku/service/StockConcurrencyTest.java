@@ -26,17 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * 재고 차감 동시성 검증 — {@link StockService#deduct} 의 비관적 락이
- * 실제로 오버셀링을 막는지 컨테이너 MySQL 로 확인한다.
- *
- * <p>단위 테스트({@link StockServiceTest})는 Mockito 로 락 동작을 검증할 수 없으므로,
- * 여기서는 실제 트랜잭션/락이 걸리도록 @SpringBootTest 로 띄운다.
- * 각 스레드가 자기 트랜잭션을 가져야 하므로 클래스에 @Transactional 을 붙이지 않는다.
- */
 @DisplayName("재고 차감 동시성")
 class StockConcurrencyTest extends IntegrationTestSupport {
-
     @Autowired private StockService stockService;
     @Autowired private SkuRepository skuRepository;
     @Autowired private ArtistRepository artistRepository;
@@ -80,11 +71,6 @@ class StockConcurrencyTest extends IntegrationTestSupport {
         assertThat(stockOf(skuId)).as("최종 재고 — 음수면 오버셀링").isZero();
     }
 
-    /**
-     * 복원(restore)은 비관적 락 없이 findById 로 SKU 를 읽는다.
-     * 원장은 append-only 라 합계 자체는 깨지지 않아야 하지만,
-     * skus.status 는 락 없이 읽은 값으로 분기하므로 어긋날 수 있다.
-     */
     @Test
     @DisplayName("차감과 복원이 동시에 일어나도 재고 합계는 정확하고 상태와 모순되지 않는다")
     void deductAndRestore_concurrently_keepStockConsistent() throws Exception {
@@ -120,7 +106,6 @@ class StockConcurrencyTest extends IntegrationTestSupport {
                 .isEqualTo(expectedStock);
         assertThat(finalStock).as("최종 재고 — 음수면 오버셀링").isNotNegative();
 
-        // 재고가 남아 있는데 OUT_OF_STOCK 으로 고착되면 팔 수 있는 상품이 안 팔린다
         String status = jdbcTemplate.queryForObject(
                 "SELECT status FROM skus WHERE id = ?", String.class, skuId);
         if (finalStock > 0) {
@@ -130,9 +115,6 @@ class StockConcurrencyTest extends IntegrationTestSupport {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────
-
-    /** 스레드별 실행 결과 집계 */
     private record ExecutionResult(int success, int outOfStock, int otherFailure) {
         @Override
         public String toString() {
@@ -140,10 +122,6 @@ class StockConcurrencyTest extends IntegrationTestSupport {
         }
     }
 
-    /**
-     * 모든 스레드를 출발선에 세운 뒤 동시에 출발시킨다.
-     * 순차 실행으로 우연히 통과하는 것을 막기 위해 CountDownLatch 로 시작 시점을 맞춘다.
-     */
     private ExecutionResult runConcurrently(List<Runnable> actions) throws InterruptedException {
         int threadCount = actions.size();
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -186,7 +164,6 @@ class StockConcurrencyTest extends IntegrationTestSupport {
         return new ExecutionResult(success.get(), outOfStock.get(), otherFailure.get());
     }
 
-    /** 원장 SUM 을 JPA 가 아닌 raw SQL 로 확인 — 검증 경로를 구현과 분리한다 */
     private int stockOf(Long skuId) {
         Integer sum = jdbcTemplate.queryForObject(
                 "SELECT COALESCE(SUM(delta), 0) FROM sku_stock_ledger WHERE sku_id = ?",

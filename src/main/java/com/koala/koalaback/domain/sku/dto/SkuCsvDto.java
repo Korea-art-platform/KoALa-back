@@ -7,18 +7,16 @@ import lombok.Setter;
 import java.util.List;
 
 public class SkuCsvDto {
-
-    // ── csv 원본 행 (전부 문자열) ─────────────────────────
     @Getter @Setter
     public static class Row {
-        private int rowNumber;   // 엑셀에서 보이는 줄 번호
+        private int rowNumber;
 
         private String artistCode;
         private String name;
         private String slug;
         private String description;
-        private String mainCategory;   // 대분류 코드 (LIMITED / NORMAL / …)
-        private String genre;          // 소분류 코드 (SCULPTURE / ART_TOY / …)
+        private String mainCategory;
+        private String genre;
         private String material;
         private String materialDescription;
         private String packagingTitle;
@@ -35,7 +33,6 @@ public class SkuCsvDto {
         private String initialStock;
     }
 
-    // ── 검증 통과분 (타입 변환 완료) ──────────────────────
     @Getter
     @Builder
     public static class ParsedRow {
@@ -45,7 +42,6 @@ public class SkuCsvDto {
         private int initialStock;
     }
 
-    // ── 행 오류 ──────────────────────────────────────────
     @Getter
     @Builder
     public static class RowError {
@@ -65,9 +61,6 @@ public class SkuCsvDto {
         }
     }
 
-    // ── 사전검증 결과 (저장 전) ───────────────────────────
-    // ImportResult 는 저장까지 끝난 최종 리포트라 이 단계에서 만들 수 없다.
-    // 검증기는 통과분과 오류를 함께 돌려줘야 해서 별도 타입을 둔다.
     @Getter
     @Builder
     public static class ValidationResult {
@@ -86,7 +79,6 @@ public class SkuCsvDto {
         }
     }
 
-    // ── 최종 리포트 ──────────────────────────────────────
     @Getter
     @Builder
     public static class ImportResult {
@@ -94,7 +86,6 @@ public class SkuCsvDto {
         private int succeeded;
         private List<RowError> errors;
 
-        // 실패 건수는 오류 개수가 아니라 오류가 난 행 수
         public int getFailed() {
             return (int) errors.stream()
                     .map(RowError::getRowNumber)

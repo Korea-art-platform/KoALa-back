@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class WishlistDto {
-
     @Getter
     @Builder
     public static class WishlistItemResponse {

@@ -27,18 +27,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-/**
- * csv 사전검증 규칙 단위 테스트.
- *
- * <p>통합 테스트가 큰 흐름을 본다면 여기서는 규칙 하나하나를 본다.
- * 검증기가 놓친 제약은 저장 도중 SQL 예외가 되고 앞 청크는 이미 커밋된 뒤라
- * 부분 등록이 되므로, DB 제약을 그대로 흉내내는지 확인하는 것이 핵심이다.
- */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("csv 사전검증 규칙")
 class SkuCsvValidatorTest {
-
     private static final String ARTIST_CODE = "ART-001";
 
     @InjectMocks private SkuCsvValidator validator;
@@ -56,7 +48,6 @@ class SkuCsvValidatorTest {
         given(artistRepository.findAllByArtistCodeIn(any())).willReturn(List.of(artist));
         given(skuRepository.findExistingSlugs(any())).willReturn(List.of());
 
-        // 카테고리 허용값은 이제 상수가 아니라 db 에서 온다
         given(categoryService.getActiveCodesByType()).willReturn(Map.of(
                 SkuCategory.TYPE_MAIN, Set.of("LIMITED", "NORMAL"),
                 SkuCategory.TYPE_SUB, Set.of("SCULPTURE", "ART_TOY")));
@@ -65,7 +56,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("필수값")
     class Required {
-
         @Test
         @DisplayName("artistCode·name·slug·listPrice 가 비면 각각 오류가 쌓인다")
         void missingRequiredFields() {
@@ -100,7 +90,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("slug")
     class Slug {
-
         @Test
         @DisplayName("영문 소문자·숫자·하이픈만 허용한다")
         void validSlugPasses() {
@@ -159,7 +148,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("가격")
     class Price {
-
         @Test
         @DisplayName("판매가가 정가보다 크면 거절한다")
         void salePriceOverListPrice() {
@@ -228,7 +216,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("카테고리")
     class Categories {
-
         @Test
         @DisplayName("대분류·소분류는 필수다 — 비면 상품이 어디에도 안 걸린다")
         void categoriesRequired() {
@@ -260,7 +247,7 @@ class SkuCsvValidatorTest {
         void codesComeFromDb() {
             given(categoryService.getActiveCodesByType()).willReturn(Map.of(
                     SkuCategory.TYPE_MAIN, Set.of("NORMAL"),
-                    SkuCategory.TYPE_SUB, Set.of("CERAMIC")));   // 운영에서 새로 추가된 소분류
+                    SkuCategory.TYPE_SUB, Set.of("CERAMIC")));
 
             SkuCsvDto.Row row = row();
             row.setGenre("CERAMIC");
@@ -285,7 +272,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("한정판 에디션")
     class Edition {
-
         @Test
         @DisplayName("한정판이면 size 만 채워도 된다 — 번호는 나중에 정할 수 있다")
         void numberIsOptional() {
@@ -356,7 +342,6 @@ class SkuCsvValidatorTest {
     @Nested
     @DisplayName("재고·길이·작가")
     class Etc {
-
         @Test
         @DisplayName("재고가 음수면 거절하고, 비면 0 이 된다")
         void stockRules() {
@@ -418,8 +403,6 @@ class SkuCsvValidatorTest {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────
-
     private SkuCsvDto.ValidationResult validate(SkuCsvDto.Row row) {
         return validator.validate(List.of(row));
     }
@@ -430,7 +413,6 @@ class SkuCsvValidatorTest {
         return row;
     }
 
-    /** 통과하는 최소 행 — 각 테스트에서 검사할 필드만 바꾼다 */
     private SkuCsvDto.Row row() {
         SkuCsvDto.Row row = new SkuCsvDto.Row();
         row.setRowNumber(2);

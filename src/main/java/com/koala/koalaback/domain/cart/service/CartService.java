@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CartService {
-
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final UserService userService;
@@ -96,7 +95,6 @@ public class CartService {
         cart.getItems().clear();
     }
 
-    // OrderService에서 호출
     public Cart getOrCreateCart(Long userId) {
         return cartRepository.findByUserId(userId)
                 .orElseGet(() -> cartRepository.save(

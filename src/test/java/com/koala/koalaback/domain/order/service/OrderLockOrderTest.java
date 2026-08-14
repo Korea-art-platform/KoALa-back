@@ -11,16 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-/**
- * 주문 생성 시 재고 락 획득 순서 검증.
- *
- * <p>createOrder 는 주문 아이템마다 SKU row 에 비관적 락을 잡는다.
- * 두 주문이 같은 SKU 들을 서로 다른 순서로 잡으면 데드락이 나므로,
- * 항상 skuId 오름차순으로 정렬된 뒤 락을 잡아야 한다.
- */
 @DisplayName("주문 재고 락 획득 순서")
 class OrderLockOrderTest {
-
     @Test
     @DisplayName("장바구니 순서와 무관하게 skuId 오름차순으로 정렬된다")
     void sortByLockOrder_sortsBySkuIdAscending() {

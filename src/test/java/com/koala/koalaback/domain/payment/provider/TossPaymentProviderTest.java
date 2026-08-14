@@ -21,16 +21,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-/**
- * PG 응답 유형별 분류 검증 — MockRestServiceServer 로 Toss 응답을 흉내 낸다.
- *
- * <p>핵심은 <b>거절(REJECTED)과 미확정(UNKNOWN)의 구분</b>이다.
- * 이 둘을 뭉뚱그리면 "승인은 됐는데 응답을 못 받은" 건이 실패로 처리되어
- * 돈은 빠져나갔는데 주문은 미결제인 상태가 된다.
- */
 @DisplayName("Toss 결제 Provider")
 class TossPaymentProviderTest {
-
     private static final String CONFIRM_URL = "https://api.tosspayments.com/v1/payments/confirm";
     private static final String LOOKUP_URL = "https://api.tosspayments.com/v1/payments/orders/ORD-1";
 

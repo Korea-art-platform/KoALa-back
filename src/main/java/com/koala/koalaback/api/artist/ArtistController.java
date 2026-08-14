@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/artists")
 @RequiredArgsConstructor
 public class ArtistController {
-
     private final ArtistService artistService;
 
     @GetMapping
@@ -24,7 +23,6 @@ public class ArtistController {
         return ApiResponse.ok(artistService.getArtists(pageable));
     }
 
-    // 비로그인 사용자도 조회 가능 (followCount 포함, isFollowing은 false)
     @GetMapping("/{artistCode}")
     public ApiResponse<ArtistDto.DetailResponse> getArtist(
             @PathVariable String artistCode,

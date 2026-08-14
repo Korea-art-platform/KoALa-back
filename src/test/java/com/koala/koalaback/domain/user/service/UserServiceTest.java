@@ -27,7 +27,6 @@ import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
-
     @InjectMocks
     private UserService userService;
 
@@ -42,7 +41,6 @@ class UserServiceTest {
     @Test
     @DisplayName("회원가입 성공")
     void signup_success() {
-        // given
         UserDto.SignupRequest req = mock(UserDto.SignupRequest.class);
         given(req.getEmail()).willReturn("test@koala.com");
         given(req.getPassword()).willReturn("password123");
@@ -57,10 +55,8 @@ class UserServiceTest {
         given(jwtProvider.createRefreshToken(any())).willReturn("refresh_token");
         given(refreshTokenRepository.save(any())).willReturn(null);
 
-        // when
         UserDto.TokenResponse result = userService.signup(req);
 
-        // then
         assertThat(result.getAccessToken()).isEqualTo("access_token");
         assertThat(result.getRefreshToken()).isEqualTo("refresh_token");
         then(userRepository).should().save(any(User.class));
@@ -69,12 +65,10 @@ class UserServiceTest {
     @Test
     @DisplayName("회원가입 실패 — 이메일 중복")
     void signup_fail_duplicate_email() {
-        // given
         UserDto.SignupRequest req = mock(UserDto.SignupRequest.class);
         given(req.getEmail()).willReturn("test@koala.com");
         given(userRepository.existsByEmail("test@koala.com")).willReturn(true);
 
-        // when & then
         assertThatThrownBy(() -> userService.signup(req))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
@@ -84,7 +78,6 @@ class UserServiceTest {
     @Test
     @DisplayName("로그인 성공")
     void login_success() {
-        // given
         UserDto.LoginRequest req = mock(UserDto.LoginRequest.class);
         given(req.getEmail()).willReturn("test@koala.com");
         given(req.getPassword()).willReturn("password123");
@@ -103,17 +96,14 @@ class UserServiceTest {
         given(jwtProvider.createRefreshToken(any())).willReturn("refresh_token");
         given(refreshTokenRepository.save(any())).willReturn(null);
 
-        // when
         UserDto.TokenResponse result = userService.login(req);
 
-        // then
         assertThat(result.getAccessToken()).isEqualTo("access_token");
     }
 
     @Test
     @DisplayName("로그인 실패 — 비밀번호 불일치")
     void login_fail_wrong_password() {
-        // given
         UserDto.LoginRequest req = mock(UserDto.LoginRequest.class);
         given(req.getEmail()).willReturn("test@koala.com");
         given(req.getPassword()).willReturn("wrong_password");
@@ -128,7 +118,6 @@ class UserServiceTest {
         given(userRepository.findByEmail("test@koala.com")).willReturn(Optional.of(user));
         given(passwordEncoder.matches("wrong_password", "encoded_password")).willReturn(false);
 
-        // when & then
         assertThatThrownBy(() -> userService.login(req))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())

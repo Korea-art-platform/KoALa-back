@@ -17,15 +17,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * 카테고리 CRUD 규칙 검증.
- *
- * <p>실제 MySQL 을 쓴다. (type, code) UNIQUE 와 code 불변이 이 도메인의 핵심 제약인데
- * 둘 다 DB/영속성 계층에서 걸리는 것이라 목으로는 확인되지 않는다.
- */
 @DisplayName("상품 카테고리")
 class SkuCategoryServiceTest extends IntegrationTestSupport {
-
     private static final String PREFIX = "CATTEST_";
 
     @Autowired private SkuCategoryService categoryService;
@@ -40,7 +33,6 @@ class SkuCategoryServiceTest extends IntegrationTestSupport {
     @Nested
     @DisplayName("생성")
     class Create {
-
         @Test
         @DisplayName("같은 type 안에서 code 가 겹치면 거절한다")
         void duplicateCodeRejected() {
@@ -78,7 +70,6 @@ class SkuCategoryServiceTest extends IntegrationTestSupport {
     @Nested
     @DisplayName("수정·비활성화")
     class Modify {
-
         @Test
         @DisplayName("이름과 순서는 바꿔도 code 는 그대로다 — 상품이 code 를 문자열로 들고 있다")
         void codeIsImmutable() {
@@ -122,7 +113,6 @@ class SkuCategoryServiceTest extends IntegrationTestSupport {
                     .extracting(SkuCategoryDto.Response::getCode)
                     .doesNotContain(PREFIX + "NEON");
 
-            // 어드민 목록에는 계속 보여야 다시 켤 수 있다
             assertThat(categoryService.getAllCategories().getSub())
                     .extracting(SkuCategoryDto.Response::getCode)
                     .contains(PREFIX + "NEON");

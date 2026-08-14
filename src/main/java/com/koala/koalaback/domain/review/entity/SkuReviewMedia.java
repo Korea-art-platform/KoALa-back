@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SkuReviewMedia {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -19,7 +18,7 @@ public class SkuReviewMedia {
     private SkuReview review;
 
     @Column(nullable = false, length = 20)
-    private String mediaType;   // IMAGE, VIDEO
+    private String mediaType;
 
     @Column(nullable = false, length = 700)
     private String fileUrl;

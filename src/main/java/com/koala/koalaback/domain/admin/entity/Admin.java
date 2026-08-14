@@ -13,7 +13,6 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Admin extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -36,7 +35,7 @@ public class Admin extends BaseTimeEntity {
     private String phone;
 
     @Column(nullable = false, length = 20)
-    private String status;  // ACTIVE, INACTIVE, LOCKED
+    private String status;
 
     @Column(nullable = false)
     private Integer loginFailCount;

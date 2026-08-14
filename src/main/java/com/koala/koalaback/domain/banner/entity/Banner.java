@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Banner extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -20,7 +19,7 @@ public class Banner extends BaseTimeEntity {
     private String bannerCode;
 
     @Column(nullable = false, length = 30)
-    private String bannerType;  // MAIN, SUB, EVENT, PROMOTION, ARTIST
+    private String bannerType;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -29,10 +28,10 @@ public class Banner extends BaseTimeEntity {
     private String subtitle;
 
     @Column(length = 100)
-    private String badge;        // 히어로 상단 뱃지 (예: 신제품 드랍!)
+    private String badge;
 
     @Column(length = 500)
-    private String description;  // 히어로 부연 설명
+    private String description;
 
     @Column(length = 700)
     private String imageUrl;
@@ -44,7 +43,7 @@ public class Banner extends BaseTimeEntity {
     private String linkUrl;
 
     @Column(nullable = false, length = 20)
-    private String linkTarget;  // SELF, BLANK
+    private String linkTarget;
 
     @Column(length = 30)
     private String bgColor;

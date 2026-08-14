@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class ReviewDto {
-
     @Getter
     public static class CreateRequest {
         @NotNull
@@ -55,7 +54,7 @@ public class ReviewDto {
     @Getter
     public static class ModerateRequest {
         @NotBlank
-        private String action;  // APPROVE, HIDE, REJECT
+        private String action;
 
         private String memo;
     }

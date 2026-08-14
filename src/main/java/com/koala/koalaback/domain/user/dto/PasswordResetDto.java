@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
 public class PasswordResetDto {
-
     @Getter
     public static class SendCodeRequest {
         @NotBlank @Email

@@ -19,20 +19,14 @@ import java.security.SecureRandom;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PasswordResetService {
-
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
-    // ── 인증 코드 발송 ────────────────────────────────────
-
     @Transactional
     public void sendResetCode(PasswordResetDto.SendCodeRequest req) {
-        // 이메일 존재 여부와 무관하게 항상 동일한 응답 반환 (계정 열거 공격 방지)
-        // 실제 이메일 전송은 계정이 있을 때만 수행
         userRepository.findByEmail(req.getEmail()).ifPresent(user -> {
-            // 소셜 로그인 계정은 비밀번호 재설정 불필요 — 조용히 무시
             if (user.getOauthProvider() != null) return;
 
             tokenRepository.deleteAllByEmail(req.getEmail());
@@ -45,14 +39,10 @@ public class PasswordResetService {
             );
             emailService.sendPasswordResetEmail(req.getEmail(), token);
         });
-        // 미가입 이메일이어도 "인증 코드를 발송했습니다" 응답은 동일 (프론트에서 표시)
     }
-
-    // ── 인증 코드 확인 ────────────────────────────────────
 
     @Transactional
     public void verifyCode(PasswordResetDto.VerifyCodeRequest req) {
-        // isVerified=false 인 토큰만 조회 (이미 확인된 토큰 재사용 방지)
         PasswordResetToken resetToken = tokenRepository
                 .findTopByEmailAndTokenAndIsUsedFalseAndIsVerifiedFalseOrderByCreatedAtDesc(
                         req.getEmail(), req.getToken())
@@ -62,15 +52,11 @@ public class PasswordResetService {
             throw new BusinessException(ErrorCode.EXPIRED_TOKEN);
         }
 
-        // 코드 확인 완료 표시 — 이후 resetPassword에서만 사용 가능
         resetToken.verify();
     }
 
-    // ── 비밀번호 재설정 ───────────────────────────────────
-
     @Transactional
     public void resetPassword(PasswordResetDto.ResetPasswordRequest req) {
-        // isVerified=true 인 토큰만 수락 — verifyCode를 거치지 않은 직접 재설정 시도 차단
         PasswordResetToken resetToken = tokenRepository
                 .findTopByEmailAndTokenAndIsUsedFalseAndIsVerifiedTrueOrderByCreatedAtDesc(
                         req.getEmail(), req.getToken())
@@ -87,10 +73,6 @@ public class PasswordResetService {
         resetToken.use();
         tokenRepository.deleteAllByEmail(req.getEmail());
     }
-
-    // ── 코드 생성 ─────────────────────────────────────────
-    // 6자리 숫자(10^6 = 100만 가지)에서 8자리 영숫자(36^8 ≈ 2.8조 가지)로 변경
-    // 브루트포스 공격 저항성 대폭 향상
 
     private static final String ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TOKEN_LENGTH = 8;

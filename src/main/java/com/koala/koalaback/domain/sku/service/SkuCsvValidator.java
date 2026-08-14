@@ -20,35 +20,22 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/**
- * csv 행 사전검증. db 는 읽기만 하고 쓰지 않는다.
- *
- * <p>오류를 만나도 예외를 던지지 않고 {@link SkuCsvDto.RowError} 로 모은다.
- * 첫 오류에서 중단하면 관리자가 한 줄 고치고 재업로드하는 왕복을 반복하게 된다.
- *
- * <p><b>여기서 놓친 제약은 저장 도중 SQL 예외가 되고, 앞 청크는 이미 커밋된 뒤라 부분 등록이 된다.</b>
- * 그래서 DB 제약(길이·정밀도·CHECK)을 빠짐없이 앞당겨 검사한다.
- */
 @Component
 @RequiredArgsConstructor
 public class SkuCsvValidator {
-
     private final SkuRepository skuRepository;
     private final ArtistRepository artistRepository;
     private final SkuCategoryService categoryService;
 
-    // url 로 쓰이므로 소문자·숫자·하이픈만. 하이픈 연속/양끝 금지
     private static final Pattern SLUG_PATTERN =
             Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
 
-    // varchar 길이
     private static final int MAX_NAME = 200;
     private static final int MAX_SLUG = 220;
     private static final int MAX_MATERIAL = 300;
     private static final int MAX_PACKAGING_TITLE = 200;
     private static final int MAX_IMAGE_URL = 700;
 
-    /** 1단계까지 통과한 행. artistId 는 3단계에서 채워진다 */
     private record Draft(int rowNumber, String artistCode,
                          SkuDto.CreateRequest request, int initialStock) {
         String slug() { return request.getSlug(); }
@@ -57,28 +44,21 @@ public class SkuCsvValidator {
     public SkuCsvDto.ValidationResult validate(List<SkuCsvDto.Row> rows) {
         List<SkuCsvDto.RowError> errors = new ArrayList<>();
 
-        // 카테고리는 행마다 조회하지 않고 한 번만 읽는다 (쿼리 1회)
         Map<String, Set<String>> categoryCodes = categoryService.getActiveCodesByType();
 
-        // 1단계 — 행 하나만 보고 판단 가능한 것
         List<Draft> drafts = new ArrayList<>();
         for (SkuCsvDto.Row row : rows) {
             Draft draft = validateRow(row, categoryCodes, errors);
             if (draft != null) drafts.add(draft);
         }
 
-        // 2단계 — 파일 안에서의 중복
         drafts = rejectDuplicateSlugs(drafts, errors);
 
-        // 3단계 — db 대조 (쿼리 2회)
         List<SkuCsvDto.ParsedRow> validRows = crossCheckWithDb(drafts, errors);
 
         return SkuCsvDto.ValidationResult.of(validRows, errors);
     }
 
-    // ── 1단계: 행 단위 ───────────────────────────────────
-
-    /** 오류가 하나라도 있으면 null 을 반환해 이후 단계에서 제외한다 */
     private Draft validateRow(SkuCsvDto.Row row,
                               Map<String, Set<String>> categoryCodes,
                               List<SkuCsvDto.RowError> errors) {
@@ -94,7 +74,6 @@ public class SkuCsvValidator {
         String genre = validateCategory(row.getGenre(), "genre",
                 categoryCodes.get(SkuCategory.TYPE_SUB), rowNumber, rowErrors);
 
-        // decimal(13,2) — 정수부 11자리까지
         BigDecimal listPrice = parseDecimal(row.getListPrice(), "listPrice",
                 11, 2, true, rowNumber, rowErrors);
         BigDecimal salePrice = parseDecimal(row.getSalePrice(), "salePrice",
@@ -115,7 +94,6 @@ public class SkuCsvValidator {
                     "재고는 음수일 수 없습니다."));
         }
 
-        // decimal(10,2) / decimal(10,3)
         BigDecimal widthCm  = parseDecimal(row.getWidthCm(),  "widthCm",  8, 2, false, rowNumber, rowErrors);
         BigDecimal heightCm = parseDecimal(row.getHeightCm(), "heightCm", 8, 2, false, rowNumber, rowErrors);
         BigDecimal depthCm  = parseDecimal(row.getDepthCm(),  "depthCm",  8, 2, false, rowNumber, rowErrors);
@@ -157,9 +135,6 @@ public class SkuCsvValidator {
                 initialStock != null ? initialStock : 0);
     }
 
-    // ── 2단계: 파일 내 중복 ──────────────────────────────
-
-    /** 같은 slug 가 여러 행에 있으면 그 행들을 전부 제외한다 (어느 쪽이 맞는지 알 수 없다) */
     private List<Draft> rejectDuplicateSlugs(List<Draft> drafts,
                                              List<SkuCsvDto.RowError> errors) {
         Map<String, Long> countBySlug = drafts.stream()
@@ -177,15 +152,12 @@ public class SkuCsvValidator {
         return unique;
     }
 
-    // ── 3단계: db 대조 ───────────────────────────────────
-
-    /** 행 수와 무관하게 쿼리 2회 — slug IN, artistCode IN */
     private List<SkuCsvDto.ParsedRow> crossCheckWithDb(List<Draft> drafts,
                                                        List<SkuCsvDto.RowError> errors) {
         if (drafts.isEmpty()) return List.of();
 
         List<String> slugs = drafts.stream().map(Draft::slug).toList();
-        // soft delete 된 상품도 uk_skus_slug 는 살아 있다 — deletedAt 조건을 넣으면 INSERT 에서 터진다
+
         Set<String> existingSlugs = new HashSet<>(skuRepository.findExistingSlugs(slugs));
 
         List<String> artistCodes = drafts.stream()
@@ -223,8 +195,6 @@ public class SkuCsvValidator {
         return validRows;
     }
 
-    // ── 필드 검증 ────────────────────────────────────────
-
     private String requireText(String value, String field, int max,
                                int rowNumber, List<SkuCsvDto.RowError> errors) {
         if (value == null) {
@@ -257,12 +227,6 @@ public class SkuCsvValidator {
         return slug;
     }
 
-    /**
-     * 카테고리 코드 검증 — 허용값은 상수가 아니라 {@code sku_categories} 에서 온다.
-     *
-     * <p>관리자가 카테고리를 추가하면 배포 없이 바로 csv 에서 쓸 수 있어야 한다.
-     * 비활성 카테고리는 목록에 없으므로 자동으로 거부된다.
-     */
     private String validateCategory(String value, String field, Set<String> allowed,
                                     int rowNumber, List<SkuCsvDto.RowError> errors) {
         if (value == null) {
@@ -281,15 +245,9 @@ public class SkuCsvValidator {
         return upper;
     }
 
-    /**
-     * 에디션 값 검증.
-     *
-     * <p>에디션은 한정판에만 붙는다. 총 수량·번호 모두 선택이지만, 번호만 있고
-     * 총 수량이 없으면 ck_skus_edition 위반으로 INSERT 가 실패한다.
-     */
     private void validateEdition(String mainCategory, Integer size, Integer number,
                                  int rowNumber, List<SkuCsvDto.RowError> errors) {
-        if (mainCategory == null) return;   // 이미 오류가 기록됨
+        if (mainCategory == null) return;
 
         if (!Sku.MAIN_LIMITED.equals(mainCategory)) {
             if (size != null || number != null) {
@@ -315,12 +273,6 @@ public class SkuCsvValidator {
         }
     }
 
-    // ── 타입 변환 ────────────────────────────────────────
-
-    /**
-     * @param intDigits 정수부 최대 자릿수 (decimal(13,2) 이면 11)
-     * @param scale     소수부 최대 자릿수. 넘으면 반올림하지 않고 오류로 돌린다 — 금액이 조용히 바뀌면 안 된다
-     */
     private BigDecimal parseDecimal(String value, String field, int intDigits, int scale,
                                     boolean required, int rowNumber,
                                     List<SkuCsvDto.RowError> errors) {
@@ -367,7 +319,6 @@ public class SkuCsvValidator {
         }
     }
 
-    /** 엑셀이 넣는 천 단위 구분자·공백 제거 */
     private String stripNumberFormat(String value) {
         return value.replace(",", "").replace(" ", "").trim();
     }

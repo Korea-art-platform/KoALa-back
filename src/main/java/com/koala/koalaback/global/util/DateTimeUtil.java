@@ -4,7 +4,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 public final class DateTimeUtil {
-
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private DateTimeUtil() {}

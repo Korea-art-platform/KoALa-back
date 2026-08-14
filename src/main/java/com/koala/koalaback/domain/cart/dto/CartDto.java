@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public class CartDto {
-
     @Getter
     public static class AddItemRequest {
         @NotBlank

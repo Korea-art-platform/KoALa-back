@@ -32,16 +32,9 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
-/**
- * 결제 승인 정책 검증 — 특히 "PG 응답을 못 받은" 미확정 케이스의 처리.
- *
- * <p>가장 위험한 시나리오는 승인은 됐는데 응답을 못 받은 경우다.
- * 이때 실패로 단정하면 돈은 빠져나갔는데 주문은 미결제로 남는다.
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("결제 승인 정책")
 class PaymentConfirmPolicyTest {
-
     private static final Long PAYMENT_ID = 100L;
     private static final String ORDER_NO = "ORD-1";
     private static final BigDecimal AMOUNT = BigDecimal.valueOf(50_000);
@@ -83,7 +76,6 @@ class PaymentConfirmPolicyTest {
 
         paymentService.confirm(1L, request);
 
-        // 순서가 핵심 — 선점 커밋 → PG 호출 → 결과 반영
         InOrder order = inOrder(paymentTransactionService, provider);
         order.verify(paymentTransactionService).beginConfirm(eq(1L), any());
         order.verify(provider).confirm(any(), eq(ORDER_NO), eq(AMOUNT));
@@ -120,7 +112,6 @@ class PaymentConfirmPolicyTest {
 
         paymentService.confirm(1L, request);
 
-        // 실패로 단정하지 않고 승인으로 확정해야 한다
         then(paymentTransactionService).should().applyConfirmApproved(eq(PAYMENT_ID), any());
         then(paymentTransactionService).should(never())
                 .applyConfirmRejected(any(), anyString(), anyString());
@@ -161,7 +152,7 @@ class PaymentConfirmPolicyTest {
 
         then(paymentTransactionService).should()
                 .applyConfirmInDoubt(eq(PAYMENT_ID), anyString(), anyString());
-        // 실패로 확정하면 만료 취소가 돌아 "결제됐는데 주문 없음" 이 된다
+
         then(paymentTransactionService).should(never())
                 .applyConfirmRejected(any(), anyString(), anyString());
     }
@@ -172,7 +163,7 @@ class PaymentConfirmPolicyTest {
         given(provider.confirm(any(), any(), any()))
                 .willReturn(PaymentProvider.PaymentConfirmResult.approved(
                         "pk_1", "A1", AMOUNT, "{}"));
-        // DB 저장 실패
+
         given(paymentTransactionService.applyConfirmApproved(any(), any()))
                 .willThrow(new RuntimeException("DB 연결 끊김"));
         given(provider.cancel(any(), any(), any()))
@@ -183,9 +174,8 @@ class PaymentConfirmPolicyTest {
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                         .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
 
-        // 거래번호는 DB 가 아니라 PG 응답에서 가져와야 한다 (저장이 실패했으므로)
         then(provider).should().cancel(eq("pk_1"), eq(AMOUNT), anyString());
-        // 보상에 성공했으니 실패로 확정 — 그래야 고객이 새 결제를 시작할 수 있다
+
         then(paymentTransactionService).should()
                 .applyConfirmRejected(eq(PAYMENT_ID), anyString(), anyString());
     }
@@ -205,7 +195,6 @@ class PaymentConfirmPolicyTest {
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                         .isEqualTo(ErrorCode.PAYMENT_IN_DOUBT));
 
-        // 실패로 확정하면 고객이 재시도해 이중 결제가 된다 — IN_DOUBT 로 잠근다
         then(paymentTransactionService).should()
                 .applyConfirmInDoubt(eq(PAYMENT_ID), anyString(), anyString());
         then(paymentTransactionService).should(never())
@@ -240,7 +229,7 @@ class PaymentConfirmPolicyTest {
                 .willThrow(new RuntimeException("DB 연결 끊김"));
         given(provider.cancel(any(), any(), any()))
                 .willReturn(PaymentProvider.PaymentCancelResult.cancelled(AMOUNT, "{}"));
-        // 보상 결과 기록마저 실패 — DB 가 고장난 상황이므로 충분히 가능하다
+
         org.mockito.BDDMockito.willThrow(new RuntimeException("DB 여전히 죽어 있음"))
                 .given(paymentTransactionService)
                 .applyConfirmRejected(any(), anyString(), anyString());

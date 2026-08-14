@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 public class ReviewController {
-
     private final ReviewService reviewService;
 
     @PostMapping("/api/v1/reviews")

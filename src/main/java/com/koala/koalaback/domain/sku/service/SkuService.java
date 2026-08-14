@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SkuService {
-
     private final SkuRepository skuRepository;
     private final SkuMediaRepository skuMediaRepository;
     private final SkuReviewStatsRepository skuReviewStatsRepository;
@@ -44,8 +43,6 @@ public class SkuService {
     private final StockService stockService;
     private final CodeGenerator codeGenerator;
     private final StorageUploader s3Uploader;
-
-    // ── 공개 조회 ─────────────────────────────────────────
 
     public PageResponse<SkuDto.SummaryResponse> getActiveSkus(Pageable pageable) {
         return toSummaryPage(skuRepository
@@ -77,8 +74,6 @@ public class SkuService {
         return result;
     }
 
-    // ── 360도 프레임 조회 (Redis 캐시) ────────────────────
-
     @Cacheable(value = "sku360frames", key = "#skuCode")
     public SkuDto.FrameListResponse get360Frames(String skuCode) {
         Sku sku = getSkuEntityByCode(skuCode);
@@ -90,8 +85,6 @@ public class SkuService {
                 .frames(frames.stream().map(SkuDto.MediaResponse::from).toList())
                 .build();
     }
-
-    // ── 어드민 CRUD ───────────────────────────────────────
 
     @Transactional
     public SkuDto.SummaryResponse createSku(SkuDto.CreateRequest req) {
@@ -146,20 +139,13 @@ public class SkuService {
         return toSummary(sku);
     }
 
-    /**
-     * 에디션 정보 검증.
-     *
-     * <p>DB CHECK 제약은 "둘 다 있거나 둘 다 없거나"까지만 본다. 대분류는 관리자가
-     * 추가할 수 있어서 특정 코드를 제약에 박을 수 없기 때문이다.
-     * "일반 상품에는 에디션 번호를 붙일 수 없다"는 여기서 막는다.
-     */
     private void validateEdition(String mainCategory, Integer editionSize, Integer editionNumber) {
         boolean hasEdition = editionSize != null || editionNumber != null;
         if (hasEdition && !Sku.MAIN_LIMITED.equals(mainCategory)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "에디션 정보는 한정판 상품에만 입력할 수 있습니다.");
         }
-        // 한정판이어도 에디션 번호는 선택 — 총 수량만 정해두고 번호는 나중에 채우는 경우가 있다
+
         if (editionNumber != null && editionSize == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "에디션 번호를 입력하려면 총 수량도 함께 입력해야 합니다.");
@@ -189,8 +175,6 @@ public class SkuService {
         getSkuEntityByCode(skuCode).softDelete();
     }
 
-    // ── 360도 프레임 업로드 (어드민) ──────────────────────
-
     @Transactional
     @CacheEvict(value = "sku360frames", key = "#skuCode")
     public SkuDto.FrameListResponse upload360Frames(String skuCode, List<SkuDto.FrameUploadItem> items) {
@@ -198,7 +182,6 @@ public class SkuService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        // 각도 범위 및 중복 검증
         items.forEach(i -> {
             if (i.getAngleDegree() == null
                     || i.getAngleDegree().doubleValue() < 0
@@ -245,8 +228,6 @@ public class SkuService {
                 .build();
     }
 
-    // ── 미디어 관리 (어드민) ──────────────────────────────
-
     @Transactional
     public SkuDto.MediaResponse addMedia(String skuCode, MultipartFile file,
                                          SkuDto.MediaAddRequest req) {
@@ -271,7 +252,6 @@ public class SkuService {
                 .build();
         skuMediaRepository.save(media);
 
-        // 대표 이미지로 지정된 경우 SKU.primaryImageUrl 동기화
         if (makePrimary) {
             sku.update(sku.getName(), sku.getSlug(), sku.getDescription(),
                     sku.getSkuType(), sku.getMainCategory(), sku.getGenre(), sku.getMaterial(),
@@ -301,8 +281,6 @@ public class SkuService {
                 .stream().map(SkuDto.MediaResponse::from).toList();
     }
 
-    // ── 재고 조회 ─────────────────────────────────────────
-
     public SkuDto.StockResponse getStock(String skuCode) {
         Sku sku = getSkuEntityByCode(skuCode);
         return SkuDto.StockResponse.builder()
@@ -310,8 +288,6 @@ public class SkuService {
                 .stockQuantity(stockService.getStock(sku.getId()))
                 .build();
     }
-
-    // ── Package-level helpers ─────────────────────────────
 
     public Sku getSkuEntityByCode(String skuCode) {
         return skuRepository.findBySkuCode(skuCode)
@@ -323,19 +299,12 @@ public class SkuService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SKU_NOT_FOUND));
     }
 
-    // ── Private helpers ───────────────────────────────────
-
     private SkuDto.SummaryResponse toSummary(Sku sku) {
         int stock = stockService.getStock(sku.getId());
         SkuReviewStats stats = skuReviewStatsRepository.findById(sku.getId()).orElse(null);
         return SkuDto.SummaryResponse.from(sku, stock, stats);
     }
 
-    /**
-     * 목록 응답 조립 — 재고/리뷰집계를 SKU 별로 조회하면 N+1 이 되므로
-     * 페이지의 skuId 를 모아 한 번에 배치 조회한 뒤 매핑한다.
-     * (응답 스키마는 {@link #toSummary} 와 동일)
-     */
     private PageResponse<SkuDto.SummaryResponse> toSummaryPage(Page<Sku> skuPage) {
         List<Long> skuIds = skuPage.getContent().stream().map(Sku::getId).toList();
 
@@ -358,7 +327,6 @@ public class SkuService {
                 .findBySkuIdOrderByMediaRoleAscSortOrderAsc(sku.getId());
         return SkuDto.DetailResponse.from(sku, stock, stats, media);
     }
-
 
     public PageResponse<SkuDto.SummaryResponse> getAllSkus(Pageable pageable) {
         return toSummaryPage(skuRepository.findByDeletedAtIsNull(pageable));

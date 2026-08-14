@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
-
     private final UserRepository userRepository;
 
     @GetMapping
@@ -39,7 +38,7 @@ public class AdminUserController {
     }
 
     @PatchMapping("/{userId}/suspend")
-    @Transactional  // 변경감지(dirty checking)로 status 가 실제 반영되도록
+    @Transactional
     public ApiResponse<Void> suspendUser(@PathVariable Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -48,7 +47,7 @@ public class AdminUserController {
     }
 
     @PatchMapping("/{userId}/activate")
-    @Transactional  // 변경감지(dirty checking)로 status 가 실제 반영되도록
+    @Transactional
     public ApiResponse<Void> activateUser(@PathVariable Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

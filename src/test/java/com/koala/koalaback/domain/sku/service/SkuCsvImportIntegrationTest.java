@@ -28,21 +28,12 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * csv 일괄 등록 전 과정 통합 테스트 — 파싱 → 사전검증 → 청크 저장.
- *
- * <p>실제 MySQL 을 쓴다. slug UNIQUE·CHECK 제약·트랜잭션 경계가 검증 대상이라
- * H2 나 목으로는 의미가 없다.
- *
- * <p>chunk-size 를 2 로 낮춰 적은 행으로도 여러 청크가 만들어지게 한다.
- */
 @TestPropertySource(properties = {
         "koala.csv.chunk-size=2",
         "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @DisplayName("csv 일괄 등록")
 class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
-
     private static final String HEADER = "artistCode,name,slug,listPrice,mainCategory,genre,"
             + "salePrice,initialStock,editionSize,editionNumber";
 
@@ -64,8 +55,6 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
                 .slug("csv-test-artist")
                 .build());
 
-        // 스키마는 엔티티로 만들어지므로 Flyway 초기 데이터가 없다.
-        // 카테고리 허용값은 이제 db 에서 오므로 직접 넣어줘야 한다.
         seedCategory(SkuCategory.TYPE_MAIN, Sku.MAIN_LIMITED, "한정판");
         seedCategory(SkuCategory.TYPE_MAIN, Sku.MAIN_NORMAL, "일반");
         seedCategory(SkuCategory.TYPE_SUB, "ART_TOY", "아트 토이");
@@ -114,9 +103,8 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
             assertThat(s.getSkuCode()).isNotBlank();
         });
 
-        // 리뷰집계 행이 없으면 나중에 리뷰 승인 시 집계가 조용히 반영되지 않는다
         assertThat(countReviewStats()).isEqualTo(5);
-        // 재고는 누적 원장 — initialStock 10 이 delta 로 쌓인다
+
         assertThat(stockOf(saved.get(0).getId())).isEqualTo(10);
     }
 
@@ -124,11 +112,11 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
     @DisplayName("검증 오류가 하나라도 있으면 단 한 건도 저장하지 않는다")
     void anyValidationError_savesNothing() {
         String csv = HEADER + "\n"
-                + row("csvtest-good-1", "정상상품", "150000", "5")          // 정상
-                + row("csvtest-good-2", "", "150000", "5")                  // name 누락
-                + row("CSVTEST-BAD-SLUG", "대문자슬러그", "150000", "5")      // slug 형식 위반
-                + row("csvtest-good-3", "정상상품3", "abc", "5")             // 숫자 아님
-                + row("csvtest-good-4", "정상상품4", "150000", "-1");        // 재고 음수
+                + row("csvtest-good-1", "정상상품", "150000", "5")
+                + row("csvtest-good-2", "", "150000", "5")
+                + row("CSVTEST-BAD-SLUG", "대문자슬러그", "150000", "5")
+                + row("csvtest-good-3", "정상상품3", "abc", "5")
+                + row("csvtest-good-4", "정상상품4", "150000", "-1");
 
         SkuCsvDto.ImportResult result = importService.importCsv(file(csv));
 
@@ -164,7 +152,6 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
         importService.importCsv(file(HEADER + "\n" + row("csvtest-exist", "최초 등록", "150000", "10")));
         assertThat(countSkus("csvtest-exist")).isEqualTo(1);
 
-        // 같은 파일을 다시 올린 상황
         SkuCsvDto.ImportResult result = importService.importCsv(
                 file(HEADER + "\n" + row("csvtest-exist", "재업로드", "150000", "10")));
 
@@ -233,15 +220,10 @@ class SkuCsvImportIntegrationTest extends IntegrationTestSupport {
         System.out.printf("%n[1000행 결과] 소요 %dms, 총 statement %d회 (행당 %.2f회)%n",
                 elapsed, queries, queries / 1000.0);
 
-        // 검증 3회(카테고리·slug·작가) + 행당 INSERT 3종(sku, review_stats, ledger) 수준이어야 한다.
-        // 행마다 조회가 늘어나면 이 상한을 넘는다.
         assertThat(queries).as("행당 4회를 넘으면 어딘가에서 행 단위 조회가 늘어난 것")
                 .isLessThan(1000 * 4);
     }
 
-    // ── Helpers ───────────────────────────────────────────
-
-    /** 자주 바뀌지 않는 값은 고정하고 slug·이름·가격·재고만 바꾼다 */
     private String row(String slug, String name, String listPrice, String initialStock) {
         return String.join(",",
                 artistCode, name, slug, listPrice,

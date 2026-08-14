@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
-
     Optional<Artist> findByArtistCode(String artistCode);
 
     Optional<Artist> findBySlug(String slug);
@@ -18,6 +17,5 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
     Page<Artist> findByDeletedAtIsNullAndIsActiveTrue(Pageable pageable);
 
-    /** csv 일괄 등록 작가 존재 확인 */
     List<Artist> findAllByArtistCodeIn(List<String> artistCodes);
 }

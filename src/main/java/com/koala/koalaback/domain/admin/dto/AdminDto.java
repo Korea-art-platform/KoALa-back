@@ -10,7 +10,6 @@ import lombok.Getter;
 import java.util.List;
 
 public class AdminDto {
-
     @Getter
     public static class LoginRequest {
         @NotBlank

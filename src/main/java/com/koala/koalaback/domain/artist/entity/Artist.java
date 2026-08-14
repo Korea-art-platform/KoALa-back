@@ -14,7 +14,6 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Artist extends BaseTimeEntity {
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -41,16 +40,9 @@ public class Artist extends BaseTimeEntity {
     @Column(nullable = false)
     private Boolean isActive;
 
-    /**
-     * 플랫폼 수수료율 — 0.2000 = 20%.
-     *
-     * <p>작가마다 계약이 달라 컬럼으로 둔다. 정산을 확정할 때 이 값을 스냅샷으로
-     * 함께 저장하므로, 나중에 요율을 바꿔도 이미 지급한 달의 금액은 바뀌지 않는다.
-     */
     @Column(nullable = false, precision = 5, scale = 4)
     private BigDecimal commissionRate;
 
-    /** 대표 작품 SKU ID (nullable) — ON DELETE SET NULL */
     @Column(name = "featured_sku_id", columnDefinition = "BIGINT UNSIGNED")
     private Long featuredSkuId;
 
@@ -77,15 +69,8 @@ public class Artist extends BaseTimeEntity {
         this.commissionRate  = DEFAULT_COMMISSION_RATE;
     }
 
-    /** 계약이 정해지기 전 기본값 — 어드민에서 작가별로 조정한다 */
     public static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("0.2000");
 
-    /**
-     * 수수료율 변경.
-     *
-     * <p>0 이상 1 미만만 허용한다. 1 이상이면 작가에게 갈 돈이 0 이하가 되고,
-     * 음수면 팔수록 플랫폼이 손해를 본다. 둘 다 오타로 들어올 수 있는 값이다.
-     */
     public void changeCommissionRate(BigDecimal rate) {
         if (rate == null
                 || rate.compareTo(BigDecimal.ZERO) < 0

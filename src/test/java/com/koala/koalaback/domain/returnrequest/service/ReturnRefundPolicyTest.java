@@ -34,22 +34,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-/**
- * 반품 승인 시 환불 금액 규칙.
- *
- * <h3>왜 이걸 보는가</h3>
- * <p>환불 금액은 <b>관리자가 직접 입력하는 값</b>이고, 그대로 PG 로 넘어가 돈이 나간다.
- * 결제 승인은 고객이 낸 금액과 대조할 수 있지만, 환불은 대조할 상대가 주문 총액뿐이다.
- * 숫자를 하나 잘못 눌러도 막아 줄 것이 없으면 그대로 나간다.
- *
- * <p>재고 복구도 함께 본다. 반품은 승인 시점에, 교환은 완료 시점에 복구하는데
- * 두 곳에서 모두 복구되면 팔지 않은 재고가 늘어난다.
- */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("반품 환불 정책")
 class ReturnRefundPolicyTest {
-
     private static final String RETURN_NO = "RET-001";
     private static final BigDecimal ORDER_TOTAL = new BigDecimal("100000");
 
@@ -75,7 +63,6 @@ class ReturnRefundPolicyTest {
                 .willReturn(Optional.of(captured));
     }
 
-    /** 아직 처리되지 않은(REQUESTED) 반품 요청 */
     private ReturnRequest pendingReturn(String returnType) {
         ReturnRequest request = ReturnRequest.builder()
                 .returnNo(RETURN_NO)
@@ -87,12 +74,6 @@ class ReturnRefundPolicyTest {
         return request;
     }
 
-    /**
-     * 주문 아이템 목.
-     *
-     * <p>목 안에서 다른 목을 스터빙하면 Mockito 가 어느 목을 설정 중인지 헷갈려
-     * UnfinishedStubbingException 이 난다. 그래서 바깥에서 미리 만들어 넘긴다.
-     */
     private OrderItem orderItem(Long skuId, int quantity, Long itemId) {
         Sku sku = mock(Sku.class);
         given(sku.getId()).willReturn(skuId);
@@ -114,7 +95,6 @@ class ReturnRefundPolicyTest {
     @Nested
     @DisplayName("환불 금액")
     class RefundAmount {
-
         @Test
         @DisplayName("비워두면 주문 총액 전액이 환불된다")
         void nullMeansFullRefund() {
@@ -174,7 +154,6 @@ class ReturnRefundPolicyTest {
     @Nested
     @DisplayName("처리 상태")
     class State {
-
         @Test
         @DisplayName("거절하면 환불 대상이 아니다")
         void rejectDoesNotRefund() {
@@ -216,7 +195,6 @@ class ReturnRefundPolicyTest {
     @Nested
     @DisplayName("재고 복구")
     class StockRestore {
-
         @Test
         @DisplayName("반품 승인 시 재고를 되돌린다")
         void returnRestoresStock() {
