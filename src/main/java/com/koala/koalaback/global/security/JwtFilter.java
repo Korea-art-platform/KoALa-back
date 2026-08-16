@@ -35,6 +35,13 @@ public class JwtFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtProvider.validateToken(token)
                 && !tokenBlacklistService.isBlacklisted(token)) {
             try {
+                // 리프레시 토큰으로는 api 를 호출할 수 없다. 만료가 길어 유출 시 피해가 크다
+                if (JwtProvider.TYPE_REFRESH.equals(jwtProvider.getTokenType(token))) {
+                    log.warn("리프레시 토큰으로 API 호출 시도 — 인증 거부");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 Long userId = jwtProvider.getUserId(token);
                 String role = jwtProvider.getRole(token);
 

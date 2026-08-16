@@ -32,25 +32,35 @@ public class JwtProvider {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
+
     public String createAccessToken(Long userId, String role) {
-        return buildToken(String.valueOf(userId), role, accessTokenExpiryMs);
+        return buildToken(String.valueOf(userId), role, TYPE_ACCESS, accessTokenExpiryMs);
     }
 
     public String createRefreshToken(Long userId) {
-        return buildToken(String.valueOf(userId), null, refreshTokenExpiryMs);
+        return buildToken(String.valueOf(userId), null, TYPE_REFRESH, refreshTokenExpiryMs);
     }
 
-    private String buildToken(String subject, String role, long expiryMs) {
+    private String buildToken(String subject, String role, String type, long expiryMs) {
         Date now = new Date();
         JwtBuilder builder = Jwts.builder()
                 .subject(subject)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiryMs))
+                .claim("typ", type)
                 .signWith(key);
         if (role != null) {
             builder.claim("role", role);
         }
         return builder.compact();
+    }
+
+    /** 기존 발급분에는 typ 이 없다 — 없으면 액세스로 본다 */
+    public String getTokenType(String token) {
+        String type = getClaims(token).get("typ", String.class);
+        return type != null ? type : TYPE_ACCESS;
     }
 
     public Claims getClaims(String token) {
