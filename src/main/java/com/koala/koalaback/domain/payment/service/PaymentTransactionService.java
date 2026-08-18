@@ -33,8 +33,25 @@ public class PaymentTransactionService {
     public record ConfirmContext(Long paymentId, String providerCode,
                                  String orderNo, BigDecimal amount) {}
 
+    /**
+     * @param cancelAmount 우리 장부에 적을 환불 금액. 전액이든 부분이든 항상 값이 있다
+     * @param partial      승인액보다 적게 돌려주는 경우
+     */
     public record CancelContext(Long paymentId, String providerCode,
-                                String pgTransactionId, BigDecimal cancelAmount) {}
+                                String pgTransactionId, BigDecimal cancelAmount,
+                                boolean partial) {
+
+        /**
+         * PG 에 넘길 금액. <b>전액 취소면 null 이다.</b>
+         *
+         * <p>PG 들은 금액이 없으면 전액 취소로, 있으면 부분 취소로 읽는다. 전액인데도 금액을 실어
+         * 보내면 부분취소 요청이 되고, 계좌이체·휴대폰처럼 부분취소를 지원하지 않는 수단에서는
+         * 환불이 통째로 거절된다.
+         */
+        public BigDecimal amountForProvider() {
+            return partial ? cancelAmount : null;
+        }
+    }
 
     @Transactional
     public ConfirmContext beginConfirm(Long userId, PaymentDto.ConfirmRequest req) {
@@ -163,8 +180,10 @@ public class PaymentTransactionService {
         payment.markCancelInProgress();
         recordEvent(payment, "CANCEL_REQUESTED", "PENDING", cancelAmount, null, null);
 
+        boolean partial = cancelAmount.compareTo(payment.getApprovedAmount()) < 0;
+
         return new CancelContext(payment.getId(), payment.getProvider(),
-                payment.getPgTransactionId(), cancelAmount);
+                payment.getPgTransactionId(), cancelAmount, partial);
     }
 
     @Transactional
@@ -209,7 +228,9 @@ public class PaymentTransactionService {
                 .eventStatus(eventStatus)
                 .amount(amount)
                 .providerEventId(providerEventId)
-                .payloadJson(payloadJson)
+                // 실패 사유는 사람이 읽는 문장으로 들어온다. payload_json 은 JSON 칼럼이라
+                // 그대로 넣으면 저장이 거부되고, 기록하려던 트랜잭션까지 뒤집힌다
+                .payloadJson(PaymentEventPayload.normalize(payloadJson))
                 .build());
     }
 

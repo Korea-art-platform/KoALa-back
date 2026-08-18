@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -136,10 +137,13 @@ public class TossPaymentProvider implements PaymentProvider {
                                       BigDecimal cancelAmount, String reason) {
         try {
             HttpHeaders headers = buildHeaders();
-            Map<String, Object> body = Map.of(
-                    "cancelReason", reason,
-                    "cancelAmount", cancelAmount
-            );
+            // Map.of 는 값이 null 이면 던진다. 전액 취소는 금액을 빼고 보내야 하므로 쓸 수 없다.
+            // 토스도 cancelAmount 가 없으면 전액 취소로 읽는다
+            Map<String, Object> body = new HashMap<>();
+            body.put("cancelReason", reason);
+            if (cancelAmount != null) {
+                body.put("cancelAmount", cancelAmount);
+            }
             ResponseEntity<Map> response = restTemplate.exchange(
                     TOSS_API_BASE + "/" + pgTransactionId + "/cancel",
                     HttpMethod.POST,

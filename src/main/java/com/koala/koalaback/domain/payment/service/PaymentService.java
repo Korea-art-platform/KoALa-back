@@ -224,7 +224,7 @@ public class PaymentService {
 
         PaymentProvider.PaymentCancelResult result;
         try {
-            result = provider.cancel(ctx.pgTransactionId(), ctx.cancelAmount(), req.getReason());
+            result = provider.cancel(ctx.pgTransactionId(), ctx.amountForProvider(), req.getReason());
         } catch (Exception e) {
             log.error("PG 취소 호출 중 예외 — 취소 여부 미확정: paymentNo={}", paymentNo, e);
             result = PaymentProvider.PaymentCancelResult.unknown("PROVIDER_EXCEPTION", e.getMessage());
@@ -336,7 +336,9 @@ public class PaymentService {
                 .eventStatus(eventStatus)
                 .amount(amount)
                 .providerEventId(providerEventId)
-                .payloadJson(payloadJson)
+                // 실패 사유는 사람이 읽는 문장으로 들어온다. payload_json 은 JSON 칼럼이라
+                // 그대로 넣으면 저장이 거부되고, 기록하려던 트랜잭션까지 뒤집힌다
+                .payloadJson(PaymentEventPayload.normalize(payloadJson))
                 .build());
     }
 
