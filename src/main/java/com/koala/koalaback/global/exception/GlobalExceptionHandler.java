@@ -11,6 +11,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -70,6 +72,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ec.getStatus())
                 .body(ErrorResponse.of(ec, req.getRequestURI(), userMessage));
+    }
+
+    /**
+     * 존재하지 않는 경로 — 404 로 돌려준다.
+     *
+     * <p>이게 없으면 맨 아래 {@code Exception} 핸들러가 잡아 500 이 나간다. 두 가지가 잘못된다.
+     * <ul>
+     *   <li>없는 주소를 "서버 오류"라고 알려 준다 — 호출한 쪽이 원인을 잘못 찾는다</li>
+     *   <li><b>500 슬랙 알림이 울린다.</b> 봇이 임의 주소를 훑기만 해도 알림이 쌓여,
+     *       정작 중요한 주문·환불 알림이 묻힌다</li>
+     * </ul>
+     *
+     * <p>실제로 나이스·페이플 복귀 경로를 시큐리티에서 열어 두고 컨트롤러는 꺼 둔 상태에서
+     * 이 문제가 드러났다.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception e, HttpServletRequest req) {
+        log.debug("[404] {} {}", req.getMethod(), req.getRequestURI());
+        ErrorCode ec = ErrorCode.RESOURCE_NOT_FOUND;
+        return ResponseEntity.status(ec.getStatus())
+                .body(ErrorResponse.of(ec, req.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)
