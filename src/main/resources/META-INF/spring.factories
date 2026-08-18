@@ -1,0 +1,2 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.koala.koalaback.infra.health.HealthGroupDefaults

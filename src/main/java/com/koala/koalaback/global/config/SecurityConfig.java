@@ -126,7 +126,7 @@ public class SecurityConfig {
                             auth.requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll();
                         }
 
-                        auth.requestMatchers("/actuator/health").permitAll();
+                        auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
                         auth.requestMatchers("/error").permitAll();
                         auth.requestMatchers("/uploads/**").permitAll();
                         auth.requestMatchers("/admin/api/**").hasRole("ADMIN");
@@ -183,7 +183,6 @@ public class SecurityConfig {
             config.setAllowedOriginPatterns(List.of(
                     "https://koala-art.co.kr",
                     "https://www.koala-art.co.kr",
-
                     "capacitor://localhost"
             ));
         } else {
