@@ -69,17 +69,18 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives(
                                         "default-src 'self'; " +
-                                        "script-src 'self' https://*.tosspayments.com https://*.toss.im https://pay.nicepay.co.kr; " +
+                                        "script-src 'self' https://*.tosspayments.com https://*.toss.im https://pay.nicepay.co.kr " +
+                                                "https://cpay.payple.kr https://democpay.payple.kr; " +
                                         "style-src 'self' 'unsafe-inline'; " +
                                         "img-src 'self' data: https:; " +
                                         "font-src 'self' data:; " +
 
                                         "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io " +
                                                 "https://*.tosspayments.com https://*.toss.im " +
-                                                "https://*.nicepay.co.kr; " +
+                                                "https://*.nicepay.co.kr https://*.payple.kr; " +
 
                                         "frame-src https://*.tosspayments.com https://*.toss.im " +
-                                                "https://*.nicepay.co.kr; " +
+                                                "https://*.nicepay.co.kr https://*.payple.kr; " +
                                         "frame-ancestors 'none'; " +
                                         "upgrade-insecure-requests"
                                 )
@@ -115,6 +116,7 @@ public class SecurityConfig {
                                 "/login/oauth2/**").permitAll();
                         auth.requestMatchers("/webhook/**").permitAll();
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/payments/nice/return").permitAll();
+                        auth.requestMatchers(HttpMethod.POST, "/api/v1/payments/payple/return").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/admin/api/v1/auth/login").permitAll();
 
