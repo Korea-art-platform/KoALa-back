@@ -26,6 +26,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+    private static final String NICEPAY = "NICEPAY";
+
     private final PaymentRepository paymentRepository;
     private final PaymentEventRepository paymentEventRepository;
     private final OrderRepository orderRepository;
@@ -249,29 +251,44 @@ public class PaymentService {
     @Transactional
     public void handleWebhook(String providerCode, String payloadJson) {
         log.info("Webhook received: provider={}", providerCode);
-        String paymentKey = extractTransactionId(payloadJson);
+        String paymentKey = extractTransactionId(providerCode, payloadJson);
         if (paymentKey.isBlank()) {
             log.warn("Webhook paymentKey 추출 실패 — payload: {}", payloadJson);
             return;
         }
+        BigDecimal webhookAmount = extractWebhookAmount(providerCode, payloadJson);
         paymentRepository.findByPgTransactionId(paymentKey)
                 .ifPresentOrElse(
                         payment -> {
-                            String status = extractWebhookStatus(payloadJson);
+                            String status = extractWebhookStatus(providerCode, payloadJson);
                             recordEvent(payment, "WEBHOOK", status, BigDecimal.ZERO, paymentKey, payloadJson);
-                            settleInDoubtByWebhook(payment, status, paymentKey, payloadJson);
+                            settleInDoubtByWebhook(payment, status, webhookAmount, paymentKey, payloadJson);
                             log.info("Webhook processed: paymentKey={}, status={}", paymentKey, status);
                         },
                         () -> log.warn("Webhook — 매핑된 결제 없음: paymentKey={}", paymentKey)
                 );
     }
 
-    private void settleInDoubtByWebhook(Payment payment, String status,
+    private void settleInDoubtByWebhook(Payment payment, String status, BigDecimal webhookAmount,
                                         String paymentKey, String payloadJson) {
         if (!payment.isInDoubt()) {
             return;
         }
         if ("DONE".equals(status)) {
+            // 서명이 맞아도 금액까지 맞는지는 따로 본다. 서명은 "PG 가 보냈다"를 보증할 뿐,
+            // 그 PG 가 우리가 청구한 금액을 승인했는지는 우리 장부와 대조해야 알 수 있다.
+            // 어긋나면 자동으로 확정하지 않고 사람에게 넘긴다 — 돈이 걸린 판단이다.
+            if (webhookAmount != null
+                    && webhookAmount.compareTo(payment.getRequestedAmount()) != 0) {
+                log.error("★웹훅 금액 불일치★ 자동 확정하지 않는다: paymentNo={}, 청구={}, 웹훅={}",
+                        payment.getPaymentNo(), payment.getRequestedAmount(), webhookAmount);
+                recordEvent(payment, "WEBHOOK_AMOUNT_MISMATCH", "FAILED",
+                        webhookAmount, paymentKey, payloadJson);
+                adminAlertNotifier.notifyPaymentInDoubt(
+                        payment.getOrder().getOrderNo(), payment.getRequestedAmount(),
+                        "웹훅 금액 불일치 (웹훅 " + webhookAmount + "원) — 직접 확인 필요");
+                return;
+            }
             payment.markCaptured(paymentKey, null, payment.getRequestedAmount(), payloadJson);
             payment.getOrder().markPaid();
             recordEvent(payment, "CAPTURED", "SUCCESS",
@@ -323,10 +340,15 @@ public class PaymentService {
                 .build());
     }
 
-    private String extractTransactionId(String payloadJson) {
+    private String extractTransactionId(String providerCode, String payloadJson) {
         if (payloadJson == null || payloadJson.isBlank()) return "";
         try {
             JsonNode root = objectMapper.readTree(payloadJson);
+
+            // 나이스는 전문이 평면이고 거래키 이름도 tid 다 — data.paymentKey 를 찾으면 못 찾는다
+            if (NICEPAY.equals(providerCode)) {
+                return root.path("tid").asText("");
+            }
 
             JsonNode dataNode = root.path("data");
             if (!dataNode.isMissingNode()) {
@@ -341,13 +363,53 @@ public class PaymentService {
         }
     }
 
-    private String extractWebhookStatus(String payloadJson) {
+    private String extractWebhookStatus(String providerCode, String payloadJson) {
         try {
             JsonNode root = objectMapper.readTree(payloadJson);
+            if (NICEPAY.equals(providerCode)) {
+                return toInternalStatus(root.path("status").asText(""));
+            }
             String status = root.path("data").path("status").asText("");
             return status.isBlank() ? "UNKNOWN" : status;
         } catch (Exception e) {
             return "UNKNOWN";
+        }
+    }
+
+    /**
+     * 나이스 상태값을 내부 어휘로 옮긴다.
+     *
+     * <p>{@code partialCancelled} 와 {@code ready} 는 일부러 어디에도 걸리지 않는 값으로 보낸다.
+     * 미확정 결제를 정리하는 규칙이 CANCELED 를 "실패 확정"으로 다루기 때문이다.
+     * 부분취소는 <b>승인이 있었다는 뜻</b>이고, ready 는 가상계좌를 발급했을 뿐 아직 입금 전이다.
+     * 둘 다 실패로 적으면 멀쩡한 주문이 실패로 뒤집힌다.
+     */
+    private String toInternalStatus(String niceStatus) {
+        return switch (niceStatus) {
+            case "paid" -> "DONE";
+            case "failed" -> "ABORTED";
+            case "cancelled" -> "CANCELED";
+            case "expired" -> "EXPIRED";
+            case "partialCancelled" -> "PARTIAL_CANCELED";
+            case "ready" -> "READY";
+            default -> "UNKNOWN";
+        };
+    }
+
+    /**
+     * 전문에 적힌 결제 금액. 없으면 null 을 돌려 금액 대조를 건너뛴다.
+     */
+    private BigDecimal extractWebhookAmount(String providerCode, String payloadJson) {
+        try {
+            JsonNode root = objectMapper.readTree(payloadJson);
+            JsonNode amount = NICEPAY.equals(providerCode)
+                    ? root.path("amount")
+                    : root.path("data").path("totalAmount");
+            return amount.isNumber() || amount.isTextual()
+                    ? new BigDecimal(amount.asText())
+                    : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 }

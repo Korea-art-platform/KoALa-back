@@ -62,6 +62,32 @@ public class NiceSignatureVerifier {
                 signature.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * 웹훅 전문의 서명을 검증한다.
+     *
+     * <p>결제창 서명과 <b>조합이 다르다</b>. 결제창은 {@code authToken + clientId + amount + secretKey},
+     * 웹훅은 {@code tid + amount + ediDate + secretKey} 다. clientId 가 빠지고 ediDate 가 들어간다.
+     * 한쪽 규칙으로 다른 쪽을 검증하면 정상 요청이 전부 거부된다.
+     *
+     * <p>웹훅은 결제창과 달리 clientKey 를 쓰지 않으므로 secretKey 만 있으면 검증할 수 있다.
+     *
+     * @param tid       나이스 거래키
+     * @param amount    금액 (전문에 온 문자열 그대로 — 숫자로 바꾸면 해시가 달라진다)
+     * @param ediDate   전문 생성 일시
+     * @param signature 나이스가 보낸 서명
+     */
+    public boolean verifyWebhook(String tid, String amount, String ediDate, String signature) {
+        if (secretKey.isBlank()) return false;
+        if (tid == null || amount == null || ediDate == null || signature == null) return false;
+
+        String expected = sha256Hex(tid + amount + ediDate + secretKey);
+        if (expected == null) return false;
+
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                signature.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+    }
+
     private String sha256Hex(String input) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")

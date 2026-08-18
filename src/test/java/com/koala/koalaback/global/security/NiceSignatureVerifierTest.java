@@ -108,6 +108,79 @@ class NiceSignatureVerifierTest {
         assertThat(verifier.verify("tok_1", "150000.00", signature)).isFalse();
     }
 
+    /** 웹훅 서명 — 결제창과 조합이 다르다 (clientId 없음, ediDate 있음) */
+    private String signWebhook(String tid, String amount, String ediDate, String secret) {
+        return hex(sha256(tid + amount + ediDate + secret));
+    }
+
+    @Test
+    @DisplayName("웹훅: 올바른 서명은 통과한다")
+    void webhookValidSignaturePasses() {
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+
+        assertThat(verifier.verifyWebhook("tid_1", "150000", ediDate,
+                signWebhook("tid_1", "150000", ediDate, SECRET_KEY))).isTrue();
+    }
+
+    @Test
+    @DisplayName("웹훅: 금액을 바꾸면 서명이 깨진다")
+    void webhookAmountTamperingIsCaught() {
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+        String signature = signWebhook("tid_1", "150000", ediDate, SECRET_KEY);
+
+        assertThat(verifier.verifyWebhook("tid_1", "1000", ediDate, signature)).isFalse();
+    }
+
+    @Test
+    @DisplayName("웹훅: 같은 전문을 결제창 규칙으로 서명하면 통과하지 못한다 — 두 규칙은 다르다")
+    void webhookDoesNotAcceptWindowSignature() {
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+        String windowStyle = sign("tid_1", "150000", SECRET_KEY);
+
+        assertThat(verifier.verifyWebhook("tid_1", "150000", ediDate, windowStyle)).isFalse();
+    }
+
+    @Test
+    @DisplayName("웹훅: 전문 시각을 바꾸면 서명이 깨진다 — 지난 전문을 재사용할 수 없다")
+    void webhookEdiDateTamperingIsCaught() {
+        String signature = signWebhook("tid_1", "150000", "2026-08-18T14:00:00.000+0900", SECRET_KEY);
+
+        assertThat(verifier.verifyWebhook("tid_1", "150000",
+                "2026-08-19T14:00:00.000+0900", signature)).isFalse();
+    }
+
+    @Test
+    @DisplayName("웹훅: 시크릿이 없으면 전부 거부한다")
+    void webhookMissingSecretRejectsEverything() {
+        NiceSignatureVerifier noSecret = new NiceSignatureVerifier(CLIENT_KEY, "");
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+
+        assertThat(noSecret.verifyWebhook("tid_1", "150000", ediDate,
+                signWebhook("tid_1", "150000", ediDate, SECRET_KEY))).isFalse();
+    }
+
+    @Test
+    @DisplayName("웹훅: 클라이언트 키가 없어도 검증된다 — 웹훅 서명은 clientId 를 쓰지 않는다")
+    void webhookWorksWithoutClientKey() {
+        NiceSignatureVerifier noClientKey = new NiceSignatureVerifier("", SECRET_KEY);
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+
+        assertThat(noClientKey.verifyWebhook("tid_1", "150000", ediDate,
+                signWebhook("tid_1", "150000", ediDate, SECRET_KEY))).isTrue();
+    }
+
+    @Test
+    @DisplayName("웹훅: 값이 비어 있으면 거부한다")
+    void webhookNullsRejected() {
+        String ediDate = "2026-08-18T14:00:00.000+0900";
+        String signature = signWebhook("tid_1", "150000", ediDate, SECRET_KEY);
+
+        assertThat(verifier.verifyWebhook(null, "150000", ediDate, signature)).isFalse();
+        assertThat(verifier.verifyWebhook("tid_1", null, ediDate, signature)).isFalse();
+        assertThat(verifier.verifyWebhook("tid_1", "150000", null, signature)).isFalse();
+        assertThat(verifier.verifyWebhook("tid_1", "150000", ediDate, null)).isFalse();
+    }
+
     private static byte[] sha256(String s) {
         try {
             return MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
