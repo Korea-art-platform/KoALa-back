@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -143,6 +144,19 @@ public class OrderService {
         return OrderDto.OrderDetailResponse.from(order);
     }
 
+    /**
+     * 주문 취소 — 환불 후 재고를 되돌리고 주문을 닫는다.
+     *
+     * <p><b>이 메서드는 트랜잭션을 열지 않는다.</b> 중간에 PG 로 HTTP 환불 요청을 보내는데,
+     * 그 호출을 DB 트랜잭션 안에 두면 PG 응답이 늦어지는 동안 커넥션과 행 잠금이 함께 묶인다.
+     * 단계마다 필요한 트랜잭션은 {@code orderTransactionService} 가 각자 연다.
+     *
+     * <p>표시를 빼면 클래스에 걸린 {@code readOnly = true} 가 그대로 적용된다. 그러면 안쪽의
+     * {@code @Transactional} 이 <b>새 트랜잭션을 열지 않고 읽기 전용 트랜잭션에 합류</b>해,
+     * 재고를 되돌리며 거는 {@code SELECT ... FOR UPDATE} 가 DB 에서 거부된다.
+     * 실제로 그 이유로 주문 취소가 500 으로 실패했다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public OrderDto.OrderDetailResponse cancelOrder(Long userId, String orderNo) {
         String refundPaymentNo = orderTransactionService.checkCancellable(userId, orderNo);
 
@@ -178,6 +192,12 @@ public class OrderService {
         log.info("미결제 만료 주문 자동취소: orderNo={}", order.getOrderNo());
     }
 
+    /**
+     * 어드민 강제 취소.
+     *
+     * <p>사용자 취소와 같은 이유로 트랜잭션을 열지 않는다 — {@link #cancelOrder} 설명 참고.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public OrderDto.OrderDetailResponse adminCancelOrder(String orderNo, OrderDto.AdminCancelRequest req) {
         String refundPaymentNo = orderTransactionService.forceCancelAndFindRefundTarget(orderNo);
         log.info("Admin force cancel: orderNo={}, reason={}", orderNo, req.getReason());
