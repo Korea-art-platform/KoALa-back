@@ -69,15 +69,17 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives(
                                         "default-src 'self'; " +
-                                        "script-src 'self' https://*.tosspayments.com https://*.toss.im; " +
+                                        "script-src 'self' https://*.tosspayments.com https://*.toss.im https://pay.nicepay.co.kr; " +
                                         "style-src 'self' 'unsafe-inline'; " +
                                         "img-src 'self' data: https:; " +
                                         "font-src 'self' data:; " +
 
                                         "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io " +
-                                                "https://*.tosspayments.com https://*.toss.im; " +
+                                                "https://*.tosspayments.com https://*.toss.im " +
+                                                "https://*.nicepay.co.kr; " +
 
-                                        "frame-src https://*.tosspayments.com https://*.toss.im; " +
+                                        "frame-src https://*.tosspayments.com https://*.toss.im " +
+                                                "https://*.nicepay.co.kr; " +
                                         "frame-ancestors 'none'; " +
                                         "upgrade-insecure-requests"
                                 )
@@ -112,6 +114,7 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/login/oauth2/**").permitAll();
                         auth.requestMatchers("/webhook/**").permitAll();
+                        auth.requestMatchers(HttpMethod.POST, "/api/v1/payments/nice/return").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/admin/api/v1/auth/login").permitAll();
 

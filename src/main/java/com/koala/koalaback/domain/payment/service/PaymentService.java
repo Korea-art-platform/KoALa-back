@@ -69,9 +69,21 @@ public class PaymentService {
     }
 
     public PaymentDto.PaymentResponse confirm(Long userId, PaymentDto.ConfirmRequest req) {
-        PaymentTransactionService.ConfirmContext ctx =
-                paymentTransactionService.beginConfirm(userId, req);
+        return runConfirm(paymentTransactionService.beginConfirm(userId, req), req);
+    }
 
+    /**
+     * PG 서명으로 이미 인증된 승인 — 나이스 결제창 복귀 경로 전용.
+     *
+     * <p>호출자가 서명을 검증했다는 전제다. 검증 없이 부르면 아무나 결제를 승인시킬 수 있다.
+     * 승인 이후의 흐름(보상 취소·미확정 처리)은 로그인 경로와 완전히 같다.
+     */
+    public PaymentDto.PaymentResponse confirmVerifiedByPg(PaymentDto.ConfirmRequest req) {
+        return runConfirm(paymentTransactionService.beginConfirmVerifiedByPg(req), req);
+    }
+
+    private PaymentDto.PaymentResponse runConfirm(PaymentTransactionService.ConfirmContext ctx,
+                                                  PaymentDto.ConfirmRequest req) {
         PaymentProvider provider = getProvider(ctx.providerCode());
 
         PaymentProvider.PaymentConfirmResult result;

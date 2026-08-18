@@ -44,7 +44,32 @@ public class PaymentTransactionService {
         if (!order.getUser().getId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        return beginConfirmInternal(order, req);
+    }
 
+    /**
+     * 로그인 세션 없이 승인을 시작한다 — <b>PG 서명으로 이미 인증된 요청 전용</b>.
+     *
+     * <p>나이스 결제창은 인증이 끝나면 우리 서버로 크로스사이트 POST 를 보낸다.
+     * 그 요청에는 세션 쿠키가 실리지 않아 {@code userId} 를 알 수 없다.
+     * 대신 서명({@code sha256(authToken + clientId + amount + secretKey)})이 인증 역할을 한다 —
+     * secretKey 를 모르면 만들 수 없고, 금액까지 해시에 들어가 위변조가 막힌다.
+     *
+     * <p><b>호출 전에 반드시 서명을 검증해야 한다.</b> 검증 없이 부르면 아무나 결제를
+     * 승인시킬 수 있다. 그래서 이름에 그 전제를 박아 두었다.
+     *
+     * <p>소유권 확인만 빠지고 나머지 안전장치(중복 승인 차단·금액 대조·IN_PROGRESS 선점)는
+     * 그대로 탄다.
+     */
+    @Transactional
+    public ConfirmContext beginConfirmVerifiedByPg(PaymentDto.ConfirmRequest req) {
+        Order order = orderRepository.findByOrderNo(req.getOrderNo())
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        return beginConfirmInternal(order, req);
+    }
+
+    private ConfirmContext beginConfirmInternal(Order order, PaymentDto.ConfirmRequest req) {
         Payment payment = paymentRepository
                 .findTopByOrderIdOrderByCreatedAtDesc(order.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
