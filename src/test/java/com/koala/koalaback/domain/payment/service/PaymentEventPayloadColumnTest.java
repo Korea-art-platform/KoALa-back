@@ -11,16 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * {@code payment_events.payload_json} 이 왜 다듬어야 하는 칼럼인지 실제 DB 로 확인한다.
- *
- * <p>{@link PaymentEventPayloadTest} 는 다듬는 규칙만 본다. 그 규칙이 <b>왜 필요한지</b>는
- * DB 가 정한다 — 칼럼 타입이 JSON 이라 평문을 거부한다. 누군가 "그냥 문자열 칼럼으로 바꾸면
- * 되지 않나" 하고 타입을 바꾸면 이 테스트가 먼저 알려 준다.
- */
 @DisplayName("결제 이벤트 payload 칼럼")
 class PaymentEventPayloadColumnTest extends IntegrationTestSupport {
-
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test

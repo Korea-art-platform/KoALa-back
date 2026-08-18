@@ -74,12 +74,6 @@ public class PaymentService {
         return runConfirm(paymentTransactionService.beginConfirm(userId, req), req);
     }
 
-    /**
-     * PG 서명으로 이미 인증된 승인 — 나이스 결제창 복귀 경로 전용.
-     *
-     * <p>호출자가 서명을 검증했다는 전제다. 검증 없이 부르면 아무나 결제를 승인시킬 수 있다.
-     * 승인 이후의 흐름(보상 취소·미확정 처리)은 로그인 경로와 완전히 같다.
-     */
     public PaymentDto.PaymentResponse confirmVerifiedByPg(PaymentDto.ConfirmRequest req) {
         return runConfirm(paymentTransactionService.beginConfirmVerifiedByPg(req), req);
     }
@@ -275,9 +269,6 @@ public class PaymentService {
             return;
         }
         if ("DONE".equals(status)) {
-            // 서명이 맞아도 금액까지 맞는지는 따로 본다. 서명은 "PG 가 보냈다"를 보증할 뿐,
-            // 그 PG 가 우리가 청구한 금액을 승인했는지는 우리 장부와 대조해야 알 수 있다.
-            // 어긋나면 자동으로 확정하지 않고 사람에게 넘긴다 — 돈이 걸린 판단이다.
             if (webhookAmount != null
                     && webhookAmount.compareTo(payment.getRequestedAmount()) != 0) {
                 log.error("★웹훅 금액 불일치★ 자동 확정하지 않는다: paymentNo={}, 청구={}, 웹훅={}",
@@ -336,8 +327,7 @@ public class PaymentService {
                 .eventStatus(eventStatus)
                 .amount(amount)
                 .providerEventId(providerEventId)
-                // 실패 사유는 사람이 읽는 문장으로 들어온다. payload_json 은 JSON 칼럼이라
-                // 그대로 넣으면 저장이 거부되고, 기록하려던 트랜잭션까지 뒤집힌다
+
                 .payloadJson(PaymentEventPayload.normalize(payloadJson))
                 .build());
     }
@@ -347,7 +337,6 @@ public class PaymentService {
         try {
             JsonNode root = objectMapper.readTree(payloadJson);
 
-            // 나이스는 전문이 평면이고 거래키 이름도 tid 다 — data.paymentKey 를 찾으면 못 찾는다
             if (NICEPAY.equals(providerCode)) {
                 return root.path("tid").asText("");
             }
@@ -378,14 +367,6 @@ public class PaymentService {
         }
     }
 
-    /**
-     * 나이스 상태값을 내부 어휘로 옮긴다.
-     *
-     * <p>{@code partialCancelled} 와 {@code ready} 는 일부러 어디에도 걸리지 않는 값으로 보낸다.
-     * 미확정 결제를 정리하는 규칙이 CANCELED 를 "실패 확정"으로 다루기 때문이다.
-     * 부분취소는 <b>승인이 있었다는 뜻</b>이고, ready 는 가상계좌를 발급했을 뿐 아직 입금 전이다.
-     * 둘 다 실패로 적으면 멀쩡한 주문이 실패로 뒤집힌다.
-     */
     private String toInternalStatus(String niceStatus) {
         return switch (niceStatus) {
             case "paid" -> "DONE";
@@ -398,9 +379,6 @@ public class PaymentService {
         };
     }
 
-    /**
-     * 전문에 적힌 결제 금액. 없으면 null 을 돌려 금액 대조를 건너뛴다.
-     */
     private BigDecimal extractWebhookAmount(String providerCode, String payloadJson) {
         try {
             JsonNode root = objectMapper.readTree(payloadJson);

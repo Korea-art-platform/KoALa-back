@@ -7,16 +7,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/**
- * 결제 이벤트 기록에 넣을 값 다듬기.
- *
- * <p>{@code payload_json} 은 MySQL JSON 칼럼이다. 여기 평문이 들어가면 저장이 거부되고,
- * 기록하려던 트랜잭션이 통째로 뒤집힌다. 즉 <b>PG 가 거절했다는 사실 자체를 못 남긴다.</b>
- * 실제로 환불이 거절됐을 때 사용자에게 진짜 사유 대신 엉뚱한 오류가 나갔다.
- */
 @DisplayName("결제 이벤트 payload 다듬기")
 class PaymentEventPayloadTest {
-
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test

@@ -25,18 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-/**
- * 주문 취소.
- *
- * <p>취소는 재고를 되돌리려고 {@code SELECT ... FOR UPDATE} 로 잠금을 건다. 그런데
- * {@code OrderService} 에는 클래스 단위로 {@code readOnly = true} 가 걸려 있어서, 취소
- * 메서드에 트랜잭션 표시가 없으면 <b>읽기 전용 트랜잭션 안에서</b> 그 잠금을 시도하게 된다.
- * 안쪽 메서드에 {@code @Transactional} 이 붙어 있어도 소용없다 — 새로 열지 않고 합류하기 때문이다.
- * MySQL 은 이를 거부하고, 취소는 500 으로 실패한다.
- *
- * <p>단위 테스트로는 잡히지 않는다. 서비스를 직접 만들어 부르면 트랜잭션 자체가 없기 때문이다.
- * 실제 DB 와 스프링 프록시를 함께 태워야 드러난다.
- */
 @DisplayName("주문 취소")
 class OrderCancelIntegrationTest extends IntegrationTestSupport {
     @Autowired private OrderService orderService;

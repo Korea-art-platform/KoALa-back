@@ -24,22 +24,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * 나이스 결제통보 수신.
- *
- * <p>여기서 지켜야 하는 두 가지가 서로 반대 방향으로 당긴다.
- * <ul>
- *   <li>검증되지 않은 전문으로는 <b>결제를 건드리지 않는다</b></li>
- *   <li>그래도 응답은 200 "OK" 여야 한다 — 아니면 나이스가 실패로 보고 계속 다시 보내고,
- *       웹훅 <b>등록 자체가 거부된다</b></li>
- * </ul>
- *
- * <p>즉 "거부"는 응답 코드가 아니라 <b>처리하지 않는 것</b>으로 표현된다.
- * 이 구분이 무너지면 둘 중 하나가 깨진다.
- */
 @DisplayName("나이스 웹훅 수신")
 class NiceWebhookControllerTest {
-
     private static final String SECRET_KEY = "test_secret_value";
 
     private MockMvc mockMvc;
@@ -117,7 +103,6 @@ class NiceWebhookControllerTest {
         String ediDate = "2026-08-18T14:00:00.000+0900";
         String signature = sign("tid_1", "150000", ediDate);
 
-        // 금액만 바꿔 치기 — 서명은 원래 금액으로 만들어진 것이라 어긋난다
         mockMvc.perform(post("/webhook/payments/nice")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("tid_1", "1000", ediDate, signature)))

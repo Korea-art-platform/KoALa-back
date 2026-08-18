@@ -137,8 +137,7 @@ public class TossPaymentProvider implements PaymentProvider {
                                       BigDecimal cancelAmount, String reason) {
         try {
             HttpHeaders headers = buildHeaders();
-            // Map.of 는 값이 null 이면 던진다. 전액 취소는 금액을 빼고 보내야 하므로 쓸 수 없다.
-            // 토스도 cancelAmount 가 없으면 전액 취소로 읽는다
+
             Map<String, Object> body = new HashMap<>();
             body.put("cancelReason", reason);
             if (cancelAmount != null) {

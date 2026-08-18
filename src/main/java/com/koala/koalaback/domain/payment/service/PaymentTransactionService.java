@@ -33,21 +33,9 @@ public class PaymentTransactionService {
     public record ConfirmContext(Long paymentId, String providerCode,
                                  String orderNo, BigDecimal amount) {}
 
-    /**
-     * @param cancelAmount 우리 장부에 적을 환불 금액. 전액이든 부분이든 항상 값이 있다
-     * @param partial      승인액보다 적게 돌려주는 경우
-     */
     public record CancelContext(Long paymentId, String providerCode,
                                 String pgTransactionId, BigDecimal cancelAmount,
                                 boolean partial) {
-
-        /**
-         * PG 에 넘길 금액. <b>전액 취소면 null 이다.</b>
-         *
-         * <p>PG 들은 금액이 없으면 전액 취소로, 있으면 부분 취소로 읽는다. 전액인데도 금액을 실어
-         * 보내면 부분취소 요청이 되고, 계좌이체·휴대폰처럼 부분취소를 지원하지 않는 수단에서는
-         * 환불이 통째로 거절된다.
-         */
         public BigDecimal amountForProvider() {
             return partial ? cancelAmount : null;
         }
@@ -64,20 +52,6 @@ public class PaymentTransactionService {
         return beginConfirmInternal(order, req);
     }
 
-    /**
-     * 로그인 세션 없이 승인을 시작한다 — <b>PG 서명으로 이미 인증된 요청 전용</b>.
-     *
-     * <p>나이스 결제창은 인증이 끝나면 우리 서버로 크로스사이트 POST 를 보낸다.
-     * 그 요청에는 세션 쿠키가 실리지 않아 {@code userId} 를 알 수 없다.
-     * 대신 서명({@code sha256(authToken + clientId + amount + secretKey)})이 인증 역할을 한다 —
-     * secretKey 를 모르면 만들 수 없고, 금액까지 해시에 들어가 위변조가 막힌다.
-     *
-     * <p><b>호출 전에 반드시 서명을 검증해야 한다.</b> 검증 없이 부르면 아무나 결제를
-     * 승인시킬 수 있다. 그래서 이름에 그 전제를 박아 두었다.
-     *
-     * <p>소유권 확인만 빠지고 나머지 안전장치(중복 승인 차단·금액 대조·IN_PROGRESS 선점)는
-     * 그대로 탄다.
-     */
     @Transactional
     public ConfirmContext beginConfirmVerifiedByPg(PaymentDto.ConfirmRequest req) {
         Order order = orderRepository.findByOrderNo(req.getOrderNo())
@@ -228,8 +202,7 @@ public class PaymentTransactionService {
                 .eventStatus(eventStatus)
                 .amount(amount)
                 .providerEventId(providerEventId)
-                // 실패 사유는 사람이 읽는 문장으로 들어온다. payload_json 은 JSON 칼럼이라
-                // 그대로 넣으면 저장이 거부되고, 기록하려던 트랜잭션까지 뒤집힌다
+
                 .payloadJson(PaymentEventPayload.normalize(payloadJson))
                 .build());
     }

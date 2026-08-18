@@ -8,22 +8,14 @@ import java.security.MessageDigest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * 나이스 결제창 인증 결과 서명 검증.
- *
- * <p>이 검증이 뚫리면 <b>아무나 우리 서버에 "결제 승인됐다"고 알릴 수 있다.</b>
- * 세션 쿠키가 실리지 않는 크로스사이트 POST 라 다른 방어 수단이 없다.
- */
 @DisplayName("나이스 서명 검증")
 class NiceSignatureVerifierTest {
-
     private static final String CLIENT_KEY = "S2_test_client";
     private static final String SECRET_KEY = "test_secret_value";
 
     private final NiceSignatureVerifier verifier =
             new NiceSignatureVerifier(CLIENT_KEY, SECRET_KEY);
 
-    /** 나이스가 만드는 것과 같은 방식으로 서명을 계산한다 */
     private String sign(String authToken, String amount, String secret) {
         return hex(sha256(authToken + CLIENT_KEY + amount + secret));
     }
@@ -108,7 +100,6 @@ class NiceSignatureVerifierTest {
         assertThat(verifier.verify("tok_1", "150000.00", signature)).isFalse();
     }
 
-    /** 웹훅 서명 — 결제창과 조합이 다르다 (clientId 없음, ediDate 있음) */
     private String signWebhook(String tid, String amount, String ediDate, String secret) {
         return hex(sha256(tid + amount + ediDate + secret));
     }
