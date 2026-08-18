@@ -49,7 +49,7 @@ public class PaypleAuthClient {
 
     public PaypleAuthClient(RestTemplate restTemplate,
                             ObjectMapper objectMapper,
-                            @Value("${payple.api-base:https://demo-api-v2.payple.kr}") String apiBase,
+                            @Value("${payple.api-base:https://democpay.payple.kr}") String apiBase,
                             @Value("${payple.cst-id:}") String cstId,
                             @Value("${payple.cust-key:}") String custKey,
                             @Value("${payple.refund-key:}") String refundKey,
