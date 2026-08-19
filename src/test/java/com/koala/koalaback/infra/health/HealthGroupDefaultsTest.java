@@ -29,7 +29,7 @@ class HealthGroupDefaultsTest {
         var environment = environmentWith(Map.of());
 
         assertThat(environment.getProperty(READINESS_KEY))
-                .isEqualTo("readinessState, db, redis, diskSpace");
+                .isEqualTo("readinessState, db, diskSpace");
         assertThat(environment.getProperty(LIVENESS_KEY)).isEqualTo("livenessState");
     }
 
@@ -64,6 +64,6 @@ class HealthGroupDefaultsTest {
     @DisplayName("readiness 기본값에 결제사와 메일이 없다")
     void readinessDefaultExcludesExternalSystems() {
         assertThat(HealthGroupDefaults.READINESS)
-                .doesNotContain("nicepay", "payple", "toss", "mail");
+                .doesNotContain("nicepay", "payple", "toss", "mail", "redis");
     }
 }

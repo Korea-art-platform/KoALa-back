@@ -1,5 +1,6 @@
 package com.koala.koalaback.global.security;
 
+import com.koala.koalaback.infra.slack.ServerErrorAlerter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -15,6 +16,7 @@ public class TokenBlacklistService {
 
     private final StringRedisTemplate redisTemplate;
     private final JwtProvider jwtProvider;
+    private final ServerErrorAlerter serverErrorAlerter;
 
     public void blacklist(String token) {
         long remainingMs = jwtProvider.getRemainingExpiryMs(token);
@@ -27,6 +29,7 @@ public class TokenBlacklistService {
             );
         } catch (Exception e) {
             log.warn("[TokenBlacklist] Redis 저장 실패 — 로그아웃은 계속 진행됨: {}", e.getMessage());
+            serverErrorAlerter.report(e, "LOGOUT", "token-blacklist/write");
         }
     }
 
@@ -34,8 +37,10 @@ public class TokenBlacklistService {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(KEY_PREFIX + token));
         } catch (Exception e) {
-            log.warn("[TokenBlacklist] Redis 조회 실패 — 보안상 블랙리스트 처리로 간주 (fail-secure): {}", e.getMessage());
-            return true;
+            log.error("★[TokenBlacklist] Redis 조회 실패 — 블랙리스트 미적용 상태로 통과시킨다: {}",
+                    e.getMessage());
+            serverErrorAlerter.report(e, "AUTH", "token-blacklist/read");
+            return false;
         }
     }
 }

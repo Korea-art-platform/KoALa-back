@@ -39,7 +39,7 @@ class ReadinessGroupTest extends IntegrationTestSupport {
     @DisplayName("readiness 는 치명 의존성만 본다")
     void readinessWatchesOnlyCriticalDependencies() {
         assertThat(components("readiness"))
-                .containsExactlyInAnyOrder("readinessState", "db", "redis", "diskSpace");
+                .containsExactlyInAnyOrder("readinessState", "db", "diskSpace");
     }
 
     @Test

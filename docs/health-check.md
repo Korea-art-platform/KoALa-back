@@ -8,28 +8,34 @@
 | 의존성 | 등급 | 근거 | 없을 때 실제 동작 |
 |---|---|---|---|
 | MySQL | **치명** | 모든 읽기·쓰기의 원천. 폴백 없음 | 전 API 실패 |
-| Redis | **치명** | 세 용도 중 액세스 토큰 블랙리스트에 폴백이 없다 | `TokenBlacklistService.isBlacklisted` 가 fail-secure 로 `true` 를 반환 → `JwtFilter` 가 인증 컨텍스트를 세우지 않음 → **로그인 사용자 전원 401** |
+| Redis | 저하 | 세 용도 모두 폴백이 있다 (2026-08-19 블랙리스트 폴백 추가) | 재고는 DB 조회, 레이트리밋은 통과 허용, 블랙리스트는 미적용 + 슬랙 알림. 서비스는 계속된다 |
 | 디스크 여유 | **치명** | 로그·업로드 임시파일 기록 불가 | 요청 처리 실패 |
 | 메일(SMTP) | 저하 | 주문 확인 메일 전용 | 메일만 못 감. 주문은 정상 저장되고, 발송 실패는 슬랙 알림으로 잡힌다 |
 | 나이스(PG) | 참고 | **외부 시스템.** 내 인스턴스 건강과 무관 | 결제 불가. 인스턴스를 트래픽에서 빼면 다른 기능까지 같이 죽으므로 판정에 넣지 않는다 |
 | S3 | 관측 안 함 | 확인하려면 `s3:ListBucket` 이 필요한데, 코드는 `putObject` 만 쓴다 | 어드민 업로드 실패. 이미 배포된 이미지는 CDN 으로 계속 조회된다. 업로드 실패는 500 알림을 탄다 |
 | Kafka | 해당 없음 | `koala.events.kafka.enabled=false`, 브로커 없음 | — |
 
-### Redis 등급을 치명으로 둔 이유
+### Redis 등급이 치명에서 저하로 내려온 경위
 
-세 용도의 폴백 상황이 서로 다르다.
+처음 등급을 매길 때는 **치명**이었다. 세 용도 중 블랙리스트만 폴백이 없었기 때문이다.
 
 | 용도 | 클래스 | Redis 장애 시 |
 |---|---|---|
-| 재고 캐시 | `StockCacheService` | 예외를 잡고 DB 로 조회 — 폴백 있음 |
-| 레이트리밋 | `RateLimitFilter` | 예외 시 요청 허용 — 폴백 있음 |
-| 액세스 토큰 블랙리스트 | `TokenBlacklistService` | **`return true`** — 폴백 없음 |
+| 재고 캐시 | `StockCacheService` | 예외를 잡고 DB 로 조회 |
+| 레이트리밋 | `RateLimitFilter` | 예외 시 요청 허용 |
+| 액세스 토큰 블랙리스트 | `TokenBlacklistService` | 2026-08-18 까지 **`return true`** (fail-secure) |
 
-블랙리스트만 폴백이 없고, 그 하나가 인증 전체를 막는다. 폴백이 있는 둘은 의미가 없다.
+fail-secure 는 `JwtFilter` 가 인증 컨텍스트를 세우지 않게 만들어, Redis 장애 동안
+**로그인 사용자 전원이 401** 을 받았다. 그런데 그렇게 해서 지키는 것은
+"이미 유출된 토큰이 로그아웃 후 남은 수명 동안 쓰이는 것"뿐이다. 액세스 토큰 수명이
+30분이고 리프레시 토큰은 로그아웃 시 MySQL 에서 지워지므로 새 토큰은 발급되지 않는다.
 
-이것을 "저하"로 낮추려면 블랙리스트를 fail-open 으로 바꿔야 하는데, 그건 보안 정책
-변경이지 관측 작업이 아니다. **관측을 위해 도메인 판단을 바꾸지 않는다.** 지금 동작
-그대로를 등급에 반영했다.
+**최대 30분짜리 좁은 창을 지키려고 서비스 전체를 끄는 교환**이라 뒤집었다.
+2026-08-19 부터 조회 실패 시 통과시키고 슬랙으로 알린다. 방어가 꺼진 것을 사람이
+알 수 있어야 하므로 조용히 넘어가지 않는다.
+
+그 결과 세 용도 모두 폴백이 생겨 Redis 는 저하가 됐고, readiness 에서 빠졌다.
+**Redis 가 죽어도 주문은 받는다.**
 
 ## 배치 원칙
 
@@ -45,7 +51,7 @@
 
 ```
 liveness   : livenessState
-readiness  : readinessState, db, redis, diskSpace
+readiness  : readinessState, db, diskSpace
 ```
 
 `nicepay` 와 `mail` 은 어느 그룹에도 넣지 않는다. 종합(`/actuator/health`)에만 나온다.
@@ -66,7 +72,7 @@ yml 에 적으면 운영 서버의 사본에도 같은 내용을 손으로 넣�
 | 상황 | 전 | 후 |
 |---|---|---|
 | 메일(SMTP) 장애 중 배포 | 롤백됨 | 통과 |
-| Redis 장애 중 배포 | 롤백됨 | 롤백됨 (의도한 대로) |
+| Redis 장애 중 배포 | 롤백됨 | 통과 (폴백이 생겨 저하로 내려감) |
 | DB 장애 시 readiness | UP (아무것도 안 봤다) | DOWN |
 | 나이스 장애 시 | 영향 없음 | 영향 없음, 상태만 표시 |
 
@@ -89,13 +95,23 @@ yml 에 적으면 운영 서버의 사본에도 같은 내용을 손으로 넣�
 
 | 파일 | 확인하는 것 |
 |---|---|
-| `ReadinessCriticalTest` | Redis DOWN → readiness DOWN, liveness 는 UP 유지 |
+| `ReadinessCriticalTest` | DB DOWN → readiness DOWN, liveness 는 UP 유지 |
 | `ReadinessGroupTest` | 메일 DOWN → readiness UP, 종합은 DOWN. 그룹 구성 |
+| `TokenBlacklistFallbackTest` | Redis 조회 실패 시 통과 + 알림, 정상일 때는 그대로 차단 |
 | `HealthGroupDefaultsTest` | 설정이 없을 때 기본값을 채우는지, 서버 설정이 있으면 그쪽이 이기는지 |
 | `NicePayHealthIndicatorTest` | 닿지 않아도 DOWN 이 아님, 타임아웃 상한 |
 
-`ReadinessCriticalTest` 는 실제 Redis 컨테이너를 죽이는 대신 자동 등록 지표를 끄고
-DOWN 을 반환하는 지표를 같은 이름으로 넣는다. 컨테이너가 테스트 클래스 사이에
-공유되어 실제로 멈추면 다른 테스트가 깨지기 때문이다. 확인하려는 것은 "Redis 가
-DOWN 일 때 readiness 가 어떻게 되는가"이고, Redis 접속 실패를 DOWN 으로 판정하는
-부분은 스프링이 제공하는 지표가 담당한다.
+`ReadinessCriticalTest` 는 실제 컨테이너를 죽이는 대신 자동 등록 지표를 끄고 DOWN 을
+반환하는 지표를 같은 이름으로 넣는다. 컨테이너가 테스트 클래스 사이에 공유되어 실제로
+멈추면 다른 테스트가 깨지기 때문이다. 확인하려는 것은 "치명 지표가 DOWN 일 때
+readiness 가 어떻게 되는가"이고, 접속 실패를 DOWN 으로 판정하는 부분은 스프링이
+제공하는 지표가 담당한다.
+
+## Redis 타임아웃
+
+`RedisTimeoutDefaults` 가 명령·접속 타임아웃을 **300ms** 로 잡는다. 그룹 설정과 같은
+이유로 yml 이 아니라 코드에 둔다.
+
+전에는 3초였다. Redis 가 응답 없이 죽으면 요청 하나당 레이트리밋 3초 + 블랙리스트
+3초를 기다렸고, 스레드가 묶여 Redis 장애가 곧 전체 정지가 됐다. 폴백이 있어도
+**폴백에 도달하기까지가 느리면 소용이 없다.** 300ms 면 같은 상황에서 0.6초로 끝난다.

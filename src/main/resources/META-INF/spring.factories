@@ -1,2 +1,3 @@
 org.springframework.boot.EnvironmentPostProcessor=\
-com.koala.koalaback.infra.health.HealthGroupDefaults
+com.koala.koalaback.infra.health.HealthGroupDefaults,\
+com.koala.koalaback.infra.health.RedisTimeoutDefaults

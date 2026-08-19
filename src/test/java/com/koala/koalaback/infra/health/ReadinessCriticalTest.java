@@ -16,16 +16,16 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("치명 의존성 — Redis 가 죽으면 트래픽을 받지 않는다")
-@SpringBootTest(properties = "management.health.redis.enabled=false")
-@Import(ReadinessCriticalTest.DeadRedis.class)
+@DisplayName("치명 의존성 — DB 가 죽으면 트래픽을 받지 않는다")
+@SpringBootTest(properties = "management.health.db.enabled=false")
+@Import(ReadinessCriticalTest.DeadDatabase.class)
 class ReadinessCriticalTest extends IntegrationTestSupport {
     @TestConfiguration
-    static class DeadRedis {
-        @Bean("redis")
-        HealthIndicator redis() {
+    static class DeadDatabase {
+        @Bean("db")
+        HealthIndicator db() {
             return () -> Health.down()
-                    .withDetail("error", "RedisConnectionFailureException: connection refused")
+                    .withDetail("error", "CannotGetJdbcConnectionException")
                     .build();
         }
     }
@@ -33,23 +33,23 @@ class ReadinessCriticalTest extends IntegrationTestSupport {
     @Autowired private HealthEndpoint healthEndpoint;
 
     @Test
-    @DisplayName("Redis 가 죽으면 readiness 가 DOWN 이다")
-    void redisFailureMakesReadinessDown() {
+    @DisplayName("DB 가 죽으면 readiness 가 DOWN 이다")
+    void databaseFailureMakesReadinessDown() {
         assertThat(healthEndpoint.healthForPath("readiness").getStatus()).isEqualTo(Status.DOWN);
     }
 
     @Test
     @DisplayName("그래도 liveness 는 UP 이다 — 여기서 DOWN 이 되면 재시작 루프에 빠진다")
-    void redisFailureDoesNotKillLiveness() {
+    void databaseFailureDoesNotKillLiveness() {
         assertThat(healthEndpoint.healthForPath("liveness").getStatus()).isEqualTo(Status.UP);
     }
 
     @Test
-    @DisplayName("DOWN 인 것은 redis 하나이고 DB 는 멀쩡하다")
-    void onlyRedisIsDown() {
+    @DisplayName("DOWN 인 것은 db 하나이고 디스크는 멀쩡하다")
+    void onlyDatabaseIsDown() {
         var readiness = (CompositeHealthDescriptor) healthEndpoint.healthForPath("readiness");
 
-        assertThat(readiness.getComponents().get("redis").getStatus()).isEqualTo(Status.DOWN);
-        assertThat(readiness.getComponents().get("db").getStatus()).isEqualTo(Status.UP);
+        assertThat(readiness.getComponents().get("db").getStatus()).isEqualTo(Status.DOWN);
+        assertThat(readiness.getComponents().get("diskSpace").getStatus()).isEqualTo(Status.UP);
     }
 }
