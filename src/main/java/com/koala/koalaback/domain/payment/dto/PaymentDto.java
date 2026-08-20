@@ -37,7 +37,6 @@ public class PaymentDto {
         @NotNull
         private BigDecimal amount;
 
-        // 나이스 결제창 복귀 경로는 JSON 바인딩이 아니라 폼 파라미터로 받아 직접 만든다
         public ConfirmRequest(String paymentKey, String orderNo, BigDecimal amount) {
             this.paymentKey = paymentKey;
             this.orderNo = orderNo;
@@ -54,6 +53,16 @@ public class PaymentDto {
 
         @Positive
         private BigDecimal cancelAmount;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ResolveRequest {
+        @NotBlank
+        private String outcome;
+
+        private String memo;
     }
 
     @Getter

@@ -143,6 +143,47 @@ class PaymentTransactionServiceTest {
         assertThat(order.getOrderStatus()).as("주문은 그대로").isEqualTo(before);
     }
 
+    @Test
+    @DisplayName("갇힌 결제를 CAPTURED 로 종결 — 취소가 실패했으니 돈은 그대로 잡힌다")
+    void resolveStuck_toCaptured() {
+        Order order = givenOrder();
+        Payment payment = givenPayment(order, "CANCEL_IN_PROGRESS", BigDecimal.valueOf(450_000));
+        ReflectionTestUtils.setField(payment, "approvedAmount", BigDecimal.valueOf(450_000));
+        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+
+        paymentTransactionService.resolveStuckPayment("PAY-1", "CAPTURED", "샌드박스 취소 거절");
+
+        assertThat(payment.getStatus()).isEqualTo("CAPTURED");
+    }
+
+    @Test
+    @DisplayName("이미 종결된 결제는 다시 손대지 않는다 — 끝난 걸 뒤집으면 더 큰 사고다")
+    void resolveStuck_alreadyDone_rejected() {
+        Order order = givenOrder();
+        Payment payment = givenPayment(order, "CAPTURED", BigDecimal.valueOf(450_000));
+        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+
+        assertThatThrownBy(() ->
+                paymentTransactionService.resolveStuckPayment("PAY-1", "FAILED", "x"))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PAYMENT_ALREADY_PROCESSED));
+
+        assertThat(payment.getStatus()).isEqualTo("CAPTURED");
+    }
+
+    @Test
+    @DisplayName("알 수 없는 종결 방식은 거부한다")
+    void resolveStuck_unknownOutcome_rejected() {
+        Order order = givenOrder();
+        Payment payment = givenPayment(order, "IN_DOUBT", BigDecimal.valueOf(450_000));
+        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+
+        assertThatThrownBy(() ->
+                paymentTransactionService.resolveStuckPayment("PAY-1", "NONSENSE", "x"))
+                .isInstanceOf(BusinessException.class);
+    }
+
     private Order givenOrder() {
         User user = mock(User.class);
         given(user.getId()).willReturn(1L);

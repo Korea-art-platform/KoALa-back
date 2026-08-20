@@ -189,6 +189,44 @@ public class PaymentTransactionService {
                 payment.getPaymentNo(), cancelAmount);
     }
 
+    @Transactional
+    public PaymentDto.PaymentResponse resolveStuckPayment(String paymentNo, String outcome, String memo) {
+        Payment payment = paymentRepository.findByPaymentNo(paymentNo)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        if (!payment.isSettlementPending() && !"CANCEL_IN_PROGRESS".equals(payment.getStatus())) {
+            throw new BusinessException(ErrorCode.PAYMENT_ALREADY_PROCESSED,
+                    "이미 종결된 결제입니다. (현재: " + payment.getStatus() + ")");
+        }
+
+        String note = "[어드민 수동 종결] " + (memo == null || memo.isBlank() ? outcome : memo);
+        switch (outcome) {
+            case "CAPTURED" -> {
+                payment.revertToCaptured();
+                payment.getOrder().markPaid();
+                recordEvent(payment, "ADMIN_RESOLVED", "CAPTURED",
+                        payment.getApprovedAmount(), null, note);
+            }
+            case "CANCELLED" -> {
+                payment.markCancelled(payment.getApprovedAmount());
+                payment.getOrder().forceCancel();
+                recordEvent(payment, "ADMIN_RESOLVED", "CANCELLED",
+                        payment.getApprovedAmount(), null, note);
+            }
+            case "FAILED" -> {
+                payment.markFailed("ADMIN_RESOLVED", note);
+                payment.getOrder().markPaymentFailed();
+                recordEvent(payment, "ADMIN_RESOLVED", "FAILED",
+                        payment.getRequestedAmount(), null, note);
+            }
+            default -> throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "종결 방식이 올바르지 않습니다: " + outcome);
+        }
+
+        log.warn("어드민 수동 종결: paymentNo={}, outcome={}, memo={}", paymentNo, outcome, memo);
+        return PaymentDto.PaymentResponse.from(payment);
+    }
+
     private Payment getPayment(Long paymentId) {
         return paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));

@@ -37,4 +37,12 @@ public class PaymentController {
             @Valid @RequestBody PaymentDto.CancelRequest req) {
         return ApiResponse.ok(paymentService.cancel(paymentNo, req));
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/api/v1/payments/{paymentNo}/resolve")
+    public ApiResponse<PaymentDto.PaymentResponse> resolve(
+            @PathVariable String paymentNo,
+            @Valid @RequestBody PaymentDto.ResolveRequest req) {
+        return ApiResponse.ok(paymentService.resolveStuckPayment(paymentNo, req.getOutcome(), req.getMemo()));
+    }
 }

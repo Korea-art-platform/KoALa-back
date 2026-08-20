@@ -294,6 +294,10 @@ public class PaymentService {
         }
     }
 
+    public PaymentDto.PaymentResponse resolveStuckPayment(String paymentNo, String outcome, String memo) {
+        return paymentTransactionService.resolveStuckPayment(paymentNo, outcome, memo);
+    }
+
     @Transactional(readOnly = true)
     public List<PaymentDto.PaymentResponse> getPaymentsNeedingAttention() {
         return paymentRepository
