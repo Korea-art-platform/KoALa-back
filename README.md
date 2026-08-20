@@ -13,9 +13,9 @@
 | 언어/런타임 | Java 21 |
 | 프레임워크 | Spring Boot 4.0.3 (Web, Data JPA, Security, Validation, Actuator) |
 | DB | MySQL 8.0 + Flyway 마이그레이션 |
-| 캐시/세션 | Redis (재고 캐시, 리프레시 토큰, 레이트리밋) |
-| 인증 | JWT + OAuth2 (Kakao, Naver) |
-| 결제 | Toss Payments |
+| 캐시 | Redis (재고 캐시, 액세스 토큰 블랙리스트, 레이트리밋) |
+| 인증 | JWT + OAuth2 (Kakao, Naver) · 리프레시 토큰은 MySQL 저장 |
+| 결제 | PG 추상화 (`PaymentProvider`) — 나이스페이먼츠(운영) · 토스 · 페이플 |
 | 스토리지 | AWS S3 + CloudFront |
 | 메시징 | Kafka (선택 — 기본 비활성) |
 | 테스트 | JUnit 5, Mockito, Testcontainers, EmbeddedKafka |
@@ -40,13 +40,21 @@ MySQL(3306), Redis(6379), Kafka(9092), Kafka UI(8090)가 뜹니다.
 DB_USERNAME=
 DB_PASSWORD=
 JWT_SECRET=
-TOSS_SECRET_KEY=
-TOSS_WEBHOOK_SECRET=
 NAVER_CLIENT_ID=
 NAVER_CLIENT_SECRET=
 KAKAO_CLIENT_ID=
 KAKAO_CLIENT_SECRET=
+
+# 결제 — 쓰는 PG 하나만 켠다 (나머지는 enabled=false 면 빈이 뜨지 않음)
+NICEPAY_ENABLED=true
+NICEPAY_API_BASE=https://sandbox-api.nicepay.co.kr/v1
+NICEPAY_CLIENT_KEY=
+NICEPAY_SECRET_KEY=
+# TOSS_SECRET_KEY= / PAYPLE_* 는 해당 PG 로 전환할 때만
 ```
+
+전체 키 목록과 설명은 `.env.properties.example` 을 참고하세요. 프론트도 `VITE_PG` 값을
+같은 PG 로 맞춰야 결제창이 바뀝니다(프론트는 빌드 시점에 값이 박힘).
 
 ### 3. 애플리케이션 기동
 
@@ -117,6 +125,20 @@ Spring 프록시를 타지 않아 `@Transactional` 이 무시되므로(자기호
 `koala.events.kafka.enabled=true` 면 `order.completed` 토픽으로 발행하고 컨슈머가 메일을 보냅니다.
 **기본값은 false** 이며, 이때는 릴레이가 커밋 후 직접 메일을 보냅니다(운영에 브로커가 없기 때문).
 
+### 헬스체크는 의존성 등급으로 나뉩니다
+
+`/actuator/health` 하나로 판정하던 것을 **치명 · 저하 · 참고**로 갈랐습니다.
+
+- **readiness** (`/actuator/health/readiness`) — 치명 의존성만: DB · Redis... 는 아니고
+  `readinessState` · `db` · `diskSpace`. Redis 는 세 용도 모두 폴백이 있어 **저하**로 내려
+  readiness 에서 빠져 있습니다(죽어도 트래픽은 받음).
+- **liveness** — 외부 의존성 없음. 넣으면 DB 장애 때 재시작 루프에 빠집니다.
+- 메일·결제사(나이스)는 어느 그룹에도 없고 종합 상태에만 표시(참고 등급).
+
+그룹 구성은 `application.yml` 이 아니라 `HealthGroupDefaults`(`EnvironmentPostProcessor`)에
+있습니다 — `application*.yml` 이 `.gitignore` 라 jar 에 안 실리기 때문입니다.
+자세한 근거는 `docs/health-check.md` 참고.
+
 ### 업로드 이미지는 저장 전에 줄입니다
 
 `ImageOptimizer` 가 긴 변 1600px 초과 시 축소하고 JPEG 을 품질 0.82 로 재인코딩합니다.
@@ -132,7 +154,7 @@ Spring 프록시를 타지 않아 `@Transactional` 이 무시되므로(자기호
 Testcontainers 통합 테스트가 운영 마이그레이션 대신 `classpath:db/noop` + Hibernate `create-drop` 을
 쓰는 이유가 이것입니다.
 
-새 마이그레이션을 추가할 때는 V20 이후 번호를 쓰고, 기존 파일은 수정하지 마세요
+새 마이그레이션을 추가할 때는 최신 번호(현재 V24) 이후를 쓰고, 기존 파일은 수정하지 마세요
 (적용된 마이그레이션의 체크섬이 바뀌면 `validate-on-migrate: true` 때문에 기동이 실패합니다).
 
 ## 배포
@@ -141,7 +163,12 @@ Testcontainers 통합 테스트가 운영 마이그레이션 대신 `classpath:d
 
 ```
 bootJar -x test → S3 경유 EC2 전송 → systemd(koala) 재시작
+→ /actuator/health/readiness 확인 → 실패 시 이전 jar 로 자동 롤백
 ```
+
+기동 판정은 종합 상태가 아니라 **readiness** 를 봅니다. 메일(SMTP)이 느리기만 해도
+멀쩡한 새 버전이 롤백되던 문제를 막기 위해서입니다. 기동에 실패하면 직전 jar 로
+자동 복구하고 워크플로는 실패로 끝납니다(슬랙 알림).
 
 테스트는 CI 에서 실행되지 않으므로 **푸시 전에 로컬에서 `./gradlew test` 를 돌려주세요.**
 
