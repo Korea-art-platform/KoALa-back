@@ -23,6 +23,9 @@ public class SkuDto {
         @NotBlank
         private String name;
 
+        private String model;
+        private String subModelName;
+
         @NotBlank
         private String slug;
 
@@ -84,6 +87,12 @@ public class SkuDto {
         private Integer editionNumber;
         private String badges;
         private String primaryImageUrl;
+        private String model;
+        private String subModelName;
+        private BigDecimal widthCm;
+        private BigDecimal heightCm;
+        private BigDecimal depthCm;
+        private BigDecimal weightKg;
     }
 
     @Getter
@@ -164,6 +173,8 @@ public class SkuDto {
         private Long id;
         private String skuCode;
         private String name;
+        private String model;
+        private String subModelName;
         private String slug;
         private String description;
         private String skuType;
@@ -203,6 +214,8 @@ public class SkuDto {
                     .id(sku.getId())
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .model(sku.getModel())
+                    .subModelName(sku.getSubModelName())
                     .slug(sku.getSlug())
                     .description(sku.getDescription())
                     .skuType(sku.getSkuType())

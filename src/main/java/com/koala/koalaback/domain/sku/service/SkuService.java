@@ -99,6 +99,8 @@ public class SkuService {
                 .skuCode(codeGenerator.generateCode())
                 .artist(artist)
                 .name(req.getName())
+                .model(req.getModel())
+                .subModelName(req.getSubModelName())
                 .slug(req.getSlug())
                 .description(req.getDescription())
                 .skuType(req.getSkuType())
@@ -139,7 +141,9 @@ public class SkuService {
                 req.getMaterialDescription(), req.getPackagingTitle(), req.getPackagingDescription(),
                 req.getListPrice(), req.getSalePrice(), req.getPrimaryImageUrl(),
                 req.getEditionSize(), req.getEditionNumber(),
-                req.getBadges());
+                req.getBadges(),
+                req.getModel(), req.getSubModelName(),
+                req.getWidthCm(), req.getHeightCm(), req.getDepthCm(), req.getWeightKg());
         return toSummary(sku);
     }
 
@@ -257,12 +261,7 @@ public class SkuService {
         skuMediaRepository.save(media);
 
         if (makePrimary) {
-            sku.update(sku.getName(), sku.getSlug(), sku.getDescription(),
-                    sku.getSkuType(), sku.getMainCategory(), sku.getGenre(), sku.getMaterial(),
-                    sku.getMaterialDescription(), sku.getPackagingTitle(), sku.getPackagingDescription(),
-                    sku.getListPrice(), sku.getSalePrice(), fileUrl,
-                    sku.getEditionSize(), sku.getEditionNumber(),
-                    sku.getBadges());
+            sku.changePrimaryImage(fileUrl);
         }
 
         return SkuDto.MediaResponse.from(media);

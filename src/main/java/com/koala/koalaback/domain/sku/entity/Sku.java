@@ -29,6 +29,12 @@ public class Sku extends BaseTimeEntity {
     @Column(nullable = false, length = 200)
     private String name;
 
+    @Column(length = 150)
+    private String model;
+
+    @Column(name = "sub_model_name", length = 150)
+    private String subModelName;
+
     @Column(nullable = false, unique = true, length = 220)
     private String slug;
 
@@ -98,7 +104,7 @@ public class Sku extends BaseTimeEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public Sku(String skuCode, Artist artist, String name, String slug,
+    public Sku(String skuCode, Artist artist, String name, String model, String subModelName, String slug,
                String description, String skuType, String mainCategory, String genre, String material,
                String materialDescription, String packagingTitle, String packagingDescription,
                String currency, BigDecimal listPrice, BigDecimal salePrice,
@@ -109,6 +115,8 @@ public class Sku extends BaseTimeEntity {
         this.skuCode = skuCode;
         this.artist = artist;
         this.name = name;
+        this.model = model;
+        this.subModelName = subModelName;
         this.slug = slug;
         this.description = description;
         this.skuType = skuType != null ? skuType : "ARTWORK";
@@ -140,8 +148,12 @@ public class Sku extends BaseTimeEntity {
                        String materialDescription, String packagingTitle, String packagingDescription,
                        BigDecimal listPrice, BigDecimal salePrice, String primaryImageUrl,
                        Integer editionSize, Integer editionNumber,
-                       String badges) {
+                       String badges,
+                       String model, String subModelName,
+                       BigDecimal widthCm, BigDecimal heightCm, BigDecimal depthCm, BigDecimal weightKg) {
         this.name = name;
+        this.model = model;
+        this.subModelName = subModelName;
         this.slug = slug;
         this.description = description;
         if (skuType != null && !skuType.isBlank()) this.skuType = skuType;
@@ -157,6 +169,14 @@ public class Sku extends BaseTimeEntity {
         this.editionSize = editionSize;
         this.editionNumber = editionNumber;
         this.badges = badges;
+        this.widthCm = widthCm;
+        this.heightCm = heightCm;
+        this.depthCm = depthCm;
+        this.weightKg = weightKg;
+    }
+
+    public void changePrimaryImage(String primaryImageUrl) {
+        this.primaryImageUrl = primaryImageUrl;
     }
 
     public void changeMainCategory(String mainCategory) {
