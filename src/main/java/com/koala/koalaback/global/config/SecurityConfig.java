@@ -107,6 +107,7 @@ public class SecurityConfig {
                                 "/api/v1/banners/**",
                                 "/api/v1/categories",
                                 "/api/v1/notices/**",
+                                "/api/v1/stores/**",
                                 "/api/v1/app/version").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
