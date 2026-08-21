@@ -110,6 +110,10 @@ public class PartnerStore extends BaseTimeEntity {
         if (sortOrder != null) this.sortOrder = sortOrder;
     }
 
+    public void changeSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
     public void activate()   { this.isActive = true; }
     public void deactivate() { this.isActive = false; }
 

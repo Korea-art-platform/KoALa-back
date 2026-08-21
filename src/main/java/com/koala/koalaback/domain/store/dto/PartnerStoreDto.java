@@ -1,13 +1,21 @@
 package com.koala.koalaback.domain.store.dto;
 
 import com.koala.koalaback.domain.store.entity.PartnerStore;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class PartnerStoreDto {
+
+    @Getter
+    public static class ReorderRequest {
+        @NotEmpty
+        private List<String> storeCodes;
+    }
 
     @Getter
     public static class CreateRequest {

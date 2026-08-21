@@ -70,6 +70,13 @@ public class PartnerStoreService {
     }
 
     @Transactional
+    public void reorderStores(List<String> storeCodes) {
+        for (int i = 0; i < storeCodes.size(); i++) {
+            getStoreByCode(storeCodes.get(i)).changeSortOrder(i);
+        }
+    }
+
+    @Transactional
     public void activateStore(String storeCode) {
         getStoreByCode(storeCode).activate();
     }

@@ -44,6 +44,12 @@ public class AdminStoreController {
         return ApiResponse.ok(storeService.updateStore(storeCode, req));
     }
 
+    @PostMapping("/reorder")
+    public ApiResponse<Void> reorderStores(@Valid @RequestBody PartnerStoreDto.ReorderRequest req) {
+        storeService.reorderStores(req.getStoreCodes());
+        return ApiResponse.ok();
+    }
+
     @PatchMapping("/{storeCode}/activate")
     public ApiResponse<Void> activateStore(@PathVariable String storeCode) {
         storeService.activateStore(storeCode);
