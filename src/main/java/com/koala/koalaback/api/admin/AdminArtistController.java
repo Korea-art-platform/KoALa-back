@@ -105,6 +105,14 @@ public class AdminArtistController {
         return ApiResponse.ok(artistService.addMediaUrl(artistCode, req));
     }
 
+    @PatchMapping("/{artistCode}/media/{mediaId}/thumbnail")
+    public ApiResponse<ArtistDto.MediaResponse> updateMediaThumbnail(
+            @PathVariable String artistCode,
+            @PathVariable Long mediaId,
+            @Valid @RequestBody ArtistDto.MediaThumbnailRequest req) {
+        return ApiResponse.ok(artistService.updateMediaThumbnail(artistCode, mediaId, req.getThumbnailUrl()));
+    }
+
     @DeleteMapping("/{artistCode}/media/{mediaId}")
     public ApiResponse<Void> deleteMedia(
             @PathVariable String artistCode,

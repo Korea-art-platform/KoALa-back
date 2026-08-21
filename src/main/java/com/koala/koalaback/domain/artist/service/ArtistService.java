@@ -191,6 +191,7 @@ public class ArtistService {
                 .mediaType(req.getMediaType())
                 .mediaRole(req.getMediaRole())
                 .fileUrl(fileUrl)
+                .thumbnailUrl(req.getThumbnailUrl())
                 .title(req.getTitle())
                 .sortOrder(nextOrder)
                 .build();
@@ -215,10 +216,21 @@ public class ArtistService {
                 .mediaType(req.getMediaType())
                 .mediaRole(req.getMediaRole())
                 .fileUrl(req.getFileUrl())
+                .thumbnailUrl(req.getThumbnailUrl())
                 .title(req.getTitle())
                 .sortOrder(order)
                 .build();
         artistMediaRepository.save(media);
+        return ArtistDto.MediaResponse.from(media);
+    }
+
+    @Transactional
+    public ArtistDto.MediaResponse updateMediaThumbnail(String artistCode, Long mediaId, String thumbnailUrl) {
+        Artist artist = getArtistEntityByCode(artistCode);
+        ArtistMedia media = artistMediaRepository.findById(mediaId)
+                .filter(m -> m.getArtist().getId().equals(artist.getId()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        media.updateThumbnail(thumbnailUrl);
         return ArtistDto.MediaResponse.from(media);
     }
 

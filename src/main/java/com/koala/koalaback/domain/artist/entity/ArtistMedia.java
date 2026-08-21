@@ -66,4 +66,8 @@ public class ArtistMedia {
     public void updateSort(int sortOrder) {
         this.sortOrder = sortOrder;
     }
+
+    public void updateThumbnail(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
 }

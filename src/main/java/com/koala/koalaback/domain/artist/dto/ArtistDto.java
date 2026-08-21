@@ -51,6 +51,7 @@ public class ArtistDto {
         private String mediaRole;
 
         private String title;
+        private String thumbnailUrl;
         private Integer sortOrder;
     }
 
@@ -66,7 +67,14 @@ public class ArtistDto {
         private String mediaRole;
 
         private String title;
+        private String thumbnailUrl;
         private Integer sortOrder;
+    }
+
+    @Getter
+    public static class MediaThumbnailRequest {
+        @NotBlank
+        private String thumbnailUrl;
     }
 
     @Getter
