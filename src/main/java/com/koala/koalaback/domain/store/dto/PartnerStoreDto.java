@@ -23,6 +23,8 @@ public class PartnerStoreDto {
         private String email;
         private String description;
         private String mapUrl;
+        private String snsUrl;
+        private String imageUrl;
         private Integer sortOrder;
     }
 
@@ -40,6 +42,8 @@ public class PartnerStoreDto {
         private String email;
         private String description;
         private String mapUrl;
+        private String snsUrl;
+        private String imageUrl;
         private Integer sortOrder;
     }
 
@@ -57,6 +61,8 @@ public class PartnerStoreDto {
         private String email;
         private String description;
         private String mapUrl;
+        private String snsUrl;
+        private String imageUrl;
         private Boolean isActive;
         private Integer sortOrder;
         private LocalDateTime createdAt;
@@ -75,6 +81,8 @@ public class PartnerStoreDto {
                     .email(s.getEmail())
                     .description(s.getDescription())
                     .mapUrl(s.getMapUrl())
+                    .snsUrl(s.getSnsUrl())
+                    .imageUrl(s.getImageUrl())
                     .isActive(s.getIsActive())
                     .sortOrder(s.getSortOrder())
                     .createdAt(s.getCreatedAt())

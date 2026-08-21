@@ -52,6 +52,8 @@ public class PartnerStoreService {
                 .email(req.getEmail())
                 .description(req.getDescription())
                 .mapUrl(req.getMapUrl())
+                .snsUrl(req.getSnsUrl())
+                .imageUrl(req.getImageUrl())
                 .sortOrder(req.getSortOrder())
                 .createdByAdmin(admin)
                 .build();
@@ -63,7 +65,7 @@ public class PartnerStoreService {
         PartnerStore store = getStoreByCode(storeCode);
         store.update(req.getName(), req.getZipCode(), req.getAddress(), req.getAddressDetail(),
                 req.getPhone(), req.getPhone2(), req.getEmail(), req.getDescription(),
-                req.getMapUrl(), req.getSortOrder());
+                req.getMapUrl(), req.getSnsUrl(), req.getImageUrl(), req.getSortOrder());
         return PartnerStoreDto.StoreResponse.from(store);
     }
 

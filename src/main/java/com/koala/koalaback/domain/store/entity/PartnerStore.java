@@ -53,6 +53,12 @@ public class PartnerStore extends BaseTimeEntity {
     @Column(length = 700)
     private String mapUrl;
 
+    @Column(length = 700)
+    private String snsUrl;
+
+    @Column(length = 700)
+    private String imageUrl;
+
     @Column(nullable = false)
     private Boolean isActive = true;
 
@@ -68,7 +74,8 @@ public class PartnerStore extends BaseTimeEntity {
     @Builder
     public PartnerStore(String storeCode, String name, String zipCode, String address,
                         String addressDetail, String phone, String phone2, String email,
-                        String description, String mapUrl, Integer sortOrder, Admin createdByAdmin) {
+                        String description, String mapUrl, String snsUrl, String imageUrl,
+                        Integer sortOrder, Admin createdByAdmin) {
         this.storeCode = storeCode;
         this.name = name;
         this.zipCode = zipCode;
@@ -79,6 +86,8 @@ public class PartnerStore extends BaseTimeEntity {
         this.email = email;
         this.description = description;
         this.mapUrl = mapUrl;
+        this.snsUrl = snsUrl;
+        this.imageUrl = imageUrl;
         this.sortOrder = sortOrder != null ? sortOrder : 0;
         this.isActive = true;
         this.createdByAdmin = createdByAdmin;
@@ -86,7 +95,7 @@ public class PartnerStore extends BaseTimeEntity {
 
     public void update(String name, String zipCode, String address, String addressDetail,
                        String phone, String phone2, String email, String description,
-                       String mapUrl, Integer sortOrder) {
+                       String mapUrl, String snsUrl, String imageUrl, Integer sortOrder) {
         this.name = name;
         this.zipCode = zipCode;
         this.address = address;
@@ -96,6 +105,8 @@ public class PartnerStore extends BaseTimeEntity {
         this.email = email;
         this.description = description;
         this.mapUrl = mapUrl;
+        this.snsUrl = snsUrl;
+        this.imageUrl = imageUrl;
         if (sortOrder != null) this.sortOrder = sortOrder;
     }
 
