@@ -145,6 +145,44 @@ Spring 프록시를 타지 않아 `@Transactional` 이 무시되므로(자기호
 포맷·확장자는 유지하며, 최적화에 실패하거나 결과가 더 커지면 원본을 그대로 올립니다.
 `koala.image.max-dimension`, `koala.image.jpeg-quality` 로 조정할 수 있습니다.
 
+### 목록용 축소본을 함께 올립니다
+
+1600px 원본도 목록·카드에는 큽니다. 실측에서 상품 이미지가 88px 자리에 2000px 로 들어가
+홈 한 번에 이미지만 8.4MB 가 나갔습니다. 그래서 업로드 시 **원본 옆에 긴 변 480px 축소본**을
+함께 올립니다.
+
+- 규칙: `main/abc.jpg` → `main/abc_t480.jpg` (`infra/storage/ImageDerivatives.java`)
+- 프론트도 같은 규칙으로 주소를 만듭니다 (`Koalaweb` 의 `src/app/lib/imageUrl.ts`).
+  **한쪽만 바꾸면 축소본을 못 찾습니다.**
+- 축소본 생성이 실패해도 원본 업로드는 성공으로 둡니다. 프론트가 없으면 원본으로 물러납니다.
+
+업로드하는 모든 객체에 `Cache-Control: public, max-age=31536000, immutable` 을 답니다.
+이미지는 내용이 바뀌면 키(UUID)도 바뀌므로 영구 캐시가 안전합니다. 이 헤더가 없던 동안에는
+재방문마다 8MB 를 다시 받고 있었습니다.
+
+### 이미 올라간 이미지는 일괄 보정합니다
+
+위 규칙은 신규 업로드에만 적용됩니다. 그전에 올라간 것들은 `ImageBackfillService` 로 따라잡습니다.
+
+```
+POST /admin/api/v1/maintenance/image-derivatives?prefix=&limit=40&nextToken=
+```
+
+- 어드민 화면 **시스템 → 유지보수** 에서 버튼으로 돌릴 수 있습니다
+- 호출당 `limit` 개만 처리하고 `nextToken` 을 돌려줍니다. 원본이 2000px 이라 디코딩이
+  무거워, 한 번에 다 돌리면 운영 힙(768MB)과 CPU 를 오래 붙잡습니다
+- 이미 축소본과 헤더가 있는 파일은 건너뜁니다 — 여러 번 실행해도 안전합니다
+- 메타데이터만 바꾸려면 S3 는 자기 자신으로 `CopyObject` 하며 `REPLACE` 해야 합니다
+
+**프론트의 `VITE_IMAGE_THUMBS` 는 이 작업을 끝낸 뒤에 켜세요.** 축소본이 없는 상태로 켜면
+이미지마다 404 를 한 번 거치고 원본을 받아 더 느려집니다.
+
+### 배너는 이미지 또는 영상입니다
+
+`video_url` 이 있으면 영상으로 재생하고 `image_url` 은 포스터로 씁니다(V24).
+포스터 없이 영상만 쓰는 배너도 허용하므로 `image_url` 은 **NULL 을 허용합니다**(V28).
+`UpdateRequest.imageUrl` 에 `@NotBlank` 를 다시 붙이면 영상 전용 배너를 수정할 수 없게 됩니다.
+
 ## 마이그레이션 주의사항
 
 운영·개발 DB 는 **V14 를 baseline 으로 시작**했습니다. 즉 V1~V14 는 Flyway 가 실제로 적용한 적이 없고,
@@ -154,7 +192,7 @@ Spring 프록시를 타지 않아 `@Transactional` 이 무시되므로(자기호
 Testcontainers 통합 테스트가 운영 마이그레이션 대신 `classpath:db/noop` + Hibernate `create-drop` 을
 쓰는 이유가 이것입니다.
 
-새 마이그레이션을 추가할 때는 최신 번호(현재 V24) 이후를 쓰고, 기존 파일은 수정하지 마세요
+새 마이그레이션을 추가할 때는 최신 번호(현재 V28) 이후를 쓰고, 기존 파일은 수정하지 마세요
 (적용된 마이그레이션의 체크섬이 바뀌면 `validate-on-migrate: true` 때문에 기동이 실패합니다).
 
 ## 배포
