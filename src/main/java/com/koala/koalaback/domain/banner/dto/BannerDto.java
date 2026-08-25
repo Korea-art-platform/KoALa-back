@@ -59,7 +59,7 @@ public class BannerDto {
         @Size(max = 500)
         private String description;
 
-        @NotBlank @Size(max = 700)
+        @Size(max = 700)
         private String imageUrl;
 
         @Size(max = 700)
