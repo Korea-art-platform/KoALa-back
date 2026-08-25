@@ -37,17 +37,12 @@ public class S3StorageUploader implements StorageUploader {
 
         String key = buildKey(directory, file.getOriginalFilename());
         try {
-            s3Client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(optimized.contentType())
-                            .contentLength(optimized.size())
-                            .build(),
-                    RequestBody.fromBytes(optimized.bytes())
-            );
+            put(key, optimized.contentType(), optimized.bytes());
             log.info("S3 upload success: key={}, size={}KB, optimized={}",
                     key, optimized.size() / 1024, optimized.changed());
+
+            putThumbnail(key, optimized.contentType(), optimized.bytes());
+
             return cdnBaseUrl + "/" + key;
         } catch (RuntimeException e) {
             log.error("S3 upload failed: key={}", key, e);
@@ -55,19 +50,42 @@ public class S3StorageUploader implements StorageUploader {
         }
     }
 
+    /**
+     * 목록·카드용 축소본을 원본 옆에 함께 올린다.
+     * 실패해도 원본 업로드는 성공으로 둔다 — 프론트가 축소본이 없으면
+     * 원본으로 되돌아가도록 되어 있다.
+     */
+    private void putThumbnail(String key, String contentType, byte[] bytes) {
+        try {
+            imageOptimizer.derive(bytes, contentType, ImageDerivatives.THUMB_EDGE)
+                    .ifPresent(thumb -> {
+                        String tk = ImageDerivatives.thumbKey(key);
+                        put(tk, thumb.contentType(), thumb.bytes());
+                        log.info("S3 thumbnail success: key={}, size={}KB", tk, thumb.size() / 1024);
+                    });
+        } catch (Exception e) {
+            log.warn("S3 thumbnail failed — 원본만 사용: key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    private void put(String key, String contentType, byte[] bytes) {
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(contentType)
+                        .contentLength((long) bytes.length)
+                        .cacheControl(ImageDerivatives.CACHE_CONTROL)
+                        .build(),
+                RequestBody.fromBytes(bytes)
+        );
+    }
+
     public String uploadBytes(byte[] bytes, String directory,
                               String filename, String contentType) {
         String key = buildKey(directory, filename);
         try {
-            s3Client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(contentType)
-                            .contentLength((long) bytes.length)
-                            .build(),
-                    RequestBody.fromBytes(bytes)
-            );
+            put(key, contentType, bytes);
             log.info("S3 upload bytes success: key={}", key);
             return cdnBaseUrl + "/" + key;
         } catch (Exception e) {

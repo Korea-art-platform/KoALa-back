@@ -14,6 +14,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.Optional;
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
 
@@ -75,6 +76,32 @@ public class ImageOptimizer {
         }
     }
 
+    /**
+     * 카드·목록용 축소본을 만든다. 원본이 이미 그보다 작으면 만들지 않는다.
+     *
+     * 상품 이미지는 원본이 2000px 인데 목록에서는 88px 로 그려진다. 그대로
+     * 내려보내면 화면 한 번에 8MB 가 넘어가므로 별도 파일로 줄여 둔다.
+     */
+    public Optional<OptimizedImage> derive(byte[] original, String contentType, int longEdge) {
+        if (!isOptimizable(contentType)) return Optional.empty();
+        try {
+            BufferedImage source = ImageIO.read(new ByteArrayInputStream(original));
+            if (source == null) return Optional.empty();
+
+            int edge = Math.max(source.getWidth(), source.getHeight());
+            if (edge <= longEdge) return Optional.empty();
+
+            BufferedImage resized = scale(source, (double) longEdge / edge);
+            byte[] encoded = encode(resized, contentType);
+            if (encoded.length >= original.length) return Optional.empty();
+
+            return Optional.of(new OptimizedImage(encoded, contentType, true));
+        } catch (Exception e) {
+            log.warn("축소본 생성 실패 — 건너뛴다: longEdge={}, error={}", longEdge, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private boolean isOptimizable(String contentType) {
         return "image/jpeg".equals(contentType)
                 || "image/jpg".equals(contentType)
@@ -82,7 +109,10 @@ public class ImageOptimizer {
     }
 
     private BufferedImage resize(BufferedImage source, int longEdge) {
-        double ratio = (double) maxDimension / longEdge;
+        return scale(source, (double) maxDimension / longEdge);
+    }
+
+    private BufferedImage scale(BufferedImage source, double ratio) {
         int width = Math.max(1, (int) Math.round(source.getWidth() * ratio));
         int height = Math.max(1, (int) Math.round(source.getHeight() * ratio));
 
