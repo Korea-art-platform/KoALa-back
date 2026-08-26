@@ -15,6 +15,10 @@ public interface SkuCategoryRepository extends JpaRepository<SkuCategory, Long> 
 
     boolean existsByTypeAndCode(String type, String code);
 
+    boolean existsByTypeAndName(String type, String name);
+
+    Optional<SkuCategory> findByTypeAndName(String type, String name);
+
     Optional<SkuCategory> findByTypeAndCode(String type, String code);
 
     @Query("SELECT COALESCE(MAX(c.sortOrder), 0) FROM SkuCategory c WHERE c.type = :type")

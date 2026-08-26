@@ -77,11 +77,19 @@ public class SkuCategoryService {
 
     @Transactional
     public SkuCategoryDto.Response create(SkuCategoryDto.CreateRequest req) {
-        String code = hasText(req.getCode()) ? req.getCode() : generateCode(req.getType(), req.getName());
+        String name = req.getName().trim();
 
+        // 코드는 사람이 안 보는 값이라 이름으로 중복을 판단해야 한다.
+        // 이름이 같은 분류가 둘이면 등록 화면 드롭다운에서 구분할 수 없다.
+        if (categoryRepository.existsByTypeAndName(req.getType(), name)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,
+                    "이미 있는 분류입니다: " + name);
+        }
+
+        String code = hasText(req.getCode()) ? req.getCode() : generateCode(req.getType(), name);
         if (categoryRepository.existsByTypeAndCode(req.getType(), code)) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,
-                    "이미 있는 분류입니다: " + req.getName());
+                    "이미 있는 분류입니다: " + name);
         }
 
         int sortOrder = req.getSortOrder() != null
@@ -91,7 +99,7 @@ public class SkuCategoryService {
         SkuCategory saved = categoryRepository.save(SkuCategory.builder()
                 .type(req.getType())
                 .code(code)
-                .name(req.getName())
+                .name(name)
                 .sortOrder(sortOrder)
                 .build());
 
@@ -103,6 +111,16 @@ public class SkuCategoryService {
     @Transactional
     public SkuCategoryDto.Response update(Long id, SkuCategoryDto.UpdateRequest req) {
         SkuCategory category = getOrThrow(id);
+
+        if (hasText(req.getName()) && !req.getName().trim().equals(category.getName())) {
+            categoryRepository.findByTypeAndName(category.getType(), req.getName().trim())
+                    .filter(other -> !other.getId().equals(id))
+                    .ifPresent(other -> {
+                        throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,
+                                "이미 있는 분류입니다: " + req.getName().trim());
+                    });
+        }
+
         category.update(req.getName(), req.getSortOrder(), req.getIsActive());
         return SkuCategoryDto.Response.from(category);
     }
