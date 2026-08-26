@@ -240,6 +240,10 @@ public class SkuDto {
         private String name;
         private String model;
         private String subModelName;
+        private String modelEn;
+        private String subModelNameEn;
+        private String color;
+        private String colorEn;
         private String slug;
         private String description;
         private String skuType;
@@ -264,6 +268,7 @@ public class SkuDto {
         private BigDecimal heightCm;
         private BigDecimal depthCm;
         private BigDecimal weightKg;
+        private Integer weightG;
         private String status;
         private LocalDateTime publishedAt;
         private String artistCode;
@@ -281,6 +286,10 @@ public class SkuDto {
                     .name(sku.getName())
                     .model(sku.getModel())
                     .subModelName(sku.getSubModelName())
+                    .modelEn(sku.getModelEn())
+                    .subModelNameEn(sku.getSubModelNameEn())
+                    .color(sku.getColor())
+                    .colorEn(sku.getColorEn())
                     .slug(sku.getSlug())
                     .description(sku.getDescription())
                     .skuType(sku.getSkuType())
@@ -305,6 +314,7 @@ public class SkuDto {
                     .heightCm(sku.getHeightCm())
                     .depthCm(sku.getDepthCm())
                     .weightKg(sku.getWeightKg())
+                    .weightG(sku.getWeightG())
                     .status(sku.getStatus())
                     .publishedAt(sku.getPublishedAt())
                     .artistCode(sku.getArtist().getArtistCode())
