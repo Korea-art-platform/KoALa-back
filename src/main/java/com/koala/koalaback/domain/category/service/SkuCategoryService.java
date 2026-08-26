@@ -33,10 +33,18 @@ public class SkuCategoryService {
     public SkuCategoryDto.GroupedResponse getAllCategories() {
         List<SkuCategory> all = categoryRepository.findAllByOrderByTypeAscSortOrderAsc();
 
-        Map<Long, Long> usage = categoryRepository.findUsageCounts().stream()
-                .collect(Collectors.toMap(
-                        SkuCategoryRepository.CategoryUsage::getCategoryId,
-                        SkuCategoryRepository.CategoryUsage::getUsedCount));
+        // 사용 수는 부가 정보다. 이게 실패했다고 목록 전체를 못 보여주면
+        // 관리자는 등록된 분류가 하나도 없는 것처럼 보게 된다.
+        Map<Long, Long> usage;
+        try {
+            usage = categoryRepository.findUsageCounts().stream()
+                    .collect(Collectors.toMap(
+                            SkuCategoryRepository.CategoryUsage::getCategoryId,
+                            SkuCategoryRepository.CategoryUsage::getUsedCount));
+        } catch (Exception e) {
+            log.warn("카테고리 사용 수 조회 실패 — 목록만 반환한다: {}", e.getMessage());
+            usage = Map.of();
+        }
 
         return group(all, usage);
     }

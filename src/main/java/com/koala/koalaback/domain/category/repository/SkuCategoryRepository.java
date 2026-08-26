@@ -24,12 +24,23 @@ public interface SkuCategoryRepository extends JpaRepository<SkuCategory, Long> 
     @Query("SELECT COALESCE(MAX(c.sortOrder), 0) FROM SkuCategory c WHERE c.type = :type")
     int findMaxSortOrder(@Param("type") String type);
 
+    /**
+     * 분류별 사용 상품 수.
+     *
+     * sku_categories 는 utf8mb4_0900_ai_ci, skus 는 utf8mb4_unicode_ci 라
+     * 그냥 비교하면 MySQL 이 "Illegal mix of collations"(1267) 로 거부한다.
+     * 양쪽에 collation 을 명시해 맞춘다.
+     */
     @Query(value = """
         SELECT c.id AS categoryId,
                (SELECT COUNT(*) FROM skus s
                  WHERE s.deleted_at IS NULL
-                   AND ((c.type = 'MAIN' AND s.main_category = c.code)
-                     OR (c.type = 'SUB'  AND s.genre = c.code))) AS usedCount
+                   AND ((c.type = 'MAIN'
+                         AND s.main_category COLLATE utf8mb4_general_ci
+                           = c.code COLLATE utf8mb4_general_ci)
+                     OR (c.type = 'SUB'
+                         AND s.genre COLLATE utf8mb4_general_ci
+                           = c.code COLLATE utf8mb4_general_ci))) AS usedCount
           FROM sku_categories c
         """, nativeQuery = true)
     List<CategoryUsage> findUsageCounts();
