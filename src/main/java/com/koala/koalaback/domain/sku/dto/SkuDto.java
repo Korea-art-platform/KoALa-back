@@ -72,7 +72,8 @@ public class SkuDto {
         private Integer editionNumber;
         private String badges;
 
-        @NotBlank
+        // 등록 화면은 상품을 만든 뒤 이미지를 올린다. 그래서 여기서는 비어 온다.
+        // 대표 이미지 필수 여부는 등록 화면이 막고, 수정 요청에서는 필수로 받는다.
         private String primaryImageUrl;
 
         @NotNull @PositiveOrZero
