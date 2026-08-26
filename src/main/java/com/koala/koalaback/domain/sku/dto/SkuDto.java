@@ -190,6 +190,8 @@ public class SkuDto {
         private Long id;
         private String skuCode;
         private String name;
+        // 카드에는 모델만 큰 제목으로 쓴다. 세부모델명과 색상은 상세에서 보여준다.
+        private String model;
         private String slug;
         private String skuType;
         private String mainCategory;
@@ -212,6 +214,7 @@ public class SkuDto {
                     .id(sku.getId())
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .model(sku.getModel())
                     .slug(sku.getSlug())
                     .skuType(sku.getSkuType())
                     .mainCategory(sku.getMainCategory())
