@@ -3,6 +3,7 @@ package com.koala.koalaback.domain.category.service;
 import com.koala.koalaback.domain.category.dto.SkuCategoryDto;
 import com.koala.koalaback.domain.category.entity.SkuCategory;
 import com.koala.koalaback.domain.category.repository.SkuCategoryRepository;
+import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class SkuCategoryService {
     private final SkuCategoryRepository categoryRepository;
+    private final SkuRepository skuRepository;
 
     public SkuCategoryDto.GroupedResponse getActiveCategories() {
         List<SkuCategory> all = categoryRepository.findByIsActiveTrueOrderByTypeAscSortOrderAsc();
@@ -75,9 +77,11 @@ public class SkuCategoryService {
 
     @Transactional
     public SkuCategoryDto.Response create(SkuCategoryDto.CreateRequest req) {
-        if (categoryRepository.existsByTypeAndCode(req.getType(), req.getCode())) {
+        String code = hasText(req.getCode()) ? req.getCode() : generateCode(req.getType(), req.getName());
+
+        if (categoryRepository.existsByTypeAndCode(req.getType(), code)) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,
-                    "이미 있는 코드입니다: " + req.getCode());
+                    "이미 있는 분류입니다: " + req.getName());
         }
 
         int sortOrder = req.getSortOrder() != null
@@ -86,7 +90,7 @@ public class SkuCategoryService {
 
         SkuCategory saved = categoryRepository.save(SkuCategory.builder()
                 .type(req.getType())
-                .code(req.getCode())
+                .code(code)
                 .name(req.getName())
                 .sortOrder(sortOrder)
                 .build());
@@ -103,11 +107,50 @@ public class SkuCategoryService {
         return SkuCategoryDto.Response.from(category);
     }
 
+    /**
+     * 쓰고 있는 분류는 지울 수 없다.
+     *
+     * 지우면 그 분류로 등록된 상품이 갈 곳을 잃는다. 목록·검색 필터가 빈 값을
+     * 만나고, 홈의 소분류 섹션도 비어 버린다. 상품을 먼저 옮기게 해야 한다.
+     */
     @Transactional
     public void deactivate(Long id) {
         SkuCategory category = getOrThrow(id);
+
+        long inUse = "MAIN".equals(category.getType())
+                ? skuRepository.countByMainCategoryAndDeletedAtIsNull(category.getCode())
+                : skuRepository.countByGenreAndDeletedAtIsNull(category.getCode());
+
+        if (inUse > 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "이 분류로 등록된 상품이 " + inUse + "개 있어 삭제할 수 없습니다. "
+                    + "해당 상품의 분류를 먼저 바꿔 주세요.");
+        }
+
         category.deactivate();
         log.info("카테고리 비활성화: type={}, code={}", category.getType(), category.getCode());
+    }
+
+    private boolean hasText(String v) { return v != null && !v.isBlank(); }
+
+    /**
+     * 표시 이름으로 코드를 만든다. 한글 이름은 영문 코드로 옮길 수 없으므로
+     * 타입 약자에 일련번호를 붙인다. 코드는 화면에 보이지 않는 내부 값이다.
+     */
+    private String generateCode(String type, String name) {
+        String ascii = name == null ? "" : name.toUpperCase().replaceAll("[^A-Z0-9]+", "_");
+        ascii = ascii.replaceAll("(^_+|_+$)", "");
+
+        if (!ascii.isBlank() && !categoryRepository.existsByTypeAndCode(type, ascii)) {
+            return ascii.length() > 50 ? ascii.substring(0, 50) : ascii;
+        }
+
+        String prefix = "MAIN".equals(type) ? "MAIN" : "SUB";
+        for (int i = 1; i < 1000; i++) {
+            String candidate = prefix + "_" + i;
+            if (!categoryRepository.existsByTypeAndCode(type, candidate)) return candidate;
+        }
+        throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "코드를 만들 수 없습니다.");
     }
 
     private SkuCategory getOrThrow(Long id) {

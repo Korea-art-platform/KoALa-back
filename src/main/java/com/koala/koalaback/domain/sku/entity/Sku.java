@@ -35,6 +35,18 @@ public class Sku extends BaseTimeEntity {
     @Column(name = "sub_model_name", length = 150)
     private String subModelName;
 
+    @Column(name = "model_en", length = 150)
+    private String modelEn;
+
+    @Column(name = "sub_model_name_en", length = 150)
+    private String subModelNameEn;
+
+    @Column(length = 100)
+    private String color;
+
+    @Column(name = "color_en", length = 100)
+    private String colorEn;
+
     @Column(nullable = false, unique = true, length = 220)
     private String slug;
 
@@ -97,6 +109,10 @@ public class Sku extends BaseTimeEntity {
     private BigDecimal depthCm;
     private BigDecimal weightKg;
 
+    /** 무게(g). 아트토이는 1kg 미만이 대부분이라 kg 로는 소수를 넣어야 했다. */
+    @Column(name = "weight_g")
+    private Integer weightG;
+
     @Column(nullable = false, length = 20)
     private String status;
 
@@ -104,19 +120,24 @@ public class Sku extends BaseTimeEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public Sku(String skuCode, Artist artist, String name, String model, String subModelName, String slug,
+    public Sku(String skuCode, Artist artist, String name, String model, String subModelName,
+               String modelEn, String subModelNameEn, String color, String colorEn, String slug,
                String description, String skuType, String mainCategory, String genre, String material,
                String materialDescription, String packagingTitle, String packagingDescription,
                String currency, BigDecimal listPrice, BigDecimal salePrice,
                Integer editionSize, Integer editionNumber,
                String primaryImageUrl, BigDecimal widthCm, BigDecimal heightCm,
-               BigDecimal depthCm, BigDecimal weightKg,
+               BigDecimal depthCm, BigDecimal weightKg, Integer weightG,
                String badges) {
         this.skuCode = skuCode;
         this.artist = artist;
         this.name = name;
         this.model = model;
         this.subModelName = subModelName;
+        this.modelEn = modelEn;
+        this.subModelNameEn = subModelNameEn;
+        this.color = color;
+        this.colorEn = colorEn;
         this.slug = slug;
         this.description = description;
         this.skuType = skuType != null ? skuType : "ARTWORK";
@@ -139,6 +160,7 @@ public class Sku extends BaseTimeEntity {
         this.heightCm = heightCm;
         this.depthCm = depthCm;
         this.weightKg = weightKg;
+        this.weightG = weightG;
         this.badges = badges;
         this.status = "DRAFT";
     }
@@ -150,10 +172,16 @@ public class Sku extends BaseTimeEntity {
                        Integer editionSize, Integer editionNumber,
                        String badges,
                        String model, String subModelName,
-                       BigDecimal widthCm, BigDecimal heightCm, BigDecimal depthCm, BigDecimal weightKg) {
+                       String modelEn, String subModelNameEn, String color, String colorEn,
+                       BigDecimal widthCm, BigDecimal heightCm, BigDecimal depthCm,
+                       BigDecimal weightKg, Integer weightG) {
         this.name = name;
         this.model = model;
         this.subModelName = subModelName;
+        this.modelEn = modelEn;
+        this.subModelNameEn = subModelNameEn;
+        this.color = color;
+        this.colorEn = colorEn;
         this.slug = slug;
         this.description = description;
         if (skuType != null && !skuType.isBlank()) this.skuType = skuType;
@@ -173,6 +201,7 @@ public class Sku extends BaseTimeEntity {
         this.heightCm = heightCm;
         this.depthCm = depthCm;
         this.weightKg = weightKg;
+        this.weightG = weightG;
     }
 
     public void changePrimaryImage(String primaryImageUrl) {

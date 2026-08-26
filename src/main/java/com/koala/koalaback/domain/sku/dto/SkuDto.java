@@ -20,16 +20,35 @@ public class SkuDto {
         @NotBlank
         private String artistCode;
 
-        @NotBlank
+        // 관리자 등록 화면은 상품명(name)과 슬러그(slug)를 받지 않는다.
+        // 모델 · 세부모델명 · 색상을 조합해 서버가 만든다.
+        //
+        // CSV 일괄 등록은 예전부터 두 값을 직접 넣어 왔고 그 파일 양식을 이미
+        // 쓰고 있어, 값이 오면 그대로 존중한다. 화면에서는 비어 온다.
         private String name;
+        private String slug;
 
+        @NotBlank
         private String model;
+
+        @NotBlank
+        private String modelEn;
+
+        @NotBlank
         private String subModelName;
 
         @NotBlank
-        private String slug;
+        private String subModelNameEn;
 
+        @NotBlank
+        private String color;
+
+        @NotBlank
+        private String colorEn;
+
+        @NotBlank
         private String description;
+
         private String skuType;
 
         @NotBlank
@@ -46,26 +65,57 @@ public class SkuDto {
         @NotNull @PositiveOrZero
         private BigDecimal listPrice;
 
+        @NotNull @PositiveOrZero
         private BigDecimal salePrice;
+
         private Integer editionSize;
         private Integer editionNumber;
         private String badges;
+
+        @NotBlank
         private String primaryImageUrl;
+
+        @NotNull @PositiveOrZero
         private BigDecimal widthCm;
+
+        @NotNull @PositiveOrZero
         private BigDecimal heightCm;
+
+        @NotNull @PositiveOrZero
         private BigDecimal depthCm;
+
         private BigDecimal weightKg;
+
+        @NotNull @PositiveOrZero
+        private Integer weightG;
     }
 
     @Getter @Setter
     public static class UpdateRequest {
-        @NotBlank
-        private String name;
+        // 이미 등록된 상품은 예전 방식으로 만들어진 이름이 있다.
+        // 이름과 슬러그는 그대로 두고, 모델/세부모델명/색상만 고친다.
 
         @NotBlank
-        private String slug;
+        private String model;
 
+        @NotBlank
+        private String modelEn;
+
+        @NotBlank
+        private String subModelName;
+
+        @NotBlank
+        private String subModelNameEn;
+
+        @NotBlank
+        private String color;
+
+        @NotBlank
+        private String colorEn;
+
+        @NotBlank
         private String description;
+
         private String skuType;
 
         @NotBlank
@@ -74,6 +124,7 @@ public class SkuDto {
         @NotBlank
         private String genre;
 
+        // 재질 · 포장은 선택
         private String material;
         private String materialDescription;
         private String packagingTitle;
@@ -82,17 +133,30 @@ public class SkuDto {
         @NotNull @PositiveOrZero
         private BigDecimal listPrice;
 
+        @NotNull @PositiveOrZero
         private BigDecimal salePrice;
+
+        // 에디션 번호는 선택
         private Integer editionSize;
         private Integer editionNumber;
         private String badges;
+
+        @NotBlank
         private String primaryImageUrl;
-        private String model;
-        private String subModelName;
+
+        @NotNull @PositiveOrZero
         private BigDecimal widthCm;
+
+        @NotNull @PositiveOrZero
         private BigDecimal heightCm;
+
+        @NotNull @PositiveOrZero
         private BigDecimal depthCm;
+
         private BigDecimal weightKg;
+
+        @NotNull @PositiveOrZero
+        private Integer weightG;
     }
 
     @Getter

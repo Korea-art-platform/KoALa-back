@@ -61,6 +61,7 @@ class SkuUpdateTest {
                 null, null,
                 null,
                 model, subModel,
-                w, h, d, kg);
+                "model-en", "submodel-en", "검정", "black",
+                w, h, d, kg, null);
     }
 }

@@ -16,8 +16,8 @@ public class SkuCategoryDto {
         @Pattern(regexp = "MAIN|SUB", message = "type 은 MAIN 또는 SUB 여야 합니다.")
         private String type;
 
-        @NotBlank
-        @Pattern(regexp = "^[A-Z0-9_]+$", message = "코드는 영문 대문자·숫자·언더바만 사용할 수 있습니다.")
+        // 코드는 관리자가 입력하지 않는다. 표시 이름으로 서버가 만든다.
+        // 상품에 저장되는 값이라 사람이 정할 이유가 없고, 규칙을 설명하기도 어려웠다.
         private String code;
 
         @NotBlank
