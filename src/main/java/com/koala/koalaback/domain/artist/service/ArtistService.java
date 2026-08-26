@@ -178,11 +178,11 @@ public class ArtistService {
     /**
      * 전시회 사진은 작가당 3장까지다.
      *
-     * 전시 페이지가 작가별 전시실을 3장 기준으로 배치하므로, 넘치면 화면이
-     * 무너진다. 어드민에서도 막지만 API 를 직접 부르는 경우가 있어 여기서도 막는다.
+     * 전시 페이지가 작가를 가운데 두고 원형으로 배치하므로, 넘치면 원이
+     * 겹친다. 어드민에서도 막지만 API 를 직접 부르는 경우가 있어 여기서도 막는다.
      */
     private static final String EXHIBITION_ROLE = "EXHIBITION";
-    private static final int EXHIBITION_MAX = 3;
+    private static final int EXHIBITION_MAX = 5;
 
     private void checkExhibitionLimit(Long artistId, String mediaRole) {
         if (!EXHIBITION_ROLE.equals(mediaRole)) return;
