@@ -13,4 +13,8 @@ public interface ArtistMediaRepository extends JpaRepository<ArtistMedia, Long> 
     void deleteByArtistId(Long artistId);
 
     void deleteByArtistIdAndMediaRole(Long artistId, String mediaRole);
+
+    long countByArtistIdAndMediaRole(Long artistId, String mediaRole);
+
+    List<ArtistMedia> findByArtistIdAndMediaRoleOrderBySortOrderAsc(Long artistId, String mediaRole);
 }

@@ -175,11 +175,32 @@ public class ArtistService {
         artist.softDelete();
     }
 
+    /**
+     * 전시회 사진은 작가당 3장까지다.
+     *
+     * 전시 페이지가 작가별 전시실을 3장 기준으로 배치하므로, 넘치면 화면이
+     * 무너진다. 어드민에서도 막지만 API 를 직접 부르는 경우가 있어 여기서도 막는다.
+     */
+    private static final String EXHIBITION_ROLE = "EXHIBITION";
+    private static final int EXHIBITION_MAX = 3;
+
+    private void checkExhibitionLimit(Long artistId, String mediaRole) {
+        if (!EXHIBITION_ROLE.equals(mediaRole)) return;
+
+        long current = artistMediaRepository.countByArtistIdAndMediaRole(artistId, EXHIBITION_ROLE);
+        if (current >= EXHIBITION_MAX) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "전시회 사진은 작가당 " + EXHIBITION_MAX + "장까지 등록할 수 있습니다.");
+        }
+    }
+
     @Transactional
     public ArtistDto.MediaResponse addMedia(String artistCode,
                                             MultipartFile file,
                                             ArtistDto.MediaAddRequest req) {
         Artist artist = getArtistEntityByCode(artistCode);
+        checkExhibitionLimit(artist.getId(), req.getMediaRole());
+
         String dir = "artists/" + artist.getArtistCode() + "/" + req.getMediaRole().toLowerCase();
         String fileUrl = s3Uploader.upload(file, dir);
 
