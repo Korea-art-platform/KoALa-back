@@ -30,6 +30,18 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
     @Query("SELECT s FROM Sku s WHERE s.genre = :genre AND s.status = 'ACTIVE' AND s.deletedAt IS NULL")
     Page<Sku> findActiveByGenre(@Param("genre") String genre, Pageable pageable);
 
+    @Query("SELECT s FROM Sku s WHERE s.mainCategory = :mainCategory AND s.status = 'ACTIVE' AND s.deletedAt IS NULL")
+    Page<Sku> findActiveByMainCategory(@Param("mainCategory") String mainCategory, Pageable pageable);
+
+    @Query("""
+        SELECT s FROM Sku s
+        WHERE s.genre = :genre AND s.mainCategory = :mainCategory
+          AND s.status = 'ACTIVE' AND s.deletedAt IS NULL
+        """)
+    Page<Sku> findActiveByGenreAndMainCategory(@Param("genre") String genre,
+                                               @Param("mainCategory") String mainCategory,
+                                               Pageable pageable);
+
     @Query("""
         SELECT s FROM Sku s
         WHERE s.status = 'ACTIVE'

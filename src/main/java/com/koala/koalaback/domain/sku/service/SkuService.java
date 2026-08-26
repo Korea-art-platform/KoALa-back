@@ -48,8 +48,32 @@ public class SkuService {
     private final StorageUploader s3Uploader;
 
     public PageResponse<SkuDto.SummaryResponse> getActiveSkus(Pageable pageable) {
-        return toSummaryPage(skuRepository
-                .findByStatusAndDeletedAtIsNull("ACTIVE", pageable));
+        return getActiveSkus(null, null, pageable);
+    }
+
+    /**
+     * 소분류(genre)와 대분류(mainCategory)로 거른다. 둘 다 없으면 전체다.
+     *
+     * 거르는 일을 화면이 아니라 여기서 하는 이유는, 화면은 한 번에 한 페이지만
+     * 받기 때문이다. 받아 온 12개 안에서 걸러 봐야 뒤 페이지에 있는 작품은
+     * 세지 못해 "0점"으로 보인다. 페이지 수도 여기서 맞춰 돌려준다.
+     */
+    public PageResponse<SkuDto.SummaryResponse> getActiveSkus(String genre, String mainCategory,
+                                                              Pageable pageable) {
+        boolean byGenre = hasText(genre);
+        boolean byMain = hasText(mainCategory);
+
+        Page<Sku> page;
+        if (byGenre && byMain) {
+            page = skuRepository.findActiveByGenreAndMainCategory(genre, mainCategory, pageable);
+        } else if (byGenre) {
+            page = skuRepository.findActiveByGenre(genre, pageable);
+        } else if (byMain) {
+            page = skuRepository.findActiveByMainCategory(mainCategory, pageable);
+        } else {
+            page = skuRepository.findByStatusAndDeletedAtIsNull("ACTIVE", pageable);
+        }
+        return toSummaryPage(page);
     }
 
     public PageResponse<SkuDto.SummaryResponse> getSkusByArtist(String artistCode, Pageable pageable) {

@@ -21,8 +21,10 @@ public class SkuController {
 
     @GetMapping("/api/v1/skus")
     public ApiResponse<PageResponse<SkuDto.SummaryResponse>> getSkus(
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) String mainCategory,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(skuService.getActiveSkus(pageable));
+        return ApiResponse.ok(skuService.getActiveSkus(genre, mainCategory, pageable));
     }
 
     @GetMapping("/api/v1/skus/{skuCode}")
