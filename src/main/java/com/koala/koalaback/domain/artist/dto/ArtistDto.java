@@ -211,10 +211,13 @@ public class ArtistDto {
         private List<CareerResponse> careerList;
         private long followCount;
         private boolean isFollowing;
+        // 어드민 대표작품 화면이 지금 무엇이 걸려 있는지 알아야 표시할 수 있다.
+        private FeaturedSkuInfo featuredSku;
 
         public static DetailResponse from(Artist a, List<ArtistMedia> media,
                                           List<ArtistCareer> careers,
-                                          long followCount, boolean isFollowing) {
+                                          long followCount, boolean isFollowing,
+                                          Sku featuredSku) {
             return DetailResponse.builder()
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
@@ -228,6 +231,7 @@ public class ArtistDto {
                     .careerList(careers.stream().map(CareerResponse::from).toList())
                     .followCount(followCount)
                     .isFollowing(isFollowing)
+                    .featuredSku(featuredSku != null ? FeaturedSkuInfo.from(featuredSku) : null)
                     .build();
         }
     }

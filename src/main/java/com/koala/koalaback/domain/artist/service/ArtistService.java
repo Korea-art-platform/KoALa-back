@@ -88,7 +88,10 @@ public class ArtistService {
         long followCount = artistFollowRepository.countByArtistId(artist.getId());
         boolean isFollowing = userId != null &&
                 artistFollowRepository.existsByUserIdAndArtistId(userId, artist.getId());
-        return ArtistDto.DetailResponse.from(artist, media, careers, followCount, isFollowing);
+        Sku featured = artist.getFeaturedSkuId() != null
+                ? skuRepository.findById(artist.getFeaturedSkuId()).orElse(null)
+                : null;
+        return ArtistDto.DetailResponse.from(artist, media, careers, followCount, isFollowing, featured);
     }
 
     @Transactional
