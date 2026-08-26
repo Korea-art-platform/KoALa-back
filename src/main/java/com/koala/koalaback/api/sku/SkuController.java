@@ -38,6 +38,11 @@ public class SkuController {
         return ApiResponse.ok(skuService.getGenreCounts());
     }
 
+    @GetMapping("/api/v1/skus/main-category-counts")
+    public ApiResponse<Map<String, Long>> getMainCategoryCounts() {
+        return ApiResponse.ok(skuService.getMainCategoryCounts());
+    }
+
     @GetMapping("/api/v1/skus/{skuCode}/360-frames")
     public ApiResponse<SkuDto.FrameListResponse> get360Frames(@PathVariable String skuCode) {
         return ApiResponse.ok(skuService.get360Frames(skuCode));

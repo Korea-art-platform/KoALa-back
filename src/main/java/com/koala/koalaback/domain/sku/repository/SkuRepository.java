@@ -56,6 +56,9 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
     @Query("SELECT s.genre, COUNT(s) FROM Sku s WHERE s.status = 'ACTIVE' AND s.deletedAt IS NULL GROUP BY s.genre")
     List<Object[]> countByGenre();
 
+    @Query("SELECT s.mainCategory, COUNT(s) FROM Sku s WHERE s.status = 'ACTIVE' AND s.deletedAt IS NULL GROUP BY s.mainCategory")
+    List<Object[]> countByMainCategory();
+
     long countByMainCategoryAndDeletedAtIsNull(String mainCategory);
 
     long countByGenreAndDeletedAtIsNull(String genre);

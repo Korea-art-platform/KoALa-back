@@ -101,6 +101,16 @@ public class SkuService {
         return result;
     }
 
+    /** 스토어 대분류 칩이 작품 없는 분류를 숨기려면 개수를 알아야 한다. */
+    public Map<String, Long> getMainCategoryCounts() {
+        long total = skuRepository.countByStatusAndDeletedAtIsNull("ACTIVE");
+        Map<String, Long> result = new HashMap<>();
+        result.put("ALL", total);
+        skuRepository.countByMainCategory().forEach(row ->
+                result.put((String) row[0], (Long) row[1]));
+        return result;
+    }
+
     @Cacheable(value = "sku360frames", key = "#skuCode")
     public SkuDto.FrameListResponse get360Frames(String skuCode) {
         Sku sku = getSkuEntityByCode(skuCode);
