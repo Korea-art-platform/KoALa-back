@@ -2,6 +2,7 @@ package com.koala.koalaback.global.config;
 
 import com.koala.koalaback.global.security.AdminIpAllowlistFilter;
 import com.koala.koalaback.global.security.JwtFilter;
+import com.koala.koalaback.global.security.PublicCacheHeaderFilter;
 import com.koala.koalaback.global.security.JwtProvider;
 import com.koala.koalaback.global.security.RateLimitFilter;
 import com.koala.koalaback.global.security.TokenBlacklistService;
@@ -41,6 +42,7 @@ public class SecurityConfig {
     private final JwtProvider jwtProvider;
     private final TokenBlacklistService tokenBlacklistService;
     private final RateLimitFilter rateLimitFilter;
+    private final PublicCacheHeaderFilter publicCacheHeaderFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
@@ -89,6 +91,13 @@ public class SecurityConfig {
                         .frameOptions(frame -> frame.deny())
 
                         .contentTypeOptions(contentType -> {})
+
+                        // Security 는 기본으로 모든 응답에 no-store 를 박는다. 그러면
+                        // 공개 API 를 CloudFront 가 캐시하지 못한다. 이 강제를 끄고,
+                        // 캐시해도 되는 경로에만 PublicCacheHeaderFilter 로 헤더를 준다.
+                        // 그 외 응답에는 아무 캐시 헤더도 붙지 않아 브라우저 기본(사설
+                        // 캐시)만 적용되고 공유 캐시에는 남지 않는다.
+                        .cacheControl(cache -> cache.disable())
                 )
 
                 .authorizeHttpRequests(auth -> {
@@ -155,6 +164,7 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(new JwtFilter(jwtProvider, tokenBlacklistService),
                         UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(publicCacheHeaderFilter, JwtFilter.class)
                 .addFilterBefore(rateLimitFilter,
                         JwtFilter.class)
                 .addFilterBefore(new AdminIpAllowlistFilter(adminAllowedIps),
