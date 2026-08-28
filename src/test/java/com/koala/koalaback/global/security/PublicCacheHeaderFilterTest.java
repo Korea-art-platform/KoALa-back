@@ -78,10 +78,12 @@ class PublicCacheHeaderFilterTest {
     }
 
     @Test
-    @DisplayName("GET 이 아니거나 200 이 아니면 캐시하지 않는다")
-    void onlyGetAnd200() throws Exception {
+    @DisplayName("GET 이 아니면 캐시하지 않는다")
+    void onlyGet() throws Exception {
+        // 헤더는 상태 코드가 정해지기 전(doFilter 앞)에 걸므로 코드로는 못 거른다.
+        // 대신 GET 이 아닌 요청은 확실히 뺀다.
         assertThat(cacheHeaderFor("POST", "/api/v1/skus", null, null, 200)).isNull();
-        assertThat(cacheHeaderFor("GET", "/api/v1/skus", null, null, 404)).isNull();
-        assertThat(cacheHeaderFor("GET", "/api/v1/skus", null, null, 401)).isNull();
+        assertThat(cacheHeaderFor("PUT", "/api/v1/skus", null, null, 200)).isNull();
+        assertThat(cacheHeaderFor("DELETE", "/api/v1/skus/A1", null, null, 200)).isNull();
     }
 }

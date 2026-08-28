@@ -4,8 +4,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -19,15 +17,17 @@ import java.io.IOException;
  * 를 끈 다음(SecurityConfig 의 cacheControl().disable()), 정말로 공개해도 되는
  * 경로에만 여기서 캐시를 허용한다.
  *
- * 화이트리스트로만 연다. 주문·장바구니·내 정보처럼 사람마다 다른 응답이 실수로
- * 캐시되면 남의 정보가 보일 수 있어, "열어도 되는 것"을 하나씩 지정한다.
+ * 헤더는 doFilter "전에" 건다. 응답이 한 번 커밋되면(본문이 나가기 시작하면)
+ * 헤더를 더는 못 바꾼다. 컨트롤러가 실행되기 전에 미리 걸어 두어야, 응답이
+ * 나갈 때 그 헤더가 함께 실린다.
  *
- * stale-while-revalidate 를 함께 준다. 캐시가 만료돼도 CloudFront 는 낡은 응답을
- * 즉시 돌려주면서 뒤에서 원본을 새로 받아 둔다 — 사용자는 만료 순간에도 기다리지
- * 않는다. 대신 수정이 반영되는 지연은 max-age 와 이 값을 합친 만큼이다.
+ * 그래서 상태 코드로는 거르지 못한다 — 아직 정해지기 전이다. 대신 경로와
+ * 인증 여부로만 판단한다. 404·500 에도 캐시 헤더가 붙을 수 있지만, 짧은
+ * max-age 라 문제되지 않고 CloudFront 는 4xx/5xx 를 짧게만 캐시한다.
+ *
+ * @Component 를 붙이지 않는다. 붙이면 Spring Boot 가 서블릿 필터로도 자동
+ * 등록해, Security 체인에 넣은 것과 두 번 돈다. SecurityConfig 에서만 넣는다.
  */
-@Order(20)
-@Component
 public class PublicCacheHeaderFilter extends OncePerRequestFilter {
 
     private static final String CACHE_VALUE = "public, max-age=60, stale-while-revalidate=60";
@@ -35,18 +35,14 @@ public class PublicCacheHeaderFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        chain.doFilter(req, res);
-
-        // 응답이 다 만들어진 뒤에 덮어쓴다. 그래야 Security 가 앞서 박아 둔
-        // no-store 를 확실히 지운다.
-        if (isCacheable(req, res)) {
+        if (isCacheable(req)) {
             res.setHeader("Cache-Control", CACHE_VALUE);
         }
+        chain.doFilter(req, res);
     }
 
-    private boolean isCacheable(HttpServletRequest req, HttpServletResponse res) {
+    private boolean isCacheable(HttpServletRequest req) {
         if (!"GET".equals(req.getMethod())) return false;
-        if (res.getStatus() != HttpServletResponse.SC_OK) return false;
 
         // 인증 쿠키·헤더가 실려 온 요청은 사람마다 응답이 갈릴 수 있으니 캐시하지 않는다.
         // 공개 목록도 로그인한 채로 열 수 있는데, 그 응답이 캐시에 박혀 비로그인에게

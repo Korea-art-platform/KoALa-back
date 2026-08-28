@@ -42,7 +42,6 @@ public class SecurityConfig {
     private final JwtProvider jwtProvider;
     private final TokenBlacklistService tokenBlacklistService;
     private final RateLimitFilter rateLimitFilter;
-    private final PublicCacheHeaderFilter publicCacheHeaderFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
@@ -164,7 +163,7 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(new JwtFilter(jwtProvider, tokenBlacklistService),
                         UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(publicCacheHeaderFilter, JwtFilter.class)
+                .addFilterBefore(new PublicCacheHeaderFilter(), JwtFilter.class)
                 .addFilterBefore(rateLimitFilter,
                         JwtFilter.class)
                 .addFilterBefore(new AdminIpAllowlistFilter(adminAllowedIps),
