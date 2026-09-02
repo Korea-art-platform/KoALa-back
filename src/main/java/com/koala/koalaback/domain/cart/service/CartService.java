@@ -1,6 +1,7 @@
 package com.koala.koalaback.domain.cart.service;
 
 import com.koala.koalaback.domain.cart.dto.CartDto;
+import com.koala.koalaback.domain.pricing.VatPolicy;
 import com.koala.koalaback.domain.cart.entity.Cart;
 import com.koala.koalaback.domain.cart.entity.CartItem;
 import com.koala.koalaback.domain.cart.repository.CartItemRepository;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CartService {
     private final CartRepository cartRepository;
+    private final VatPolicy vatPolicy;
     private final CartItemRepository cartItemRepository;
     private final UserService userService;
     private final SkuService skuService;
@@ -27,7 +29,7 @@ public class CartService {
 
     public CartDto.CartResponse getCart(Long userId) {
         Cart cart = getOrCreateCart(userId);
-        return CartDto.CartResponse.from(cart);
+        return CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional
@@ -58,7 +60,7 @@ public class CartService {
                         }
                 );
 
-        return CartDto.CartResponse.from(cart);
+        return CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional
@@ -74,7 +76,7 @@ public class CartService {
         }
 
         item.updateQuantity(req.getQuantity());
-        return CartDto.CartResponse.from(cart);
+        return CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional
@@ -86,7 +88,7 @@ public class CartService {
 
         cart.removeItem(item);
         cartItemRepository.delete(item);
-        return CartDto.CartResponse.from(cart);
+        return CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional

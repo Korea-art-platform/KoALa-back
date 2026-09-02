@@ -123,10 +123,13 @@ class OrderExpirySchedulerTest {
     }
 
     private OrderService orderServiceWithMocks() {
+        // 인자 자리: orderRepository, vatPolicy, orderItemRepository, orderShipmentRepository,
+        //            cartService, stockService, userService, paymentRepository,
+        //            paymentService, codeGenerator, phoneNormalizer, orderTransactionService
         return new OrderService(
                 orderRepository, null, null, null,
-                stockService, null, paymentRepository, null,
-                null, null, null);
+                null, stockService, null, paymentRepository,
+                null, null, null, null);
     }
 
     private Order givenOrder(String status, int quantity) {

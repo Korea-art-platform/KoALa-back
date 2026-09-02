@@ -12,8 +12,11 @@ import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 
+import com.koala.koalaback.domain.pricing.VatPolicy;
+
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 public class ArtistDto {
     @Getter
@@ -136,7 +139,8 @@ public class ArtistDto {
         public static SummaryResponse fromWithMedia(Artist a,
                                                     List<ArtistMedia> media,
                                                     long followCount,
-                                                    Sku featuredSku) {
+                                                    Sku featuredSku,
+                                                    VatPolicy vat, Set<String> exempt) {
             return SummaryResponse.builder()
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
@@ -147,7 +151,7 @@ public class ArtistDto {
                     .isActive(a.getIsActive())
                     .mediaList(media.stream().map(MediaResponse::from).toList())
                     .followCount(followCount)
-                    .featuredSku(featuredSku != null ? FeaturedSkuInfo.from(featuredSku) : null)
+                    .featuredSku(featuredSku != null ? FeaturedSkuInfo.from(featuredSku, vat, exempt) : null)
                     .build();
         }
     }
@@ -159,15 +163,20 @@ public class ArtistDto {
         private String name;
         private BigDecimal listPrice;
         private BigDecimal salePrice;
+        /** 화면에 보이는 금액 — 공급가액 + 부가세 */
+        private BigDecimal displayPrice;
+        private BigDecimal displayListPrice;
         private String imageUrl;
         private String description;
 
-        public static FeaturedSkuInfo from(Sku sku) {
+        public static FeaturedSkuInfo from(Sku sku, VatPolicy vat, Set<String> exempt) {
             return FeaturedSkuInfo.builder()
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
+                    .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
+                    .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
                     .imageUrl(sku.getPrimaryImageUrl())
                     .description(sku.getDescription())
                     .build();
@@ -181,15 +190,20 @@ public class ArtistDto {
         private String name;
         private BigDecimal listPrice;
         private BigDecimal salePrice;
+        /** 화면에 보이는 금액 — 공급가액 + 부가세 */
+        private BigDecimal displayPrice;
+        private BigDecimal displayListPrice;
         private String imageUrl;
         private String status;
 
-        public static ArtistSkuItem from(Sku sku) {
+        public static ArtistSkuItem from(Sku sku, VatPolicy vat, Set<String> exempt) {
             return ArtistSkuItem.builder()
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
+                    .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
+                    .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
                     .imageUrl(sku.getPrimaryImageUrl())
                     .status(sku.getStatus())
                     .build();
@@ -217,7 +231,8 @@ public class ArtistDto {
         public static DetailResponse from(Artist a, List<ArtistMedia> media,
                                           List<ArtistCareer> careers,
                                           long followCount, boolean isFollowing,
-                                          Sku featuredSku) {
+                                          Sku featuredSku,
+                                          VatPolicy vat, Set<String> exempt) {
             return DetailResponse.builder()
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
@@ -231,7 +246,7 @@ public class ArtistDto {
                     .careerList(careers.stream().map(CareerResponse::from).toList())
                     .followCount(followCount)
                     .isFollowing(isFollowing)
-                    .featuredSku(featuredSku != null ? FeaturedSkuInfo.from(featuredSku) : null)
+                    .featuredSku(featuredSku != null ? FeaturedSkuInfo.from(featuredSku, vat, exempt) : null)
                     .build();
         }
     }

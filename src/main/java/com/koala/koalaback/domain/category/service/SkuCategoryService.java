@@ -109,6 +109,7 @@ public class SkuCategoryService {
                 .code(code)
                 .name(name)
                 .sortOrder(sortOrder)
+                .taxExempt(req.getTaxExempt())
                 .build());
 
         log.info("카테고리 생성: type={}, code={}, name={}",
@@ -129,7 +130,7 @@ public class SkuCategoryService {
                     });
         }
 
-        category.update(req.getName(), req.getSortOrder(), req.getIsActive());
+        category.update(req.getName(), req.getSortOrder(), req.getIsActive(), req.getTaxExempt());
         return SkuCategoryDto.Response.from(category);
     }
 

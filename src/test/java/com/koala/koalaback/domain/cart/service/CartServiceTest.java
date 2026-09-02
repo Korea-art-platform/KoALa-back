@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
+import com.koala.koalaback.domain.pricing.VatPolicy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -31,6 +33,11 @@ class CartServiceTest {
     private CartService cartService;
 
     @Mock private CartRepository cartRepository;
+    // 부가세 계산은 순수 함수라 흉내 내면 오히려 틀린 것을 통과시킨다.
+    // 면세 분류를 읽는 부분만 비워 두고 진짜를 쓴다.
+    @Spy private VatPolicy vatPolicy = new VatPolicy(null) {
+        @Override public java.util.Set<String> exemptMainCategories() { return java.util.Set.of(); }
+    };
     @Mock private CartItemRepository cartItemRepository;
     @Mock private UserService userService;
     @Mock private SkuService skuService;

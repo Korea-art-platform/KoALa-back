@@ -10,7 +10,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import com.koala.koalaback.domain.pricing.VatPolicy;
+
 import java.math.BigDecimal;
+import java.util.Set;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -199,6 +202,20 @@ public class SkuDto {
         private BigDecimal listPrice;
         private BigDecimal salePrice;
         private BigDecimal effectivePrice;
+
+        /**
+         * 화면에 보이고 실제로 결제되는 금액 — 공급가액 + 부가세.
+         *
+         * listPrice·salePrice 는 부가세를 뺀 공급가액이고 어드민이 고치는 값이다.
+         * 고객에게 보여줄 때는 반드시 이 값을 쓴다. 표시가와 결제가가 다르면 안 된다.
+         */
+        private BigDecimal displayPrice;
+
+        /** 정가에 부가세를 더한 금액. 할인 표시의 취소선에 쓴다. */
+        private BigDecimal displayListPrice;
+
+        /** 면세 상품인가 — 원작에는 부가세를 붙이지 않는다. */
+        private Boolean taxExempt;
         private Boolean isLimitedEdition;
         private String description;
         private String primaryImageUrl;
@@ -209,7 +226,8 @@ public class SkuDto {
         private BigDecimal avgRating;
         private Integer reviewCount;
 
-        public static SummaryResponse from(Sku sku, int stock, SkuReviewStats stats) {
+        public static SummaryResponse from(Sku sku, int stock, SkuReviewStats stats,
+                                           VatPolicy vat, Set<String> exempt) {
             return SummaryResponse.builder()
                     .id(sku.getId())
                     .skuCode(sku.getSkuCode())
@@ -222,6 +240,9 @@ public class SkuDto {
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
                     .effectivePrice(sku.getEffectivePrice())
+                    .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
+                    .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
+                    .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .description(sku.getDescription())
                     .primaryImageUrl(sku.getPrimaryImageUrl())
@@ -260,6 +281,20 @@ public class SkuDto {
         private BigDecimal listPrice;
         private BigDecimal salePrice;
         private BigDecimal effectivePrice;
+
+        /**
+         * 화면에 보이고 실제로 결제되는 금액 — 공급가액 + 부가세.
+         *
+         * listPrice·salePrice 는 부가세를 뺀 공급가액이고 어드민이 고치는 값이다.
+         * 고객에게 보여줄 때는 반드시 이 값을 쓴다. 표시가와 결제가가 다르면 안 된다.
+         */
+        private BigDecimal displayPrice;
+
+        /** 정가에 부가세를 더한 금액. 할인 표시의 취소선에 쓴다. */
+        private BigDecimal displayListPrice;
+
+        /** 면세 상품인가 — 원작에는 부가세를 붙이지 않는다. */
+        private Boolean taxExempt;
         private Boolean isLimitedEdition;
         private Integer editionSize;
         private Integer editionNumber;
@@ -281,7 +316,7 @@ public class SkuDto {
         private Integer reviewCount;
         private List<MediaResponse> mediaList;
 
-        public static DetailResponse from(Sku sku, int stock,
+        public static DetailResponse from(VatPolicy vat, Set<String> exempt, Sku sku, int stock,
                                           SkuReviewStats stats, List<SkuMedia> media) {
             return DetailResponse.builder()
                     .id(sku.getId())
@@ -306,6 +341,9 @@ public class SkuDto {
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
                     .effectivePrice(sku.getEffectivePrice())
+                    .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
+                    .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
+                    .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .editionSize(sku.getEditionSize())
                     .editionNumber(sku.getEditionNumber())

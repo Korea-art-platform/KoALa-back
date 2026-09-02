@@ -24,6 +24,9 @@ public class SkuCategoryDto {
         private String name;
 
         private Integer sortOrder;
+
+        /** 면세 분류인가. 원작처럼 부가세를 붙이지 않는 분류에만 켠다. */
+        private Boolean taxExempt;
     }
 
     @Getter @Setter
@@ -31,6 +34,7 @@ public class SkuCategoryDto {
         private String name;
         private Integer sortOrder;
         private Boolean isActive;
+        private Boolean taxExempt;
     }
 
     @Getter
@@ -42,6 +46,7 @@ public class SkuCategoryDto {
         private String name;
         private Integer sortOrder;
         private Boolean isActive;
+        private Boolean taxExempt;
 
         private Long usedCount;
 
@@ -57,6 +62,7 @@ public class SkuCategoryDto {
                     .name(c.getName())
                     .sortOrder(c.getSortOrder())
                     .isActive(c.getIsActive())
+                    .taxExempt(c.isTaxExempt())
                     .usedCount(usedCount)
                     .build();
         }

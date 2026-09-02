@@ -8,6 +8,7 @@ import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.entity.SkuMedia;
 import com.koala.koalaback.domain.sku.entity.SkuReviewStats;
 import com.koala.koalaback.domain.sku.repository.SkuMediaRepository;
+import com.koala.koalaback.domain.pricing.VatPolicy;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import com.koala.koalaback.domain.sku.repository.SkuReviewStatsRepository;
 import com.koala.koalaback.global.exception.BusinessException;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -44,6 +46,7 @@ public class SkuService {
     private final ArtistService artistService;
     private final SkuCategoryService categoryService;
     private final StockService stockService;
+    private final VatPolicy vatPolicy;
     private final CodeGenerator codeGenerator;
     private final StorageUploader s3Uploader;
 
@@ -403,7 +406,8 @@ public class SkuService {
     private SkuDto.SummaryResponse toSummary(Sku sku) {
         int stock = stockService.getStock(sku.getId());
         SkuReviewStats stats = skuReviewStatsRepository.findById(sku.getId()).orElse(null);
-        return SkuDto.SummaryResponse.from(sku, stock, stats);
+        return SkuDto.SummaryResponse.from(sku, stock, stats,
+                vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     private PageResponse<SkuDto.SummaryResponse> toSummaryPage(Page<Sku> skuPage) {
@@ -415,10 +419,15 @@ public class SkuService {
                 : skuReviewStatsRepository.findAllBySkuIdIn(skuIds).stream()
                         .collect(Collectors.toMap(SkuReviewStats::getSkuId, stats -> stats));
 
+        // 면세 분류는 목록 한 번에 한 번만 읽는다. 상품마다 읽으면 한 페이지에
+        // 스무 번 넘게 같은 질의가 나간다.
+        Set<String> exempt = vatPolicy.exemptMainCategories();
+
         return PageResponse.of(skuPage.map(sku -> SkuDto.SummaryResponse.from(
                 sku,
                 stockMap.getOrDefault(sku.getId(), 0),
-                statsMap.get(sku.getId()))));
+                statsMap.get(sku.getId()),
+                vatPolicy, exempt)));
     }
 
     private SkuDto.DetailResponse toDetail(Sku sku) {
@@ -426,7 +435,8 @@ public class SkuService {
         SkuReviewStats stats = skuReviewStatsRepository.findById(sku.getId()).orElse(null);
         List<SkuMedia> media = skuMediaRepository
                 .findBySkuIdOrderByMediaRoleAscSortOrderAsc(sku.getId());
-        return SkuDto.DetailResponse.from(sku, stock, stats, media);
+        return SkuDto.DetailResponse.from(vatPolicy, vatPolicy.exemptMainCategories(),
+                sku, stock, stats, media);
     }
 
     public PageResponse<SkuDto.SummaryResponse> getAllSkus(Pageable pageable) {

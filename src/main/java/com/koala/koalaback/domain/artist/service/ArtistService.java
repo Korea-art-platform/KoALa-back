@@ -9,6 +9,7 @@ import com.koala.koalaback.domain.artist.repository.ArtistCareerRepository;
 import com.koala.koalaback.domain.artist.repository.ArtistFollowRepository;
 import com.koala.koalaback.domain.artist.repository.ArtistMediaRepository;
 import com.koala.koalaback.domain.artist.repository.ArtistRepository;
+import com.koala.koalaback.domain.pricing.VatPolicy;
 import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import com.koala.koalaback.global.exception.BusinessException;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ArtistService {
     private final ArtistRepository artistRepository;
+    private final VatPolicy vatPolicy;
     private final ArtistMediaRepository artistMediaRepository;
     private final ArtistFollowRepository artistFollowRepository;
     private final ArtistCareerRepository artistCareerRepository;
@@ -71,11 +74,15 @@ public class ArtistService {
                         .filter(s -> s.getDeletedAt() == null)
                         .collect(Collectors.toMap(Sku::getId, s -> s));
 
+        // 면세 분류는 목록마다 한 번만 읽는다.
+        Set<String> exempt = vatPolicy.exemptMainCategories();
+
         return PageResponse.of(page.map(a -> ArtistDto.SummaryResponse.fromWithMedia(
                 a,
                 mediaByArtist.getOrDefault(a.getId(), List.of()),
                 followByArtist.getOrDefault(a.getId(), 0L),
-                a.getFeaturedSkuId() != null ? featuredSkuMap.get(a.getFeaturedSkuId()) : null
+                a.getFeaturedSkuId() != null ? featuredSkuMap.get(a.getFeaturedSkuId()) : null,
+                vatPolicy, exempt
         )));
     }
 
@@ -91,7 +98,8 @@ public class ArtistService {
         Sku featured = artist.getFeaturedSkuId() != null
                 ? skuRepository.findById(artist.getFeaturedSkuId()).orElse(null)
                 : null;
-        return ArtistDto.DetailResponse.from(artist, media, careers, followCount, isFollowing, featured);
+        return ArtistDto.DetailResponse.from(artist, media, careers, followCount, isFollowing,
+                featured, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional
@@ -148,9 +156,10 @@ public class ArtistService {
 
     public List<ArtistDto.ArtistSkuItem> getArtistSkus(String artistCode) {
         Artist artist = getArtistEntityByCode(artistCode);
+        Set<String> exempt = vatPolicy.exemptMainCategories();
         return skuRepository.findByArtistIdAndDeletedAtIsNull(artist.getId())
                 .stream()
-                .map(ArtistDto.ArtistSkuItem::from)
+                .map(sku -> ArtistDto.ArtistSkuItem.from(sku, vatPolicy, exempt))
                 .toList();
     }
 
@@ -160,7 +169,7 @@ public class ArtistService {
         Sku sku = skuRepository.findBySkuCode(skuCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         artist.setFeaturedSku(sku.getId());
-        return ArtistDto.FeaturedSkuInfo.from(sku);
+        return ArtistDto.FeaturedSkuInfo.from(sku, vatPolicy, vatPolicy.exemptMainCategories());
     }
 
     @Transactional

@@ -4,6 +4,7 @@ import com.koala.koalaback.domain.cart.entity.Cart;
 import com.koala.koalaback.domain.cart.entity.CartItem;
 import com.koala.koalaback.domain.cart.service.CartService;
 import com.koala.koalaback.domain.order.dto.OrderDto;
+import com.koala.koalaback.domain.pricing.VatPolicy;
 import com.koala.koalaback.domain.order.entity.Order;
 import com.koala.koalaback.domain.order.entity.OrderItem;
 import com.koala.koalaback.domain.order.entity.OrderShipment;
@@ -31,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -38,6 +42,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class OrderService {
     private final OrderRepository orderRepository;
+    private final VatPolicy vatPolicy;
     private final OrderItemRepository orderItemRepository;
     private final OrderShipmentRepository orderShipmentRepository;
     private final CartService cartService;
@@ -70,12 +75,32 @@ public class OrderService {
             stockService.deduct(sku.getId(), ci.getQuantity(), "order_items", null);
         }
 
-        BigDecimal productAmount = selectedItems.stream()
-                .map(CartItem::getLineAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal shippingAmount = productAmount.compareTo(new BigDecimal("50000")) >= 0
+        // 장바구니에 담긴 단가는 부가세를 뺀 공급가액이다. 고객이 내는 금액은
+        // 여기에 부가세를 더한 값이고, 화면에 보여 준 금액과 같아야 한다.
+        // 원작처럼 면세로 표시된 분류에는 붙지 않는다.
+        Set<String> exempt = vatPolicy.exemptMainCategories();
+        Map<Long, VatPolicy.Line> lines = selectedItems.stream().collect(Collectors.toMap(
+                CartItem::getId,
+                ci -> vatPolicy.lineOf(ci.getUnitPrice(), ci.getQuantity(),
+                        ci.getSku().getMainCategory(), exempt)));
+
+        BigDecimal productAmount = lines.values().stream()
+                .map(VatPolicy.Line::supply).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal productTax = lines.values().stream()
+                .map(VatPolicy.Line::tax).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal productGross = productAmount.add(productTax);
+
+        // 무료배송은 고객이 보는 금액으로 판단한다. "5만원 이상 무료"의 5만원은
+        // 장바구니에 찍힌 그 숫자다.
+        BigDecimal shippingAmount = productGross.compareTo(new BigDecimal("50000")) >= 0
                 ? BigDecimal.ZERO : new BigDecimal("3000");
-        BigDecimal totalAmount = productAmount.add(shippingAmount);
+
+        // 배송비는 부가세가 포함된 금액이다. 고객이 내는 3,000원은 그대로 두고
+        // 그 안에 든 세액만 장부에 남긴다.
+        BigDecimal shippingTax = vatPolicy.vatIncludedIn(shippingAmount);
+
+        BigDecimal taxAmount = productTax.add(shippingTax);
+        BigDecimal totalAmount = productGross.add(shippingAmount);
 
         String phone = phoneNormalizer.normalize(req.getOrdererPhone());
 
@@ -85,7 +110,7 @@ public class OrderService {
                 .productAmount(productAmount)
                 .discountAmount(BigDecimal.ZERO)
                 .shippingAmount(shippingAmount)
-                .taxAmount(BigDecimal.ZERO)
+                .taxAmount(taxAmount)
                 .totalAmount(totalAmount)
                 .ordererName(req.getOrdererName())
                 .ordererEmail(req.getOrdererEmail())
@@ -105,7 +130,8 @@ public class OrderService {
                     .artistNameSnapshot(sku.getArtist().getName())
                     .quantity(ci.getQuantity())
                     .unitPrice(ci.getUnitPrice())
-                    .lineTotalAmount(ci.getLineAmount())
+                    .taxAmount(lines.get(ci.getId()).tax())
+                    .lineTotalAmount(lines.get(ci.getId()).gross())
                     .build();
         }).toList();
         orderItemRepository.saveAll(orderItems);
