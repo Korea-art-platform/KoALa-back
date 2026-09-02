@@ -124,6 +124,18 @@ public class SecurityConfig {
                                 "/api/v1/orders/guest",
                                 "/api/v1/orders/guest/lookup").permitAll();
 
+                        // 비회원이 결제를 마치려면 이 둘을 지나야 한다. 막아 두면
+                        // 주문만 서고 결제에서 401 이 난다.
+                        //
+                        // 누구 주문을 만질 수 있는지는 PaymentService·
+                        // PaymentTransactionService 의 canPay 가 가른다 — 회원 주문은
+                        // 그 회원만, 비회원 주문은 로그인하지 않은 쪽만. 응답에는
+                        // 주문번호와 금액뿐이라 남의 주문을 짚어도 얻을 것이 없고,
+                        // 승인에는 PG 가 준 결제키가 있어야 한다.
+                        auth.requestMatchers(HttpMethod.POST,
+                                "/api/v1/payments/prepare",
+                                "/api/v1/payments/confirm").permitAll();
+
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(HttpMethod.DELETE, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(
