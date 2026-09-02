@@ -42,6 +42,15 @@ public class OrderDto {
     }
 
     @Getter
+    public static class GuestLookupRequest {
+        @NotBlank
+        private String orderNo;
+
+        @NotBlank
+        private String phone;
+    }
+
+    @Getter
     public static class DirectItemRequest {
         @NotBlank
         private String skuCode;

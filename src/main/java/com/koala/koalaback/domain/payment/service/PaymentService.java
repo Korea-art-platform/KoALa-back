@@ -37,13 +37,27 @@ public class PaymentService {
     private final PaymentTransactionService paymentTransactionService;
 
     private final AdminAlertNotifier adminAlertNotifier;
+    /**
+     * 이 주문을 결제할 사람이 맞는가.
+     *
+     * 회원 주문은 그 회원만, 비회원 주문은 로그인하지 않은 쪽만 만질 수 있다.
+     * 비회원 주문에는 주인이 없어 주문번호를 아는 사람이면 결제를 시작할 수
+     * 있지만, 그래 봐야 남의 주문을 대신 내주는 것이고 승인에는 PG 가 준
+     * 결제키가 있어야 한다.
+     */
+    private boolean canPay(Order order, Long userId) {
+        return userId == null
+                ? order.isGuest()
+                : !order.isGuest() && order.getUser().getId().equals(userId);
+    }
+
 
     @Transactional
     public PaymentDto.PrepareResponse prepare(Long userId, PaymentDto.PrepareRequest req) {
         Order order = orderRepository.findByOrderNo(req.getOrderNo())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (!order.getUser().getId().equals(userId)) {
+        if (!canPay(order, userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         if (!"PENDING_PAYMENT".equals(order.getOrderStatus())) {

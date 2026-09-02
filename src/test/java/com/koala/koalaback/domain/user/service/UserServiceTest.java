@@ -31,6 +31,7 @@ class UserServiceTest {
     private UserService userService;
 
     @Mock private UserRepository userRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private UserAddressRepository userAddressRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;

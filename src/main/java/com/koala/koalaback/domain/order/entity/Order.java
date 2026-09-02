@@ -21,8 +21,14 @@ public class Order extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 40)
     private String orderNo;
 
+    /**
+     * 주문한 회원. 비회원 주문이면 비어 있다.
+     *
+     * 비회원은 주문번호 + 휴대폰번호로 자기 주문을 찾는다. 나중에 같은
+     * 이메일로 가입하면 그때 이 자리가 채워진다.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false, length = 30)
@@ -112,6 +118,20 @@ public class Order extends BaseTimeEntity {
     }
 
     public void markPaymentFailed() { this.paymentStatus = "FAILED"; }
+
+    /** 비회원인가 */
+    public boolean isGuest() { return this.user == null; }
+
+    /**
+     * 비회원으로 한 주문을 계정에 붙인다.
+     *
+     * 이미 주인이 있는 주문은 건드리지 않는다. 남의 주문이 옮겨 붙으면
+     * 주문 내역에 모르는 주문이 나타나고, 배송지·연락처까지 보이게 된다.
+     */
+    public void attachTo(User owner) {
+        if (this.user != null) return;
+        this.user = owner;
+    }
 
     public boolean isCancellable() {
         return "PENDING_PAYMENT".equals(orderStatus)

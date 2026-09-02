@@ -34,7 +34,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/api/v1/auth/login",
             "/api/v1/auth/signup",
             "/api/v1/auth/password-reset/send",
-            "/admin/api/v1/auth/login"
+            "/admin/api/v1/auth/login",
+            // 비회원 주문 조회는 주문번호와 전화번호만 맞으면 남의 주문이 열린다.
+            // 로그인과 같은 급으로 막는다.
+            "/api/v1/orders/guest"
     );
 
     private static final DefaultRedisScript<Long> INCR_SCRIPT = new DefaultRedisScript<>(

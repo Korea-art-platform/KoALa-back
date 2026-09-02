@@ -61,7 +61,16 @@ public class OrderService {
     public OrderDto.OrderDetailResponse createOrder(Long userId, OrderDto.CreateRequest req) {
         // 담은 것 중 고른 것으로 주문하거나, 장바구니를 거치지 않고 한 건만 산다.
         // 사는 물건을 어디서 가져오는지만 다르고 금액·재고·결제는 같은 길을 탄다.
-        Cart cart = cartService.getOrCreateCart(userId);
+        //
+        // 비회원에게는 장바구니가 없다. 한 건씩만 살 수 있으므로 담긴 것을
+        // 꺼낼 일도 없다.
+        boolean guest = userId == null;
+        if (guest && req.getDirectItem() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "비회원은 상품을 하나씩만 주문할 수 있습니다.");
+        }
+
+        Cart cart = guest ? null : cartService.getOrCreateCart(userId);
         List<CartItem> selectedItems = req.getDirectItem() != null
                 ? List.of()
                 : selectCartItems(cart, req.getCartItemIds());
@@ -117,7 +126,7 @@ public class OrderService {
 
         Order order = Order.builder()
                 .orderNo(codeGenerator.generateOrderNo())
-                .user(userService.getUserById(userId))
+                .user(guest ? null : userService.getUserById(userId))
                 .productAmount(productAmount)
                 .discountAmount(BigDecimal.ZERO)
                 .shippingAmount(shippingAmount)
@@ -161,8 +170,8 @@ public class OrderService {
                 .build();
         orderShipmentRepository.save(shipment);
 
-        // 바로구매는 장바구니를 거치지 않았으니 비울 것도 없다.
-        if (!selectedItems.isEmpty()) {
+        // 바로구매·비회원은 장바구니를 거치지 않았으니 비울 것도 없다.
+        if (cart != null && !selectedItems.isEmpty()) {
             cart.getItems().removeAll(selectedItems);
         }
 
@@ -281,6 +290,49 @@ public class OrderService {
         OrderShipment shipment = orderShipmentRepository.findByOrderId(order.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
         shipment.markDelivered();
+    }
+
+    /**
+     * 비회원이 자기 주문을 찾는다.
+     *
+     * 로그인이 없으니 주문번호와 주문할 때 적은 전화번호가 맞는지로 본인을
+     * 가린다. 주문번호만으로는 열어 주지 않는다 — 번호는 시각에서 만들어져
+     * 앞자리를 짐작할 수 있다.
+     *
+     * 없는 주문과 전화번호가 틀린 경우를 같은 말로 돌려준다. 다르게 답하면
+     * 번호를 넣어 보는 것만으로 어떤 주문이 있는지 알아낼 수 있다.
+     * 반복 시도는 RateLimitFilter 가 로그인과 같은 급으로 막는다.
+     */
+    public OrderDto.OrderDetailResponse getGuestOrder(String orderNo, String phone) {
+        String normalized = phoneNormalizer.normalize(phone);
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .filter(o -> o.getOrdererPhone() != null
+                        && o.getOrdererPhone().equals(normalized))
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND,
+                        "주문번호나 휴대폰번호가 맞지 않습니다."));
+
+        log.info("비회원 주문 조회: orderNo={}", orderNo);
+        return OrderDto.OrderDetailResponse.from(order);
+    }
+
+    /**
+     * 가입할 때, 같은 이메일로 했던 비회원 주문을 계정에 붙인다.
+     *
+     * 이메일은 가입 과정에서 확인된 값이라 그 사람 것이 맞다. 이미 주인이
+     * 있는 주문은 Order.attachTo 가 걸러 낸다.
+     */
+    @Transactional
+    public int linkGuestOrders(Long userId, String email) {
+        if (email == null || email.isBlank()) return 0;
+
+        List<Order> orders = orderRepository.findByOrdererEmailAndUserIsNull(email);
+        if (orders.isEmpty()) return 0;
+
+        var owner = userService.getUserById(userId);
+        orders.forEach(o -> o.attachTo(owner));
+
+        log.info("비회원 주문을 계정에 붙였다: userId={}, 건수={}", userId, orders.size());
+        return orders.size();
     }
 
     public Order getOrderEntityByNo(String orderNo) {

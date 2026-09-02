@@ -118,6 +118,12 @@ public class SecurityConfig {
                                 "/api/v1/stores/**",
                                 "/api/v1/app/version").permitAll();
 
+                        // 비회원 주문과 그 조회. 조회는 RateLimitFilter 가 로그인과
+                        // 같은 급으로 막는다 — 주문번호를 넣어 보는 것을 막아야 한다.
+                        auth.requestMatchers(HttpMethod.POST,
+                                "/api/v1/orders/guest",
+                                "/api/v1/orders/guest/lookup").permitAll();
+
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(HttpMethod.DELETE, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(

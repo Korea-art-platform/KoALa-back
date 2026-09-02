@@ -16,6 +16,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByOrderNoAndUserId(String orderNo, Long userId);
 
+    /** 가입할 때 붙일 비회원 주문을 찾는다. */
+    java.util.List<Order> findByOrdererEmailAndUserIsNull(String ordererEmail);
+
     Page<Order> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
