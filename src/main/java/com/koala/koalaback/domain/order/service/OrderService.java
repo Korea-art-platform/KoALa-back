@@ -15,6 +15,7 @@ import com.koala.koalaback.domain.payment.dto.PaymentDto;
 import com.koala.koalaback.domain.payment.repository.PaymentRepository;
 import com.koala.koalaback.domain.payment.service.PaymentService;
 import com.koala.koalaback.domain.sku.entity.Sku;
+import com.koala.koalaback.domain.sku.service.SkuService;
 import com.koala.koalaback.domain.sku.service.StockService;
 import com.koala.koalaback.domain.user.service.UserService;
 import com.koala.koalaback.global.exception.BusinessException;
@@ -47,6 +48,7 @@ public class OrderService {
     private final OrderShipmentRepository orderShipmentRepository;
     private final CartService cartService;
     private final StockService stockService;
+    private final SkuService skuService;
     private final UserService userService;
     private final PaymentRepository paymentRepository;
     private final PaymentService paymentService;
@@ -57,32 +59,41 @@ public class OrderService {
 
     @Transactional
     public OrderDto.OrderDetailResponse createOrder(Long userId, OrderDto.CreateRequest req) {
+        // 담은 것 중 고른 것으로 주문하거나, 장바구니를 거치지 않고 한 건만 산다.
+        // 사는 물건을 어디서 가져오는지만 다르고 금액·재고·결제는 같은 길을 탄다.
         Cart cart = cartService.getOrCreateCart(userId);
+        List<CartItem> selectedItems = req.getDirectItem() != null
+                ? List.of()
+                : selectCartItems(cart, req.getCartItemIds());
+        List<OrderLine> orderLines = req.getDirectItem() != null
+                ? List.of(directLine(req.getDirectItem()))
+                : selectedItems.stream().map(OrderLine::of).toList();
 
-        List<CartItem> selectedItems = selectCartItems(cart, req.getCartItemIds());
-        if (selectedItems.isEmpty()) {
+        if (orderLines.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        List<CartItem> lockOrderedItems = sortByLockOrder(selectedItems);
+        List<OrderLine> lockOrdered = orderLines.stream()
+                .sorted(java.util.Comparator.comparing(l -> l.sku().getId()))
+                .toList();
 
         log.debug("재고 차감 락 획득 순서(skuId 오름차순): {}",
-                lockOrderedItems.stream().map(ci -> ci.getSku().getId()).toList());
+                lockOrdered.stream().map(l -> l.sku().getId()).toList());
 
-        for (CartItem ci : lockOrderedItems) {
-            Sku sku = ci.getSku();
-            if (!sku.isAvailable()) throw new BusinessException(ErrorCode.SKU_NOT_ACTIVE);
-            stockService.deduct(sku.getId(), ci.getQuantity(), "order_items", null);
+        for (OrderLine l : lockOrdered) {
+            if (!l.sku().isAvailable()) throw new BusinessException(ErrorCode.SKU_NOT_ACTIVE);
+            stockService.deduct(l.sku().getId(), l.quantity(), "order_items", null);
         }
 
-        // 장바구니에 담긴 단가는 부가세를 뺀 공급가액이다. 고객이 내는 금액은
-        // 여기에 부가세를 더한 값이고, 화면에 보여 준 금액과 같아야 한다.
+        // 저장된 단가는 부가세를 뺀 공급가액이다. 고객이 내는 금액은 여기에
+        // 부가세를 더한 값이고, 화면에 보여 준 금액과 같아야 한다.
         // 원작처럼 면세로 표시된 분류에는 붙지 않는다.
         Set<String> exempt = vatPolicy.exemptMainCategories();
-        Map<Long, VatPolicy.Line> lines = selectedItems.stream().collect(Collectors.toMap(
-                CartItem::getId,
-                ci -> vatPolicy.lineOf(ci.getUnitPrice(), ci.getQuantity(),
-                        ci.getSku().getMainCategory(), exempt)));
+        Map<OrderLine, VatPolicy.Line> lines = new java.util.LinkedHashMap<>();
+        for (OrderLine l : orderLines) {
+            lines.put(l, vatPolicy.lineOf(l.unitPrice(), l.quantity(),
+                    l.sku().getMainCategory(), exempt));
+        }
 
         BigDecimal productAmount = lines.values().stream()
                 .map(VatPolicy.Line::supply).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -118,8 +129,8 @@ public class OrderService {
                 .build();
         orderRepository.save(order);
 
-        List<OrderItem> orderItems = selectedItems.stream().map(ci -> {
-            Sku sku = ci.getSku();
+        List<OrderItem> orderItems = orderLines.stream().map(l -> {
+            Sku sku = l.sku();
             return OrderItem.builder()
                     .order(order)
                     .sku(sku)
@@ -128,10 +139,10 @@ public class OrderService {
                     .artistCodeSnapshot(sku.getArtist().getArtistCode())
                     .skuNameSnapshot(sku.getName())
                     .artistNameSnapshot(sku.getArtist().getName())
-                    .quantity(ci.getQuantity())
-                    .unitPrice(ci.getUnitPrice())
-                    .taxAmount(lines.get(ci.getId()).tax())
-                    .lineTotalAmount(lines.get(ci.getId()).gross())
+                    .quantity(l.quantity())
+                    .unitPrice(l.unitPrice())
+                    .taxAmount(lines.get(l).tax())
+                    .lineTotalAmount(lines.get(l).gross())
                     .build();
         }).toList();
         orderItemRepository.saveAll(orderItems);
@@ -150,7 +161,10 @@ public class OrderService {
                 .build();
         orderShipmentRepository.save(shipment);
 
-        cart.getItems().removeAll(selectedItems);
+        // 바로구매는 장바구니를 거치지 않았으니 비울 것도 없다.
+        if (!selectedItems.isEmpty()) {
+            cart.getItems().removeAll(selectedItems);
+        }
 
         log.info("Order created: orderNo={}, userId={}, total={}",
                 order.getOrderNo(), userId, totalAmount);
@@ -278,6 +292,32 @@ public class OrderService {
         return items.stream()
                 .sorted(Comparator.comparing(ci -> ci.getSku().getId()))
                 .toList();
+    }
+
+    /**
+     * 주문에 들어갈 한 줄. 장바구니에서 왔든 바로구매든 여기서부터는 같다.
+     *
+     * 값으로 견주면 같은 상품 두 줄이 하나로 뭉개진다. 지금은 한 주문에 같은
+     * 상품이 두 줄로 들어올 일이 없지만, 나중에 옵션이 생기면 생긴다.
+     */
+    private record OrderLine(Sku sku, int quantity, BigDecimal unitPrice) {
+        static OrderLine of(CartItem ci) {
+            return new OrderLine(ci.getSku(), ci.getQuantity(), ci.getUnitPrice());
+        }
+        @Override public boolean equals(Object o) { return this == o; }
+        @Override public int hashCode() { return System.identityHashCode(this); }
+    }
+
+    /**
+     * 바로구매 한 줄을 만든다.
+     *
+     * 단가는 요청이 아니라 지금 저장된 값을 쓴다. 화면에서 보낸 값을 믿으면
+     * 값을 고쳐 보내는 것만으로 싸게 살 수 있다.
+     */
+    private OrderLine directLine(OrderDto.DirectItemRequest d) {
+        Sku sku = skuService.getSkuEntityByCode(d.getSkuCode());
+        int quantity = d.getQuantity() == null || d.getQuantity() < 1 ? 1 : d.getQuantity();
+        return new OrderLine(sku, quantity, sku.getEffectivePrice());
     }
 
     private List<CartItem> selectCartItems(Cart cart, List<Long> itemIds) {

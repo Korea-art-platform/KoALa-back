@@ -29,7 +29,25 @@ public class OrderDto {
         @NotNull @Valid
         private ShipmentRequest shipment;
 
+        /** 담아 둔 것 중 고른 것만 주문할 때 쓴다. 비우면 담은 것 전부. */
         private List<Long> cartItemIds;
+
+        /**
+         * 장바구니를 거치지 않고 한 건만 살 때 쓴다.
+         *
+         * 이게 있으면 cartItemIds 는 보지 않는다. 상품 화면의 "구매하기"가
+         * 장바구니에 담고 넘어가던 탓에, 담아 둔 다른 물건까지 같이 결제됐다.
+         */
+        private DirectItemRequest directItem;
+    }
+
+    @Getter
+    public static class DirectItemRequest {
+        @NotBlank
+        private String skuCode;
+
+        /** 비우면 1개로 본다. */
+        private Integer quantity;
     }
 
     @Getter
