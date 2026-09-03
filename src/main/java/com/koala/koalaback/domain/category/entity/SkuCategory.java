@@ -27,6 +27,16 @@ public class SkuCategory extends BaseTimeEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
+    /**
+     * 영문 이름. 홈 섹션 머리말처럼 영문으로 나가는 자리에 쓴다.
+     *
+     * 비워 두면 한글 이름을 쓴다. 예전에는 분류 코드를 그대로 썼는데,
+     * 코드는 한글 이름을 옮길 수 없을 때 순번이 붙는 내부 값이라
+     * 이름을 바꿔도 머리말이 따라오지 않았다.
+     */
+    @Column(length = 50)
+    private String nameEn;
+
     @Column(nullable = false)
     private Integer sortOrder;
 
@@ -43,17 +53,22 @@ public class SkuCategory extends BaseTimeEntity {
     private Boolean taxExempt;
 
     @Builder
-    public SkuCategory(String type, String code, String name, Integer sortOrder, Boolean taxExempt) {
+    public SkuCategory(String type, String code, String name, String nameEn,
+                       Integer sortOrder, Boolean taxExempt) {
         this.type = type;
         this.code = code;
         this.name = name;
+        this.nameEn = nameEn;
         this.sortOrder = sortOrder != null ? sortOrder : 0;
         this.isActive = true;
         this.taxExempt = taxExempt != null ? taxExempt : false;
     }
 
-    public void update(String name, Integer sortOrder, Boolean isActive, Boolean taxExempt) {
+    public void update(String name, String nameEn, Integer sortOrder,
+                       Boolean isActive, Boolean taxExempt) {
         if (name != null && !name.isBlank()) this.name = name;
+        // 빈 문자열로 보내면 지운 것으로 본다 — 그럼 한글 이름을 쓴다.
+        if (nameEn != null) this.nameEn = nameEn.isBlank() ? null : nameEn.trim();
         if (sortOrder != null) this.sortOrder = sortOrder;
         if (isActive != null) this.isActive = isActive;
         if (taxExempt != null) this.taxExempt = taxExempt;

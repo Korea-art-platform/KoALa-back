@@ -108,6 +108,7 @@ public class SkuCategoryService {
                 .type(req.getType())
                 .code(code)
                 .name(name)
+                .nameEn(req.getNameEn())
                 .sortOrder(sortOrder)
                 .taxExempt(req.getTaxExempt())
                 .build());
@@ -130,7 +131,8 @@ public class SkuCategoryService {
                     });
         }
 
-        category.update(req.getName(), req.getSortOrder(), req.getIsActive(), req.getTaxExempt());
+        category.update(req.getName(), req.getNameEn(), req.getSortOrder(),
+                req.getIsActive(), req.getTaxExempt());
         return SkuCategoryDto.Response.from(category);
     }
 

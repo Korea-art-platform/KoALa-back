@@ -23,6 +23,9 @@ public class SkuCategoryDto {
         @NotBlank
         private String name;
 
+        /** 영문 이름. 비우면 한글 이름을 쓴다. */
+        private String nameEn;
+
         private Integer sortOrder;
 
         /** 면세 분류인가. 원작처럼 부가세를 붙이지 않는 분류에만 켠다. */
@@ -32,6 +35,7 @@ public class SkuCategoryDto {
     @Getter @Setter
     public static class UpdateRequest {
         private String name;
+        private String nameEn;
         private Integer sortOrder;
         private Boolean isActive;
         private Boolean taxExempt;
@@ -44,6 +48,7 @@ public class SkuCategoryDto {
         private String type;
         private String code;
         private String name;
+        private String nameEn;
         private Integer sortOrder;
         private Boolean isActive;
         private Boolean taxExempt;
@@ -60,6 +65,7 @@ public class SkuCategoryDto {
                     .type(c.getType())
                     .code(c.getCode())
                     .name(c.getName())
+                    .nameEn(c.getNameEn())
                     .sortOrder(c.getSortOrder())
                     .isActive(c.getIsActive())
                     .taxExempt(c.isTaxExempt())
