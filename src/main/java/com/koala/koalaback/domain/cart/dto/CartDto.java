@@ -44,6 +44,23 @@ public class CartDto {
         private BigDecimal taxAmount;
         private int totalItemCount;
 
+        /**
+         * 아직 아무것도 담지 않은 사람에게 줄 응답.
+         *
+         * 장바구니를 만들지 않고 빈 것을 돌려준다. 화면은 "담긴 것이 없다"만
+         * 보여주면 되고, 그러려고 행을 하나 만들 이유가 없다.
+         */
+        public static CartResponse empty() {
+            return CartResponse.builder()
+                    .currency("KRW")
+                    .items(List.of())
+                    .subtotalAmount(BigDecimal.ZERO)
+                    .supplyAmount(BigDecimal.ZERO)
+                    .taxAmount(BigDecimal.ZERO)
+                    .totalItemCount(0)
+                    .build();
+        }
+
         public static CartResponse from(Cart cart, VatPolicy vat, Set<String> exempt) {
             List<CartItemResponse> itemResponses = cart.getItems().stream()
                     .map(item -> CartItemResponse.from(item, vat, exempt))

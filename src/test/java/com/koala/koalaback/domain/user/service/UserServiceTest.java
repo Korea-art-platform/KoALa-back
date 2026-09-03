@@ -32,6 +32,7 @@ class UserServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    @Mock private com.koala.koalaback.domain.cart.repository.CartRepository cartRepository;
     @Mock private UserAddressRepository userAddressRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;

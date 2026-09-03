@@ -1,6 +1,8 @@
 package com.koala.koalaback.global.security.oauth2;
 
 import com.koala.koalaback.domain.user.entity.User;
+import com.koala.koalaback.domain.cart.entity.Cart;
+import com.koala.koalaback.domain.cart.repository.CartRepository;
 import com.koala.koalaback.domain.user.repository.UserRepository;
 import com.koala.koalaback.global.util.CodeGenerator;
 import com.koala.koalaback.global.util.PiiMasker;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final UserRepository userRepository;
+    private final CartRepository cartRepository;
     private final CodeGenerator codeGenerator;
 
     @Override
@@ -53,7 +56,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         log.info("New OAuth2 user: provider={}, email={}",
                 userInfo.getProvider(), PiiMasker.email(userInfo.getEmail()));
 
-        return userRepository.save(
+        User user = userRepository.save(
                 User.createOAuthUser(
                         codeGenerator.generateCode(),
                         userInfo.getEmail(),
@@ -62,5 +65,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                         userInfo.getOauthId()
                 )
         );
+
+        // 계정을 만들 때 장바구니도 같이 만든다.
+        cartRepository.save(Cart.builder().user(user).build());
+
+        return user;
     }
 }

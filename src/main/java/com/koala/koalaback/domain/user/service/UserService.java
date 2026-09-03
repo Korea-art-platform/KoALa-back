@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.user.service;
 
+import com.koala.koalaback.domain.cart.entity.Cart;
 import com.koala.koalaback.domain.user.dto.UserDto;
 import com.koala.koalaback.domain.user.event.UserSignedUpEvent;
 import com.koala.koalaback.domain.user.entity.RefreshToken;
@@ -24,6 +25,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class UserService {
     private final UserRepository userRepository;
+    private final com.koala.koalaback.domain.cart.repository.CartRepository cartRepository;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final UserAddressRepository userAddressRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -46,6 +48,9 @@ public class UserService {
                 .build();
 
         userRepository.save(user);
+
+        // 계정을 만들 때 장바구니도 같이 만든다.
+        cartRepository.save(Cart.builder().user(user).build());
 
         // 가입 전에 비회원으로 산 것이 있으면 이 계정에 붙인다.
         eventPublisher.publishEvent(new UserSignedUpEvent(user.getId(), user.getEmail()));

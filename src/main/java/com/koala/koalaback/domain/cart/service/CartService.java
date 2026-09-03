@@ -27,9 +27,20 @@ public class CartService {
     private final SkuService skuService;
     private final StockService stockService;
 
+    /**
+     * 담아 둔 것을 보여준다.
+     *
+     * 없으면 만들지 않고 빈 장바구니를 돌려준다. 읽기만 하는 자리에서 새로
+     * 만들려다 "읽기 전용 트랜잭션" 오류로 500 이 났다 — 가입한 적만 있고
+     * 아직 아무것도 안 담은 사람은 장바구니 화면 자체를 못 열었다.
+     *
+     * 만드는 일은 실제로 담을 때(addItem) 하면 된다. 비어 있는 장바구니를
+     * 미리 만들어 둘 이유도 없다.
+     */
     public CartDto.CartResponse getCart(Long userId) {
-        Cart cart = getOrCreateCart(userId);
-        return CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories());
+        return cartRepository.findByUserId(userId)
+                .map(cart -> CartDto.CartResponse.from(cart, vatPolicy, vatPolicy.exemptMainCategories()))
+                .orElseGet(CartDto.CartResponse::empty);
     }
 
     @Transactional
