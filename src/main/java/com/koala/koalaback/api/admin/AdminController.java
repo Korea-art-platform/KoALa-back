@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.WebUtils;
 
+@Tag(name = "어드민 · 계정", description = "관리자 로그인·내 정보, 재고 조정, 감사 로그")
 @RestController
 @RequestMapping("/admin/api/v1")
 @RequiredArgsConstructor
@@ -33,6 +35,13 @@ public class AdminController {
     @Value("${app.secure-cookies:false}")
     private boolean secureCookies;
 
+    @Operation(summary = "관리자 로그인", description = """
+            고객 로그인과 쿠키가 다르다. 경로를 /admin/api/ 로 한정하고 SameSite=Strict
+            로 둔다 — 다른 사이트에서 넘어온 요청에는 실리지 않는다. 유효기간은 8시간이다.
+
+            SecurityConfig 에서 이 경로만 인증 없이 열려 있다. 막히면 아무도 로그인할 수
+            없다.
+            """)
     @PostMapping("/auth/login")
     public ApiResponse<AdminDto.TokenResponse> login(
             @Valid @RequestBody AdminDto.LoginRequest req,
@@ -53,6 +62,10 @@ public class AdminController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "관리자 로그아웃", description = """
+            쿠키를 비우고 아직 살아 있는 토큰을 블랙리스트에 올린다. JWT 는 발급 후
+            회수할 수 없어 블랙리스트가 없으면 남은 8시간 동안 계속 통한다.
+            """)
     @PostMapping("/auth/logout")
     public ApiResponse<Void> logout(
             HttpServletRequest httpReq,
@@ -80,6 +93,7 @@ public class AdminController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "관리자 내 정보")
     @GetMapping("/me")
     public ApiResponse<AdminDto.AdminResponse> getMyInfo(
             @AuthenticationPrincipal Long adminId) {
@@ -108,6 +122,10 @@ public class AdminController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "감사 로그", description = """
+            이 관리자가 한 일을 최근순으로 본다. 재고 조정처럼 기록을 남기는 작업이
+            여기 쌓인다.
+            """)
     @GetMapping("/audit-logs")
     public ApiResponse<PageResponse<AdminAuditLog>> getAuditLogs(
             @AuthenticationPrincipal Long adminId,
