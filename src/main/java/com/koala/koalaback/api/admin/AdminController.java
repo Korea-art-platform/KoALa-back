@@ -10,6 +10,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
@@ -85,6 +86,17 @@ public class AdminController {
         return ApiResponse.ok(adminService.getMyInfo(adminId));
     }
 
+    @Operation(summary = "재고 수동 조정", description = """
+            재고를 직접 늘리거나 줄인다. delta 는 증감분이지 최종 수량이 아니다 —
+            장부에 한 줄을 더하는 방식이라 지금 수량을 몰라도 "3개 늘림"을 적을 수 있고,
+            무엇을 얼마나 바꿨는지가 그대로 남는다.
+
+            조정 후 수량이 0 이하면 품절로, 품절이던 것이 0 을 넘으면 판매중으로 상태가
+            함께 바뀐다. 관리자가 상태까지 따로 만질 필요가 없다.
+
+            조정 전후 수량과 메모를 감사 로그(STOCK_ADJUST)에 남긴다. 기록하는 '이후'
+            수량은 계산값이 아니라 조정 뒤 다시 읽은 실제 값이다.
+            """)
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/skus/stock-adjust")
     public ApiResponse<Void> adjustStock(

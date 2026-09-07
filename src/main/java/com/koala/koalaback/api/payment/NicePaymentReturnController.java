@@ -4,6 +4,8 @@ import com.koala.koalaback.domain.payment.dto.PaymentDto;
 import com.koala.koalaback.domain.payment.service.PaymentService;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.security.NiceSignatureVerifier;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +39,7 @@ import java.nio.charset.StandardCharsets;
  * <p>사용자는 지금 결제창에서 돌아오는 중이다. 500 을 그대로 보여주면 결제가 됐는지
  * 안 됐는지 모른 채 흰 화면을 만난다. 어떤 경우에도 결과 화면으로 리다이렉트한다.
  */
+@Tag(name = "결제 리턴", description = "PG 결제창이 브라우저를 돌려보내는 자리")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -51,6 +54,25 @@ public class NicePaymentReturnController {
     @Value("${koala.web-base-url:https://koala-art.co.kr}")
     private String webBaseUrl;
 
+    @Operation(summary = "나이스 인증 결과 수신", description = """
+            나이스 결제창에서 인증이 끝나면 브라우저가 이 주소로 POST 한다. 이 요청을 받은
+            서버가 승인까지 마친 뒤 결과 화면으로 돌려보낸다. 토스처럼 프론트가 승인을
+            부르지 않는다.
+
+            다른 도메인에서 오는 POST 라 세션 쿠키가 실리지 않는다. 로그인 여부를 알 수
+            없으므로 인증을 서명으로 한다 — sha256(authToken + clientId + amount +
+            secretKey) 가 "나이스가 보냈고 금액이 그대로다"를 증명한다. 서명 검증 전에는
+            아무것도 하지 않는다.
+
+            어떤 경우에도 예외를 밖으로 던지지 않고 결과 화면으로 리다이렉트한다. 사용자는
+            지금 결제창에서 돌아오는 중이라, 500 을 그대로 보여주면 결제가 됐는지 모른 채
+            흰 화면을 만난다.
+
+            리다이렉트는 302 가 아니라 303 이다. 303 이어야 브라우저가 POST 를 GET 으로
+            바꿔 보낸다.
+
+            nicepay.enabled=true 일 때만 등록된다.
+            """)
     @PostMapping(value = "/api/v1/payments/nice/return")
     public ResponseEntity<Void> handleReturn(
             @RequestParam(required = false) String authResultCode,

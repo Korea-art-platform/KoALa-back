@@ -2,6 +2,8 @@ package com.koala.koalaback.api.payment;
 
 import com.koala.koalaback.domain.payment.dto.PaymentDto;
 import com.koala.koalaback.domain.payment.service.PaymentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.koala.koalaback.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ import java.nio.charset.StandardCharsets;
  * <p>사용자는 결제창에서 돌아오는 중이다. 500 을 그대로 보여주면 결제가 됐는지 모른 채
  * 흰 화면을 만난다.
  */
+@Tag(name = "결제 리턴", description = "PG 결제창이 브라우저를 돌려보내는 자리")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -51,6 +54,21 @@ public class PayplePaymentReturnController {
     @Value("${koala.web-base-url:https://koala-art.co.kr}")
     private String webBaseUrl;
 
+    @Operation(summary = "페이플 인증 결과 수신", description = """
+            나이스와 달리 페이플은 서명을 보내지 않는다. 우리만 검증할 수 있는 증거가
+            없으므로 이 POST 의 내용을 믿지 않는다.
+
+            여기서 신뢰하는 값은 주문번호와 요청키(PCD_PAY_REQKEY)뿐이고, 승인 금액은
+            우리 DB 의 결제 요청 금액을 쓴다. 누군가 이 주소로 금액을 낮춰 POST 해도
+            승인 금액이 바뀌지 않는다.
+
+            실제 방어는 승인 API 가 한다 — 페이플은 인증 시점에 확정된 금액으로만
+            승인하고, 요청키는 그 인증에서만 나오는 값이라 우리가 만들 수 없다.
+
+            어떤 경우에도 결과 화면으로 리다이렉트한다.
+
+            payple.enabled=true 일 때만 등록된다.
+            """)
     @PostMapping("/api/v1/payments/payple/return")
     public ResponseEntity<Void> handleReturn(
             @RequestParam(name = "PCD_PAY_RST", required = false) String payResult,

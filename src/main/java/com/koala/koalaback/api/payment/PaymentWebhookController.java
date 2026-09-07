@@ -7,6 +7,8 @@ import com.koala.koalaback.global.response.ApiResponse;
 import com.koala.koalaback.global.security.NiceSignatureVerifier;
 import com.koala.koalaback.global.security.TossWebhookVerifier;
 import com.koala.koalaback.infra.slack.AdminAlertNotifier;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "결제 웹훅", description = "PG 가 부르는 자리. 사용자가 직접 호출하지 않는다")
 @Slf4j
 @RestController
 @RequestMapping("/webhook/payments")
@@ -25,6 +28,13 @@ public class PaymentWebhookController {
     private final ObjectMapper objectMapper;
     private final AdminAlertNotifier adminAlertNotifier;
 
+    @Operation(summary = "토스 결제 웹훅", description = """
+            Authorization 헤더 서명을 먼저 검증하고, 통과하지 못하면 401 로 거절한다.
+            검증 전에는 아무것도 하지 않는다.
+
+            처리 중 예외가 나면 500 을 돌려준다 — 토스가 재시도하게 두는 편이,
+            처리하지 못한 전문을 성공으로 삼키는 것보다 낫다.
+            """)
     @PostMapping("/toss")
     public ResponseEntity<Void> tossWebhook(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -45,6 +55,18 @@ public class PaymentWebhookController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "나이스 결제 웹훅", description = """
+            토스와 달리 실패해도 200 "OK" 를 돌려준다. 나이스는 200 이 아니면 같은 전문을
+            계속 다시 보내는데, 우리가 처리하지 못하는 전문이면 재시도해도 결과가 같다.
+            대신 서명이 어긋난 건은 관리자에게 알린다 — 조용히 넘어가면 시크릿 키가 잘못
+            설정된 것을 아무도 모른다.
+
+            빈 본문과 거래 정보가 없는 호출은 주소 확인(health check)으로 보고 넘긴다.
+            서명이 맞은 전문만 실제로 처리한다.
+
+            미확정 상태의 결제는 이 웹훅으로 확정된다. 다만 웹훅 금액이 청구 금액과
+            다르면 자동 확정하지 않고 관리자를 부른다.
+            """)
     @PostMapping(value = "/nice", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> niceWebhook(@RequestBody(required = false) String payload) {
         if (payload == null || payload.isBlank()) {
