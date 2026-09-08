@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.banner.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.banner.entity.Banner;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 
 public class BannerDto {
     @Getter
+    @Schema(name = "BannerCreateRequest", description = "배너 등록. 노출 기간을 정하면 그 기간에만 고객 화면에 걸린다")
     public static class CreateRequest {
         @NotBlank
         private String bannerType;
@@ -46,6 +48,7 @@ public class BannerDto {
     }
 
     @Getter
+    @Schema(name = "BannerUpdateRequest", description = "배너 수정")
     public static class UpdateRequest {
         @NotBlank @Size(max = 200)
         private String title;
@@ -80,6 +83,7 @@ public class BannerDto {
 
     @Getter
     @Builder
+    @Schema(description = "배너. 고객용 목록은 지금 시각에 걸려 있는 것만 내려가고, 어드민 목록은 기간과 무관하게 전부 내려간다")
     public static class BannerResponse {
         private Long id;
         private String bannerCode;

@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.store.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.store.entity.PartnerStore;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
@@ -12,12 +13,14 @@ import java.util.List;
 public class PartnerStoreDto {
 
     @Getter
+    @Schema(description = "정렬 순서 변경. 보낸 순서대로 0 부터 다시 매기므로 한 곳만 옮겨도 전체를 보내야 한다")
     public static class ReorderRequest {
         @NotEmpty
         private List<String> storeCodes;
     }
 
     @Getter
+    @Schema(name = "StoreCreateRequest", description = "매장 등록. 우편번호·주소·연락처는 AES-GCM 으로 암호화해 저장한다")
     public static class CreateRequest {
         @NotBlank
         private String name;
@@ -37,6 +40,7 @@ public class PartnerStoreDto {
     }
 
     @Getter
+    @Schema(name = "StoreUpdateRequest", description = "매장 수정")
     public static class UpdateRequest {
         @NotBlank
         private String name;
@@ -57,6 +61,7 @@ public class PartnerStoreDto {
 
     @Getter
     @Builder
+    @Schema(description = "매장. 고객용 목록은 운영 중인 곳만 정렬 순서대로 내려간다")
     public static class StoreResponse {
         private Long id;
         private String storeCode;

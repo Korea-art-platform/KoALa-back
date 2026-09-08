@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.artist.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.entity.ArtistCareer;
 import com.koala.koalaback.domain.artist.entity.ArtistMedia;
@@ -20,6 +21,7 @@ import java.util.Set;
 
 public class ArtistDto {
     @Getter
+    @Schema(name = "ArtistCreateRequest", description = "작가 등록")
     public static class CreateRequest {
         @NotBlank @Size(max = 150)
         private String name;
@@ -33,6 +35,7 @@ public class ArtistDto {
     }
 
     @Getter
+    @Schema(name = "ArtistUpdateRequest", description = "작가 수정")
     public static class UpdateRequest {
         @NotBlank @Size(max = 150)
         private String name;
@@ -46,6 +49,7 @@ public class ArtistDto {
     }
 
     @Getter
+    @Schema(name = "ArtistMediaAddRequest", description = "작가 사진 업로드에 함께 보내는 정보. 역할이 EXHIBITION 이면 작가당 5장까지다")
     public static class MediaAddRequest {
         @NotBlank
         private String mediaType;
@@ -59,6 +63,7 @@ public class ArtistDto {
     }
 
     @Getter
+    @Schema(description = "이미 올라간 파일의 주소로 등록. 같은 역할의 기존 사진을 지우고 새로 넣는다")
     public static class MediaUrlRequest {
         @NotBlank
         private String fileUrl;
@@ -75,12 +80,14 @@ public class ArtistDto {
     }
 
     @Getter
+    @Schema(description = "사진 썸네일 주소 변경")
     public static class MediaThumbnailRequest {
         @NotBlank
         private String thumbnailUrl;
     }
 
     @Getter
+    @Schema(description = "약력 추가")
     public static class CareerAddRequest {
         @NotBlank
         private String category;
@@ -95,6 +102,7 @@ public class ArtistDto {
     }
 
     @Getter
+    @Schema(description = "약력 수정")
     public static class CareerUpdateRequest {
         @NotBlank
         private String category;
@@ -110,6 +118,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(name = "ArtistSummaryResponse", description = "작가 목록에 쓰는 요약")
     public static class SummaryResponse {
         private Long id;
         private String artistCode;
@@ -158,6 +167,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(description = "작가 카드에 거는 대표 작품. 가격은 부가세를 더한 값이다")
     public static class FeaturedSkuInfo {
         private String skuCode;
         private String name;
@@ -185,6 +195,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(description = "대표 작품을 고를 때 보는 목록. 가격은 부가세를 더한 값이다")
     public static class ArtistSkuItem {
         private String skuCode;
         private String name;
@@ -212,6 +223,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(name = "ArtistDetailResponse", description = "작가 상세")
     public static class DetailResponse {
         private Long id;
         private String artistCode;
@@ -253,6 +265,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(description = "약력 한 줄")
     public static class CareerResponse {
         private Long id;
         private String category;
@@ -273,6 +286,7 @@ public class ArtistDto {
 
     @Getter
     @Builder
+    @Schema(name = "ArtistMediaResponse", description = "작가 사진 한 장")
     public static class MediaResponse {
         private Long id;
         private String mediaType;

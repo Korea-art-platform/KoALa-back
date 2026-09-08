@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.notice.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.notice.entity.Notice;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 public class NoticeDto {
     @Getter
+    @Schema(name = "NoticeCreateRequest", description = "공지 등록")
     public static class CreateRequest {
         @NotBlank
         private String title;
@@ -20,6 +22,7 @@ public class NoticeDto {
     }
 
     @Getter
+    @Schema(name = "NoticeUpdateRequest", description = "공지 수정")
     public static class UpdateRequest {
         @NotBlank
         private String title;
@@ -32,6 +35,7 @@ public class NoticeDto {
 
     @Getter
     @Builder
+    @Schema(description = "공지. 고객용은 내려둔 공지가 빠지고, 어드민용은 전부 내려간다")
     public static class NoticeResponse {
         private Long id;
         private String noticeCode;

@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.category.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.category.entity.SkuCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -11,6 +12,7 @@ import java.util.List;
 
 public class SkuCategoryDto {
     @Getter @Setter
+    @Schema(name = "CategoryCreateRequest", description = "분류 등록. 코드는 입력하지 않는다 — 표시 이름으로 서버가 만든다")
     public static class CreateRequest {
         @NotBlank
         @Pattern(regexp = "MAIN|SUB", message = "type 은 MAIN 또는 SUB 여야 합니다.")
@@ -33,6 +35,7 @@ public class SkuCategoryDto {
     }
 
     @Getter @Setter
+    @Schema(name = "CategoryUpdateRequest", description = "분류 수정. 표시 이름을 바꾼다")
     public static class UpdateRequest {
         private String name;
         private String nameEn;
@@ -43,6 +46,7 @@ public class SkuCategoryDto {
 
     @Getter
     @Builder
+    @Schema(description = "분류 하나. 코드는 내부 값이고 화면에는 이름을 쓴다")
     public static class Response {
         private Long id;
         private String type;
@@ -76,6 +80,7 @@ public class SkuCategoryDto {
 
     @Getter
     @Builder
+    @Schema(description = "대분류와 소분류를 묶은 목록")
     public static class GroupedResponse {
         private List<Response> main;
         private List<Response> sub;
