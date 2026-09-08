@@ -194,7 +194,7 @@ public class ArtistService {
      * 겹친다. 어드민에서도 막지만 API 를 직접 부르는 경우가 있어 여기서도 막는다.
      */
     private static final String EXHIBITION_ROLE = "EXHIBITION";
-    private static final int EXHIBITION_MAX = 5;
+    private static final int EXHIBITION_MAX = 3;
 
     private void checkExhibitionLimit(Long artistId, String mediaRole) {
         if (!EXHIBITION_ROLE.equals(mediaRole)) return;

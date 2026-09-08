@@ -49,7 +49,7 @@ public class ArtistDto {
     }
 
     @Getter
-    @Schema(name = "ArtistMediaAddRequest", description = "작가 사진 업로드에 함께 보내는 정보. 역할이 EXHIBITION 이면 작가당 5장까지다")
+    @Schema(name = "ArtistMediaAddRequest", description = "작가 사진 업로드에 함께 보내는 정보. 역할이 EXHIBITION 이면 작가당 3장까지다")
     public static class MediaAddRequest {
         @NotBlank
         private String mediaType;

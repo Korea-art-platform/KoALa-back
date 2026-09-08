@@ -112,7 +112,7 @@ public class AdminArtistController {
     @Operation(summary = "작가 사진 등록 (업로드)", description = """
             파일을 올려 S3 에 저장한다.
 
-            역할이 EXHIBITION 인 사진은 작가당 5장까지다. 전시 페이지가 작가를 가운데
+            역할이 EXHIBITION 인 사진은 작가당 3장까지다. 전시 페이지가 작가를 가운데
             두고 원형으로 배치하므로 넘치면 원이 겹친다. 어드민 화면에서도 막지만 API 를
             직접 부르는 경우가 있어 여기서도 막는다.
             """)
