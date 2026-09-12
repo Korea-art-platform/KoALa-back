@@ -1,6 +1,7 @@
 package com.koala.koalaback.domain.banner.entity;
 
 import com.koala.koalaback.domain.admin.entity.Admin;
+import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -42,6 +43,21 @@ public class Banner extends BaseTimeEntity {
     @Column(length = 700)
     private String videoUrl;
 
+    // 히어로 작품
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sku_id")
+    private Sku sku;
+
+    // 구성 이미지 — 1 오른쪽 위, 2 오른쪽 아래, 3 왼쪽 아래. 비워도 된다
+    @Column(name = "effect_image_url1", length = 700)
+    private String effectImageUrl1;
+
+    @Column(name = "effect_image_url2", length = 700)
+    private String effectImageUrl2;
+
+    @Column(name = "effect_image_url3", length = 700)
+    private String effectImageUrl3;
+
     @Column(length = 700)
     private String linkUrl;
 
@@ -77,6 +93,7 @@ public class Banner extends BaseTimeEntity {
     public Banner(String bannerCode, String bannerType, String title, String subtitle,
                   String badge, String description,
                   String imageUrl, String mobileImageUrl, String videoUrl,
+                  Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
                   String linkUrl, String linkTarget,
                   String bgColor, String textColor, Integer sortOrder,
                   LocalDateTime visibleFrom, LocalDateTime visibleTo, Admin createdByAdmin) {
@@ -89,6 +106,10 @@ public class Banner extends BaseTimeEntity {
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
         this.videoUrl = videoUrl;
+        this.sku = sku;
+        this.effectImageUrl1 = effectImageUrl1;
+        this.effectImageUrl2 = effectImageUrl2;
+        this.effectImageUrl3 = effectImageUrl3;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget != null ? linkTarget : "SELF";
         this.bgColor = bgColor;
@@ -102,6 +123,7 @@ public class Banner extends BaseTimeEntity {
 
     public void update(String title, String subtitle, String badge, String description,
                        String imageUrl, String mobileImageUrl, String videoUrl,
+                       Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
                        String linkUrl, String linkTarget,
                        String bgColor, String textColor, Integer sortOrder,
                        LocalDateTime visibleFrom, LocalDateTime visibleTo,
@@ -113,6 +135,10 @@ public class Banner extends BaseTimeEntity {
         this.imageUrl = imageUrl;
         this.mobileImageUrl = mobileImageUrl;
         this.videoUrl = videoUrl;
+        this.sku = sku;
+        this.effectImageUrl1 = effectImageUrl1;
+        this.effectImageUrl2 = effectImageUrl2;
+        this.effectImageUrl3 = effectImageUrl3;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget;
         this.bgColor = bgColor;

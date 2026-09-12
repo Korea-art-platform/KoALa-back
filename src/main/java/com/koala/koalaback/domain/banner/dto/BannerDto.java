@@ -2,12 +2,16 @@ package com.koala.koalaback.domain.banner.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.banner.entity.Banner;
+import com.koala.koalaback.domain.pricing.VatPolicy;
+import com.koala.koalaback.domain.sku.entity.Sku;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 public class BannerDto {
     @Getter
@@ -36,11 +40,26 @@ public class BannerDto {
 
         private String videoUrl;
 
+        @Size(max = 40)
+        private String skuCode;
+
+        @Size(max = 700)
+        private String effectImageUrl1;
+
+        @Size(max = 700)
+        private String effectImageUrl2;
+
+        @Size(max = 700)
+        private String effectImageUrl3;
+
         @Size(max = 700)
         private String linkUrl;
 
         private String linkTarget;
+
+        @Size(max = 30)
         private String bgColor;
+
         private String textColor;
         private Integer sortOrder;
         private LocalDateTime visibleFrom;
@@ -70,11 +89,26 @@ public class BannerDto {
 
         private String videoUrl;
 
+        @Size(max = 40)
+        private String skuCode;
+
+        @Size(max = 700)
+        private String effectImageUrl1;
+
+        @Size(max = 700)
+        private String effectImageUrl2;
+
+        @Size(max = 700)
+        private String effectImageUrl3;
+
         @Size(max = 700)
         private String linkUrl;
 
         private String linkTarget;
+
+        @Size(max = 30)
         private String bgColor;
+
         private String textColor;
         private Integer sortOrder;
         private LocalDateTime visibleFrom;
@@ -96,6 +130,17 @@ public class BannerDto {
         private String mobileImageUrl;
 
         private String videoUrl;
+        private String skuCode;
+        private String skuName;
+        private String skuModel;
+        private String artistCode;
+        private String artistName;
+        /** 화면에 보이는 금액 — 공급가액 + 부가세 */
+        private BigDecimal displayPrice;
+        private BigDecimal displayListPrice;
+        private String effectImageUrl1;
+        private String effectImageUrl2;
+        private String effectImageUrl3;
         private String linkUrl;
         private String linkTarget;
         private String bgColor;
@@ -106,7 +151,9 @@ public class BannerDto {
         private LocalDateTime visibleTo;
         private LocalDateTime createdAt;
 
-        public static BannerResponse from(Banner b) {
+        public static BannerResponse from(Banner b, VatPolicy vat, Set<String> exempt) {
+            // 삭제된 작품은 빼고 내린다
+            Sku sku = b.getSku() != null && b.getSku().getDeletedAt() == null ? b.getSku() : null;
             return BannerResponse.builder()
                     .id(b.getId())
                     .bannerCode(b.getBannerCode())
@@ -118,6 +165,16 @@ public class BannerDto {
                     .imageUrl(b.getImageUrl())
                     .mobileImageUrl(b.getMobileImageUrl())
                     .videoUrl(b.getVideoUrl())
+                    .skuCode(sku != null ? sku.getSkuCode() : null)
+                    .skuName(sku != null ? sku.getName() : null)
+                    .skuModel(sku != null ? sku.getModel() : null)
+                    .artistCode(sku != null ? sku.getArtist().getArtistCode() : null)
+                    .artistName(sku != null ? sku.getArtist().getName() : null)
+                    .displayPrice(sku != null ? vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt) : null)
+                    .displayListPrice(sku != null ? vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt) : null)
+                    .effectImageUrl1(b.getEffectImageUrl1())
+                    .effectImageUrl2(b.getEffectImageUrl2())
+                    .effectImageUrl3(b.getEffectImageUrl3())
                     .linkUrl(b.getLinkUrl())
                     .linkTarget(b.getLinkTarget())
                     .bgColor(b.getBgColor())

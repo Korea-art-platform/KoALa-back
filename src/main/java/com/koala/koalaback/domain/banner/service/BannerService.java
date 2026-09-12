@@ -5,6 +5,9 @@ import com.koala.koalaback.domain.admin.service.AdminService;
 import com.koala.koalaback.domain.banner.dto.BannerDto;
 import com.koala.koalaback.domain.banner.entity.Banner;
 import com.koala.koalaback.domain.banner.repository.BannerRepository;
+import com.koala.koalaback.domain.pricing.VatPolicy;
+import com.koala.koalaback.domain.sku.entity.Sku;
+import com.koala.koalaback.domain.sku.repository.SkuRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import com.koala.koalaback.global.util.CodeGenerator;
@@ -16,33 +19,29 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BannerService {
     private final BannerRepository bannerRepository;
+    private final SkuRepository skuRepository;
+    private final VatPolicy vatPolicy;
     private final AdminService adminService;
     private final CodeGenerator codeGenerator;
     private final StorageUploader storageUploader;
 
     public List<BannerDto.BannerResponse> getVisibleBanners(String bannerType) {
-        return bannerRepository
-                .findVisibleByType(bannerType, LocalDateTime.now())
-                .stream()
-                .map(BannerDto.BannerResponse::from)
-                .toList();
+        return toResponses(bannerRepository.findVisibleByType(bannerType, LocalDateTime.now()));
     }
 
     public List<BannerDto.BannerResponse> getAllBanners() {
-        return bannerRepository.findByDeletedAtIsNullOrderBySortOrderAsc()
-                .stream()
-                .map(BannerDto.BannerResponse::from)
-                .toList();
+        return toResponses(bannerRepository.findByDeletedAtIsNullOrderBySortOrderAsc());
     }
 
     public BannerDto.BannerResponse getBanner(String bannerCode) {
-        return BannerDto.BannerResponse.from(getBannerEntityByCode(bannerCode));
+        return toResponse(getBannerEntityByCode(bannerCode));
     }
 
     @Transactional
@@ -60,6 +59,10 @@ public class BannerService {
                 .imageUrl(req.getImageUrl())
                 .mobileImageUrl(req.getMobileImageUrl())
                 .videoUrl(req.getVideoUrl())
+                .sku(findSku(req.getSkuCode()))
+                .effectImageUrl1(req.getEffectImageUrl1())
+                .effectImageUrl2(req.getEffectImageUrl2())
+                .effectImageUrl3(req.getEffectImageUrl3())
                 .linkUrl(req.getLinkUrl())
                 .linkTarget(req.getLinkTarget())
                 .bgColor(req.getBgColor())
@@ -70,7 +73,7 @@ public class BannerService {
                 .createdByAdmin(admin)
                 .build();
 
-        return BannerDto.BannerResponse.from(bannerRepository.save(banner));
+        return toResponse(bannerRepository.save(banner));
     }
 
     @Transactional
@@ -82,12 +85,14 @@ public class BannerService {
         banner.update(req.getTitle(), req.getSubtitle(),
                 req.getBadge(), req.getDescription(),
                 req.getImageUrl(), req.getMobileImageUrl(), req.getVideoUrl(),
+                findSku(req.getSkuCode()),
+                req.getEffectImageUrl1(), req.getEffectImageUrl2(), req.getEffectImageUrl3(),
                 req.getLinkUrl(), req.getLinkTarget(),
                 req.getBgColor(), req.getTextColor(),
                 req.getSortOrder(), req.getVisibleFrom(),
                 req.getVisibleTo(), admin);
 
-        return BannerDto.BannerResponse.from(banner);
+        return toResponse(banner);
     }
 
     @Transactional
@@ -118,11 +123,33 @@ public class BannerService {
         }
         String newUrl = storageUploader.upload(file, "banners");
         banner.updateImageUrl(newUrl);
-        return BannerDto.BannerResponse.from(banner);
+        return toResponse(banner);
     }
 
     private Banner getBannerEntityByCode(String bannerCode) {
         return bannerRepository.findByBannerCode(bannerCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    // 히어로 작품 조회 — 비우면 연결 안 함
+    private Sku findSku(String skuCode) {
+        if (skuCode == null || skuCode.isBlank()) return null;
+        return skuRepository.findBySkuCode(skuCode)
+                .filter(s -> s.getDeletedAt() == null)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SKU_NOT_FOUND));
+    }
+
+    // 작품이 걸린 배너가 있을 때만 면세 분류를 읽는다
+    private List<BannerDto.BannerResponse> toResponses(List<Banner> banners) {
+        Set<String> exempt = banners.stream().anyMatch(b -> b.getSku() != null)
+                ? vatPolicy.exemptMainCategories()
+                : Set.of();
+        return banners.stream()
+                .map(b -> BannerDto.BannerResponse.from(b, vatPolicy, exempt))
+                .toList();
+    }
+
+    private BannerDto.BannerResponse toResponse(Banner banner) {
+        return toResponses(List.of(banner)).get(0);
     }
 }
