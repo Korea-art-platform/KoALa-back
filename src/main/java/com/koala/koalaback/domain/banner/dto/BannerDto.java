@@ -138,6 +138,8 @@ public class BannerDto {
         /** 화면에 보이는 금액 — 공급가액 + 부가세 */
         private BigDecimal displayPrice;
         private BigDecimal displayListPrice;
+        /** 작품 소재 — 메인 히어로 가격 아래에 보인다 */
+        private String material;
         private String effectImageUrl1;
         private String effectImageUrl2;
         private String effectImageUrl3;
@@ -172,6 +174,7 @@ public class BannerDto {
                     .artistName(sku != null ? sku.getArtist().getName() : null)
                     .displayPrice(sku != null ? vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt) : null)
                     .displayListPrice(sku != null ? vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt) : null)
+                    .material(sku != null ? sku.getMaterial() : null)
                     .effectImageUrl1(b.getEffectImageUrl1())
                     .effectImageUrl2(b.getEffectImageUrl2())
                     .effectImageUrl3(b.getEffectImageUrl3())
