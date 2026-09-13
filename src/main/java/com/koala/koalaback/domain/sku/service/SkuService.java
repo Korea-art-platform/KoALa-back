@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,19 +64,33 @@ public class SkuService {
      */
     public PageResponse<SkuDto.SummaryResponse> getActiveSkus(String genre, String mainCategory,
                                                               Pageable pageable) {
-        boolean byGenre = hasText(genre);
-        boolean byMain = hasText(mainCategory);
+        return getActiveSkus(genre, mainCategory, null, null, null, null, pageable);
+    }
 
-        Page<Sku> page;
-        if (byGenre && byMain) {
-            page = skuRepository.findActiveByGenreAndMainCategory(genre, mainCategory, pageable);
-        } else if (byGenre) {
-            page = skuRepository.findActiveByGenre(genre, pageable);
-        } else if (byMain) {
-            page = skuRepository.findActiveByMainCategory(mainCategory, pageable);
-        } else {
-            page = skuRepository.findByStatusAndDeletedAtIsNull("ACTIVE", pageable);
-        }
+    /** 스토어 정렬. 모르는 값이 오면 추천순으로 본다 */
+    private static final Set<String> ORDERS = Set.of("RECOMMENDED", "NEWEST", "PRICE_ASC", "PRICE_DESC");
+
+    /**
+     * 작가(artistCode)와 화면 금액 범위(minPrice~maxPrice), 정렬(order)까지 건다.
+     * 빈 문자열은 안 거는 것으로 본다 — 스토어에서 "전체"를 고르면 빈 값이 온다.
+     */
+    public PageResponse<SkuDto.SummaryResponse> getActiveSkus(String genre, String mainCategory,
+                                                              String artistCode,
+                                                              BigDecimal minPrice, BigDecimal maxPrice,
+                                                              String order, Pageable pageable) {
+        // 면세 분류가 하나도 없으면 IN () 이 깨진다. 어떤 코드와도 안 맞는 값을 채운다.
+        Set<String> exempt = vatPolicy.exemptMainCategories();
+        List<String> exemptCodes = exempt.isEmpty() ? List.of("-") : List.copyOf(exempt);
+        String sortKey = order != null && ORDERS.contains(order) ? order : "RECOMMENDED";
+
+        // 정렬은 쿼리가 정한다. 주소에 sort 가 붙어 와도 섞이지 않게 페이지 정보만 쓴다.
+        Pageable pageOnly = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+
+        Page<Sku> page = skuRepository.findStoreList(
+                hasText(genre) ? genre : null,
+                hasText(mainCategory) ? mainCategory : null,
+                hasText(artistCode) ? artistCode : null,
+                minPrice, maxPrice, exemptCodes, sortKey, pageOnly);
         return toSummaryPage(page);
     }
 

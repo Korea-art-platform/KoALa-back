@@ -27,20 +27,59 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
 
     Page<Sku> findByArtistIdAndStatusAndDeletedAtIsNull(Long artistId, String status, Pageable pageable);
 
-    @Query("SELECT s FROM Sku s WHERE s.genre = :genre AND s.status = 'ACTIVE' AND s.deletedAt IS NULL")
-    Page<Sku> findActiveByGenre(@Param("genre") String genre, Pageable pageable);
-
-    @Query("SELECT s FROM Sku s WHERE s.mainCategory = :mainCategory AND s.status = 'ACTIVE' AND s.deletedAt IS NULL")
-    Page<Sku> findActiveByMainCategory(@Param("mainCategory") String mainCategory, Pageable pageable);
-
-    @Query("""
+    /**
+     * 스토어 목록 — 들어온 조건만 건다(null 이면 안 건다).
+     *
+     * 가격은 화면에 보이는 금액으로 비교한다. 면세 대분류는 공급가액 그대로,
+     * 나머지는 부가세 10% 를 더한다. 공급가액으로 비교하면 "50만 원 이하"에
+     * 55만 원짜리가 섞여 나온다. 정렬도 같은 금액을 쓴다.
+     * 추천순은 면세 대분류(원작)를 먼저 걸고, 그 안에서 최근 공개 순이다.
+     *
+     * exempt 가 비면 IN () 이 깨지므로 호출하는 쪽에서 빈 값을 채워 넘긴다.
+     */
+    @Query(value = """
         SELECT s FROM Sku s
-        WHERE s.genre = :genre AND s.mainCategory = :mainCategory
-          AND s.status = 'ACTIVE' AND s.deletedAt IS NULL
+        WHERE s.status = 'ACTIVE' AND s.deletedAt IS NULL
+          AND (:genre IS NULL OR s.genre = :genre)
+          AND (:mainCategory IS NULL OR s.mainCategory = :mainCategory)
+          AND (:artistCode IS NULL OR s.artist.artistCode = :artistCode)
+          AND (:minPrice IS NULL OR
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) >= :minPrice)
+          AND (:maxPrice IS NULL OR
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) <= :maxPrice)
+        ORDER BY
+          CASE WHEN :order = 'PRICE_ASC' THEN
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) END ASC,
+          CASE WHEN :order = 'PRICE_DESC' THEN
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) END DESC,
+          CASE WHEN :order = 'RECOMMENDED' AND s.mainCategory IN :exempt THEN 0 ELSE 1 END ASC,
+          s.publishedAt DESC, s.id DESC
+        """,
+        countQuery = """
+        SELECT COUNT(s) FROM Sku s
+        WHERE s.status = 'ACTIVE' AND s.deletedAt IS NULL
+          AND (:genre IS NULL OR s.genre = :genre)
+          AND (:mainCategory IS NULL OR s.mainCategory = :mainCategory)
+          AND (:artistCode IS NULL OR s.artist.artistCode = :artistCode)
+          AND (:minPrice IS NULL OR
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) >= :minPrice)
+          AND (:maxPrice IS NULL OR
+               (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
+                     ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) <= :maxPrice)
         """)
-    Page<Sku> findActiveByGenreAndMainCategory(@Param("genre") String genre,
-                                               @Param("mainCategory") String mainCategory,
-                                               Pageable pageable);
+    Page<Sku> findStoreList(@Param("genre") String genre,
+                            @Param("mainCategory") String mainCategory,
+                            @Param("artistCode") String artistCode,
+                            @Param("minPrice") java.math.BigDecimal minPrice,
+                            @Param("maxPrice") java.math.BigDecimal maxPrice,
+                            @Param("exempt") java.util.Collection<String> exempt,
+                            @Param("order") String order,
+                            Pageable pageable);
 
     @Query("""
         SELECT s FROM Sku s

@@ -13,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -23,8 +24,11 @@ public class SkuController {
     private final SkuService skuService;
 
     @Operation(summary = "작품 목록", description = """
-            판매 중인 작품만 돌려준다. genre(소분류)·mainCategory(대분류)로 거를 수 있고,
-            둘 다 없으면 전체다. 기본 20건씩.
+            판매 중인 작품만 돌려준다. 기본 20건씩. 조건은 모두 선택이고, 없으면 전체다.
+
+            - genre(소분류) · mainCategory(대분류) · artist(작가 코드)
+            - minPrice · maxPrice — 화면에 보이는 금액(부가세 포함, 원작은 면세) 기준
+            - order — RECOMMENDED(기본, 원작 먼저 → 최근 공개) · NEWEST · PRICE_ASC · PRICE_DESC
 
             거르는 일을 화면이 아니라 서버에서 한다. 화면은 한 번에 한 페이지만 받으므로
             받아 온 20개 안에서 걸러 봐야 뒤 페이지에 있는 작품은 세지 못해 "0점"으로
@@ -34,8 +38,13 @@ public class SkuController {
     public ApiResponse<PageResponse<SkuDto.SummaryResponse>> getSkus(
             @RequestParam(required = false) String genre,
             @RequestParam(required = false) String mainCategory,
+            @RequestParam(required = false) String artist,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String order,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(skuService.getActiveSkus(genre, mainCategory, pageable));
+        return ApiResponse.ok(skuService.getActiveSkus(
+                genre, mainCategory, artist, minPrice, maxPrice, order, pageable));
     }
 
     @Operation(summary = "작품 상세", description = "skuCode 로 조회한다. 없으면 SKU_NOT_FOUND.")

@@ -2,6 +2,8 @@ package com.koala.koalaback.domain.sku.service;
 
 import com.koala.koalaback.domain.artist.entity.Artist;
 import com.koala.koalaback.domain.artist.repository.ArtistRepository;
+import com.koala.koalaback.domain.category.entity.SkuCategory;
+import com.koala.koalaback.domain.category.repository.SkuCategoryRepository;
 import com.koala.koalaback.domain.sku.dto.SkuDto;
 import com.koala.koalaback.domain.sku.entity.Sku;
 import com.koala.koalaback.domain.sku.repository.SkuRepository;
@@ -33,13 +35,15 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
     @Autowired private SkuService skuService;
     @Autowired private SkuRepository skuRepository;
     @Autowired private ArtistRepository artistRepository;
+    @Autowired private SkuCategoryRepository categoryRepository;
 
     private String uid;
+    private Artist artist;
 
     @BeforeEach
     void setUp() {
         uid = UUID.randomUUID().toString().substring(0, 8);
-        Artist artist = artistRepository.save(Artist.builder()
+        artist = artistRepository.save(Artist.builder()
                 .artistCode("FTEST-" + uid)
                 .name("거르기 작가")
                 .slug("ftest-artist-" + uid)
@@ -56,6 +60,10 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
     }
 
     private void save(Artist artist, String mainCategory, String genre) {
+        save(artist, mainCategory, genre, 10_000);
+    }
+
+    private Sku save(Artist artist, String mainCategory, String genre, long supply) {
         String id = UUID.randomUUID().toString().substring(0, 8);
         Sku sku = Sku.builder()
                 .skuCode("FTEST-" + id)
@@ -66,10 +74,26 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
                 .mainCategory(mainCategory)
                 .genre(genre)
                 .currency("KRW")
-                .listPrice(BigDecimal.valueOf(10_000))
+                .listPrice(BigDecimal.valueOf(supply))
                 .build();
         sku.publish();
-        skuRepository.save(sku);
+        return skuRepository.save(sku);
+    }
+
+    /** 이 작가 작품만 — 다른 테스트가 남긴 작품과 섞이지 않게 작가로 가둔다 */
+    private PageResponse<SkuDto.SummaryResponse> mine(Long min, Long max, String order) {
+        return skuService.getActiveSkus(null, null, artist.getArtistCode(),
+                min != null ? BigDecimal.valueOf(min) : null,
+                max != null ? BigDecimal.valueOf(max) : null,
+                order, PageRequest.of(0, 20));
+    }
+
+    /** 면세 대분류를 하나 만들고 그 분류로 공급가액 10,500원짜리 한 점을 둔다 */
+    private Sku saveExempt() {
+        String code = "FTEST_EX_" + uid;
+        categoryRepository.save(SkuCategory.builder()
+                .type(SkuCategory.TYPE_MAIN).code(code).name("면세 " + uid).taxExempt(true).build());
+        return save(artist, code, SCULPTURE, 10_500);
     }
 
     private List<SkuDto.SummaryResponse> page(String genre, String mainCategory) {
@@ -126,5 +150,52 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
         // 스토어에서 "전체"를 고르면 파라미터가 빈 문자열로 올 수 있다.
         assertThat(total("", ORIGINAL)).isEqualTo(total(null, ORIGINAL));
         assertThat(total(SCULPTURE, "")).isEqualTo(total(SCULPTURE, null));
+    }
+
+    @Test
+    @DisplayName("작가로 거르면 그 작가 작품만 나온다")
+    void byArtist() {
+        PageResponse<SkuDto.SummaryResponse> res = mine(null, null, null);
+        assertThat(res.getTotalElements()).isEqualTo(6);
+        assertThat(res.getContent())
+                .allSatisfy(s -> assertThat(s.getArtistCode()).isEqualTo(artist.getArtistCode()));
+    }
+
+    @Test
+    @DisplayName("가격대는 공급가액이 아니라 화면 금액(부가세 포함)으로 거른다")
+    void priceUsesDisplayAmount() {
+        // 공급가액 10,000원 → 화면 11,000원. 공급가액으로 걸렀다면 반대로 나왔을 자리다.
+        assertThat(mine(10_500L, null, null).getTotalElements()).isEqualTo(6);
+        assertThat(mine(null, 10_500L, null).getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("면세 분류는 공급가액 그대로 비교한다")
+    void exemptComparedAsIs() {
+        Sku exempt = saveExempt();   // 화면 10,500원 (나머지 6점은 11,000원)
+        assertThat(mine(null, 10_600L, null).getContent())
+                .extracting(SkuDto.SummaryResponse::getSkuCode)
+                .containsExactly(exempt.getSkuCode());
+        assertThat(mine(10_600L, null, null).getTotalElements()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("정렬 — 추천순은 면세(원작) 먼저, 가격순은 화면 금액 기준")
+    void ordering() {
+        Sku exempt = saveExempt();
+        assertThat(mine(null, null, "RECOMMENDED").getContent().get(0).getSkuCode())
+                .isEqualTo(exempt.getSkuCode());
+        assertThat(mine(null, null, "PRICE_ASC").getContent().get(0).getSkuCode())
+                .isEqualTo(exempt.getSkuCode());
+        List<SkuDto.SummaryResponse> desc = mine(null, null, "PRICE_DESC").getContent();
+        assertThat(desc.get(desc.size() - 1).getSkuCode()).isEqualTo(exempt.getSkuCode());
+    }
+
+    @Test
+    @DisplayName("모르는 정렬 값은 추천순으로 본다")
+    void unknownOrderFallsBack() {
+        Sku exempt = saveExempt();
+        assertThat(mine(null, null, "DROP TABLE").getContent().get(0).getSkuCode())
+                .isEqualTo(exempt.getSkuCode());
     }
 }

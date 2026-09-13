@@ -295,6 +295,9 @@ public class SkuDto {
 
         private String description;
 
+        @Schema(description = "소재. 스토어 카드에 한 줄로 보인다", example = "도자기/세라믹")
+        private String material;
+
         @Schema(description = "대표 이미지 주소")
         private String primaryImageUrl;
 
@@ -328,6 +331,7 @@ public class SkuDto {
                     .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .description(sku.getDescription())
+                    .material(sku.getMaterial())
                     .primaryImageUrl(sku.getPrimaryImageUrl())
                     .status(sku.getStatus())
                     .artistName(sku.getArtist().getName())
