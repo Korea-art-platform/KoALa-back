@@ -90,7 +90,7 @@ public class SkuService {
                 hasText(genre) ? genre : null,
                 hasText(mainCategory) ? mainCategory : null,
                 hasText(artistCode) ? artistCode : null,
-                minPrice, maxPrice, exemptCodes, sortKey, pageOnly);
+                minPrice, maxPrice, exemptCodes, categoryService.originalMainCodes(), sortKey, pageOnly);
         return toSummaryPage(page);
     }
 

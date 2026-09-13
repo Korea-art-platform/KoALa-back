@@ -33,9 +33,10 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
      * 가격은 화면에 보이는 금액으로 비교한다. 면세 대분류는 공급가액 그대로,
      * 나머지는 부가세 10% 를 더한다. 공급가액으로 비교하면 "50만 원 이하"에
      * 55만 원짜리가 섞여 나온다. 정렬도 같은 금액을 쓴다.
-     * 추천순은 면세 대분류(원작)를 먼저 걸고, 그 안에서 최근 공개 순이다.
+     * 추천순은 원작 대분류(originals)를 먼저 걸고, 그 안에서 최근 공개 순이다.
+     * 원작을 면세 표시로 가르지 않는다 — 원작도 과세로 바뀔 수 있다.
      *
-     * exempt 가 비면 IN () 이 깨지므로 호출하는 쪽에서 빈 값을 채워 넘긴다.
+     * exempt·originals 가 비면 IN () 이 깨지므로 호출하는 쪽에서 빈 값을 채워 넘긴다.
      */
     @Query(value = """
         SELECT s FROM Sku s
@@ -56,7 +57,7 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
           CASE WHEN :order = 'PRICE_DESC' THEN
                (CASE WHEN s.mainCategory IN :exempt THEN COALESCE(s.salePrice, s.listPrice)
                      ELSE COALESCE(s.salePrice, s.listPrice) * 1.1 END) END DESC,
-          CASE WHEN :order = 'RECOMMENDED' AND s.mainCategory IN :exempt THEN 0 ELSE 1 END ASC,
+          CASE WHEN :order = 'RECOMMENDED' AND s.mainCategory IN :originals THEN 0 ELSE 1 END ASC,
           s.publishedAt DESC, s.id DESC
         """,
         countQuery = """
@@ -78,6 +79,7 @@ public interface SkuRepository extends JpaRepository<Sku, Long> {
                             @Param("minPrice") java.math.BigDecimal minPrice,
                             @Param("maxPrice") java.math.BigDecimal maxPrice,
                             @Param("exempt") java.util.Collection<String> exempt,
+                            @Param("originals") java.util.Collection<String> originals,
                             @Param("order") String order,
                             Pageable pageable);
 

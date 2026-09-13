@@ -58,6 +58,20 @@ public class SkuCategoryService {
                 all.stream().filter(SkuCategory::isSub).map(toResponse).toList());
     }
 
+    /**
+     * 원작 대분류 코드. 이름이 "원작"인 것 — 코드는 자동으로 붙는 값(MAIN_3…)이라 이름으로 찾는다.
+     * 화면(useOriginalCategoryCode)과 같은 규칙이고, 못 찾으면 ORIGINAL 코드를 쓴다.
+     * 면세 표시로 가르지 않는다 — 원작도 과세로 바뀔 수 있다.
+     */
+    public List<String> originalMainCodes() {
+        List<String> codes = categoryRepository.findAllByOrderByTypeAscSortOrderAsc().stream()
+                .filter(SkuCategory::isMain)
+                .filter(c -> c.getName() != null && c.getName().trim().equals("원작"))
+                .map(SkuCategory::getCode)
+                .toList();
+        return codes.isEmpty() ? List.of("ORIGINAL") : codes;
+    }
+
     public Map<String, Set<String>> getActiveCodesByType() {
         return categoryRepository.findByIsActiveTrueOrderByTypeAscSortOrderAsc().stream()
                 .collect(Collectors.groupingBy(

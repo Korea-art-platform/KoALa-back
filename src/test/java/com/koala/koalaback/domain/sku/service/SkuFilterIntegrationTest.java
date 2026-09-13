@@ -179,12 +179,18 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
         assertThat(mine(10_600L, null, null).getTotalElements()).isEqualTo(6);
     }
 
+    /** 이름이 "원작"인 과세 대분류를 하나 만들고 그 분류로 한 점을 둔다 */
+    private Sku saveOriginal() {
+        String code = "FTEST_OR_" + uid;
+        categoryRepository.save(SkuCategory.builder()
+                .type(SkuCategory.TYPE_MAIN).code(code).name("원작").taxExempt(false).build());
+        return save(artist, code, SCULPTURE, 10_000);
+    }
+
     @Test
-    @DisplayName("정렬 — 추천순은 면세(원작) 먼저, 가격순은 화면 금액 기준")
-    void ordering() {
+    @DisplayName("가격순은 화면 금액 기준 — 면세 10,500원이 과세 11,000원보다 싸다")
+    void priceOrdering() {
         Sku exempt = saveExempt();
-        assertThat(mine(null, null, "RECOMMENDED").getContent().get(0).getSkuCode())
-                .isEqualTo(exempt.getSkuCode());
         assertThat(mine(null, null, "PRICE_ASC").getContent().get(0).getSkuCode())
                 .isEqualTo(exempt.getSkuCode());
         List<SkuDto.SummaryResponse> desc = mine(null, null, "PRICE_DESC").getContent();
@@ -192,10 +198,18 @@ class SkuFilterIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("추천순은 원작 먼저 — 원작이 과세여도 이름으로 알아본다")
+    void recommendedPutsOriginalFirst() {
+        Sku original = saveOriginal();
+        assertThat(mine(null, null, "RECOMMENDED").getContent().get(0).getSkuCode())
+                .isEqualTo(original.getSkuCode());
+    }
+
+    @Test
     @DisplayName("모르는 정렬 값은 추천순으로 본다")
     void unknownOrderFallsBack() {
-        Sku exempt = saveExempt();
+        Sku original = saveOriginal();
         assertThat(mine(null, null, "DROP TABLE").getContent().get(0).getSkuCode())
-                .isEqualTo(exempt.getSkuCode());
+                .isEqualTo(original.getSkuCode());
     }
 }
