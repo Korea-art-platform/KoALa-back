@@ -1,6 +1,8 @@
 package com.koala.koalaback.infra.slack;
 
 import com.koala.koalaback.domain.order.event.OrderCompletedEvent;
+import com.koala.koalaback.domain.order.repository.OrderRepository;
+import com.koala.koalaback.domain.order.repository.OrderShipmentRepository;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -117,7 +119,7 @@ class SlackFailurePathTest {
             @SuppressWarnings("unchecked")
             ObjectProvider<SlackNotifier> empty = mock(ObjectProvider.class);
 
-            AdminOrderNotifier notifier = new AdminOrderNotifier(empty);
+            AdminOrderNotifier notifier = new AdminOrderNotifier(empty, mock(OrderRepository.class), mock(OrderShipmentRepository.class));
 
             assertThatCode(() -> notifier.notifyOrderCompleted(sampleEvent()))
                     .doesNotThrowAnyException();
@@ -131,7 +133,7 @@ class SlackFailurePathTest {
             org.mockito.BDDMockito.given(provider.getIfAvailable())
                     .willReturn(new SlackNotifier("http://127.0.0.1:1/hook", 500));
 
-            AdminOrderNotifier notifier = new AdminOrderNotifier(provider);
+            AdminOrderNotifier notifier = new AdminOrderNotifier(provider, mock(OrderRepository.class), mock(OrderShipmentRepository.class));
 
             OrderCompletedEvent broken = new OrderCompletedEvent(
                     "evt", "order.completed", 1, java.time.Instant.now(),
