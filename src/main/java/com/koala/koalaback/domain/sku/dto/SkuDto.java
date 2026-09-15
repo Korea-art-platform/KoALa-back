@@ -27,11 +27,11 @@ public class SkuDto {
         private String artistCode;
 
         // 관리자 등록 화면은 상품명(name)과 슬러그(slug)를 받지 않는다.
-        // 모델 · 세부모델명 · 색상을 조합해 서버가 만든다.
+        // 종과 모델 이름으로 서버가 만든다.
         //
         // CSV 일괄 등록은 예전부터 두 값을 직접 넣어 왔고 그 파일 양식을 이미
         // 쓰고 있어, 값이 오면 그대로 존중한다. 화면에서는 비어 온다.
-        @Schema(description = "상품명. 화면에서는 비워 보낸다 — 모델·세부모델명·색상으로 서버가 만든다. "
+        @Schema(description = "상품명. 화면에서는 비워 보낸다 — 종·모델 이름으로 서버가 만든다. "
                 + "CSV 일괄 등록만 값을 직접 넘긴다")
         private String name;
 
@@ -50,10 +50,8 @@ public class SkuDto {
         @NotBlank
         private String subModelNameEn;
 
-        @NotBlank
         private String color;
 
-        @NotBlank
         private String colorEn;
 
         @NotBlank
@@ -132,10 +130,8 @@ public class SkuDto {
         @NotBlank
         private String subModelNameEn;
 
-        @NotBlank
         private String color;
 
-        @NotBlank
         private String colorEn;
 
         @NotBlank
@@ -243,11 +239,10 @@ public class SkuDto {
         @Schema(example = "A1B2C3D4E5F60718")
         private String skuCode;
 
-        @Schema(description = "상품명. 모델·세부모델명·색상을 합쳐 만든 값이다")
+        @Schema(description = "상품명. 종·모델 이름으로 만든 값이며 카드 제목으로 쓴다")
         private String name;
 
-        // 카드에는 모델만 큰 제목으로 쓴다. 세부모델명과 색상은 상세에서 보여준다.
-        @Schema(description = "모델명. 카드에는 이것만 큰 제목으로 쓴다")
+        @Schema(description = "종 이름. 같은 종끼리 묶을 때 쓴다")
         private String model;
 
         @Schema(description = "URL 슬러그")

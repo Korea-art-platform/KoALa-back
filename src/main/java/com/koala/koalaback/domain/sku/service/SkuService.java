@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.stream.Stream;
 import java.math.BigDecimal;
 
 import java.util.ArrayList;
@@ -147,14 +146,14 @@ public class SkuService {
         validateEdition(req.getMainCategory(), req.getEditionSize(), req.getEditionNumber());
         validatePrice(req.getListPrice(), req.getSalePrice());
 
-        // 상품명과 슬러그는 관리자가 입력하지 않는다. 모델·세부모델명·색상으로 만든다.
+        // 상품명과 슬러그는 관리자가 입력하지 않는다. 종·모델 이름으로 만든다.
         // CSV 일괄 등록만 값을 직접 넘겨 오므로 그때는 그대로 쓴다.
         String name = hasText(req.getName())
                 ? req.getName()
-                : buildName(req.getModel(), req.getSubModelName(), req.getColor());
+                : buildName(req.getModel(), req.getSubModelName());
         String slug = hasText(req.getSlug())
                 ? req.getSlug()
-                : uniqueSlug(buildSlug(req.getModelEn(), req.getSubModelNameEn(), req.getColorEn()));
+                : uniqueSlug(buildSlug(req.getModelEn(), req.getSubModelNameEn()));
         if (skuRepository.existsBySlug(slug)) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
@@ -205,7 +204,7 @@ public class SkuService {
         validatePrice(req.getListPrice(), req.getSalePrice());
 
         // 슬러그는 URL 이라 바꾸면 기존 링크가 깨진다. 등록 때 만든 값을 유지한다.
-        String name = buildName(req.getModel(), req.getSubModelName(), req.getColor());
+        String name = buildName(req.getModel(), req.getSubModelName());
 
         sku.update(name, sku.getSlug(), req.getDescription(),
                 req.getSkuType(), req.getMainCategory(), req.getGenre(), req.getMaterial(),
@@ -231,26 +230,29 @@ public class SkuService {
 
     private boolean hasText(String v) { return v != null && !v.isBlank(); }
 
-    /** 화면에 보이는 상품명. 예) 닥쿤이 호돌이 검정 */
-    private String buildName(String model, String subModelName, String color) {
-        return Stream.of(model, subModelName, color)
-                .filter(v -> v != null && !v.isBlank())
-                .map(String::trim)
-                .collect(Collectors.joining(" "));
+    /** 화면에 보이는 상품명. 예) 해피토마 + 빨강색 해피토마 → 빨강색 해피토마, 순정남 + 블루 → 순정남 블루 */
+    static String buildName(String species, String model) {
+        return joinSpeciesAndModel(species, model, " ");
     }
 
     /**
      * URL 에 쓰는 슬러그. 영문명으로 만든다 —
      * 한글로 만들면 주소창에서 퍼센트 인코딩되어 읽을 수 없다.
      */
-    private String buildSlug(String modelEn, String subModelNameEn, String colorEn) {
-        String raw = Stream.of(modelEn, subModelNameEn, colorEn)
-                .filter(v -> v != null && !v.isBlank())
-                .collect(Collectors.joining("-"));
+    static String buildSlug(String speciesEn, String modelEn) {
+        String raw = joinSpeciesAndModel(speciesEn, modelEn, "-");
         String slug = raw.toLowerCase()
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("(^-+|-+$)", "");
         return slug.isBlank() ? "item" : slug;
+    }
+
+    private static String joinSpeciesAndModel(String species, String model, String separator) {
+        String s = species == null ? "" : species.trim();
+        String m = model == null ? "" : model.trim();
+        if (m.isEmpty()) return s;
+        if (s.isEmpty() || m.toLowerCase().contains(s.toLowerCase())) return m;
+        return s + separator + m;
     }
 
     /** 같은 모델의 다른 색이 같은 슬러그를 만들 수 있어 뒤에 번호를 붙인다. */
