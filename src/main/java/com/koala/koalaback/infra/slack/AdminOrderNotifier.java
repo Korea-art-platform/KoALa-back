@@ -33,22 +33,24 @@ public class AdminOrderNotifier {
                     String zipCode, String address1, String address2,
                     String deliveryRequest) {}
 
+    record Orderer(String name, String email, String phone) {}
+
     public void notifyOrderCompleted(OrderCompletedEvent event) {
         try {
             SlackNotifier slack = slackProvider.getIfAvailable();
             if (slack == null) return;
 
-            slack.send(buildMessage(event, findOrdererPhone(event), findShipping(event)));
+            slack.send(buildMessage(event, findOrderer(event), findShipping(event)));
         } catch (Exception e) {
             log.warn("관리자 주문 알림 실패 (주문은 정상): orderNo={}, error={}",
                     event != null ? event.orderNo() : null, e.getMessage());
         }
     }
 
-    String findOrdererPhone(OrderCompletedEvent event) {
+    Orderer findOrderer(OrderCompletedEvent event) {
         try {
             return orderRepository.findById(event.orderId())
-                    .map(Order::getOrdererPhone)
+                    .map(o -> new Orderer(o.getOrdererName(), o.getOrdererEmail(), o.getOrdererPhone()))
                     .orElse(null);
         } catch (Exception e) {
             log.warn("주문 알림용 주문자 연락처 조회 실패 — 이메일만 보낸다: orderNo={}, error={}",
@@ -75,7 +77,7 @@ public class AdminOrderNotifier {
         return buildMessage(event, null, null);
     }
 
-    String buildMessage(OrderCompletedEvent event, String ordererPhone, Shipping shipping) {
+    String buildMessage(OrderCompletedEvent event, Orderer orderer, Shipping shipping) {
         StringBuilder sb = new StringBuilder();
         int totalQuantity = event.items().stream()
                 .mapToInt(OrderCompletedEvent.Item::quantity)
@@ -87,8 +89,11 @@ public class AdminOrderNotifier {
         sb.append("주문번호: `").append(event.orderNo()).append("`\n");
         sb.append("주문 날짜: ")
           .append(ZonedDateTime.ofInstant(event.occurredAt(), KST).format(DATE_FORMAT)).append('\n');
-        sb.append("주문자: ").append(nullSafe(event.ordererName())).append('\n');
-        sb.append("주문자 연락처: ").append(contact(event.ordererEmail(), ordererPhone)).append("\n\n");
+        sb.append("주문자: ").append(nullSafe(orderer == null ? null : orderer.name())).append('\n');
+        sb.append("주문자 연락처: ")
+          .append(contact(orderer == null ? null : orderer.email(),
+                          orderer == null ? null : orderer.phone()))
+          .append("\n\n");
 
         sb.append("*수령*\n");
         if (shipping == null) {

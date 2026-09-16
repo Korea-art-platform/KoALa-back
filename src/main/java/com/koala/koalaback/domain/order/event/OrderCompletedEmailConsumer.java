@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "koala.events.kafka", name = "enabled", havingValue = "true")
 public class OrderCompletedEmailConsumer {
     private final EmailService emailService;
+    private final OrderConfirmDataFactory orderConfirmDataFactory;
 
     @KafkaListener(
             topics = OrderCompletedEvent.TOPIC,
@@ -36,7 +37,10 @@ public class OrderCompletedEmailConsumer {
                             + " (이 컨슈머는 v" + OrderCompletedEvent.CURRENT_SCHEMA_VERSION + " 까지)");
         }
 
-        emailService.sendOrderConfirmEmail(OrderEventRelay.toEmailData(event));
+        EmailService.OrderConfirmData data = orderConfirmDataFactory.from(event);
+        if (data != null) {
+            emailService.sendOrderConfirmEmail(data);
+        }
 
         ack.acknowledge();
         log.info("주문 완료 메일 처리 완료: orderNo={}", event.orderNo());

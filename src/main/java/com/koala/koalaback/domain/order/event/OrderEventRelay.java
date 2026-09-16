@@ -16,15 +16,18 @@ public class OrderEventRelay {
     private final ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider;
     private final EmailService emailService;
     private final AdminOrderNotifier adminOrderNotifier;
+    private final OrderConfirmDataFactory orderConfirmDataFactory;
     private final boolean kafkaEnabled;
 
     public OrderEventRelay(ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider,
                            EmailService emailService,
                            AdminOrderNotifier adminOrderNotifier,
+                           OrderConfirmDataFactory orderConfirmDataFactory,
                            @Value("${koala.events.kafka.enabled:false}") boolean kafkaEnabled) {
         this.kafkaTemplateProvider = kafkaTemplateProvider;
         this.emailService = emailService;
         this.adminOrderNotifier = adminOrderNotifier;
+        this.orderConfirmDataFactory = orderConfirmDataFactory;
         this.kafkaEnabled = kafkaEnabled;
     }
 
@@ -72,24 +75,13 @@ public class OrderEventRelay {
 
     private void sendOrderConfirmEmailDirectly(OrderCompletedEvent event) {
         try {
-            emailService.sendOrderConfirmEmail(toEmailData(event));
+            EmailService.OrderConfirmData data = orderConfirmDataFactory.from(event);
+            if (data == null) return;
+            emailService.sendOrderConfirmEmail(data);
         } catch (Exception e) {
             log.warn("주문 완료 메일 발송 실패 (주문은 정상): orderNo={}, error={}",
                     event.orderNo(), e.getMessage());
         }
     }
 
-    public static EmailService.OrderConfirmData toEmailData(OrderCompletedEvent event) {
-        return new EmailService.OrderConfirmData(
-                event.ordererEmail(),
-                event.ordererName(),
-                event.orderNo(),
-                event.items().stream()
-                        .map(i -> new EmailService.OrderConfirmData.ItemData(
-                                i.skuName(), i.quantity(), i.lineAmount()))
-                        .toList(),
-                event.productAmount(),
-                event.shippingAmount(),
-                event.totalAmount());
-    }
 }

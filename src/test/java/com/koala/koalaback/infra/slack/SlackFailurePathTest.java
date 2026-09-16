@@ -137,7 +137,7 @@ class SlackFailurePathTest {
 
             OrderCompletedEvent broken = new OrderCompletedEvent(
                     "evt", "order.completed", 1, java.time.Instant.now(),
-                    1L, "ORD-1", 1L, null, null, null, null, null, null);
+                    1L, "ORD-1", 1L, null, null, null, null);
 
             assertThatCode(() -> notifier.notifyOrderCompleted(broken))
                     .doesNotThrowAnyException();
@@ -146,7 +146,7 @@ class SlackFailurePathTest {
 
     private OrderCompletedEvent sampleEvent() {
         return OrderCompletedEvent.of(
-                1L, "ORD-1", 1L, "홍길동", "a@b.c",
+                1L, "ORD-1", 1L,
                 new BigDecimal("10000"), BigDecimal.ZERO, new BigDecimal("10000"),
                 List.of(new OrderCompletedEvent.Item("SKU-1", "작품", "작가", 1, new BigDecimal("10000"))));
     }

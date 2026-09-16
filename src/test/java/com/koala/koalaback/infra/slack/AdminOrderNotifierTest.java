@@ -30,6 +30,12 @@ class AdminOrderNotifierTest {
 
     private final AdminOrderNotifier notifier = new AdminOrderNotifier(slackProvider, orders, shipments);
 
+    private static final AdminOrderNotifier.Orderer ORDERER = new AdminOrderNotifier.Orderer(
+            "홍길동", "test@example.com", "+821012345678");
+
+    private static final AdminOrderNotifier.Orderer ORDERER_NO_PHONE = new AdminOrderNotifier.Orderer(
+            "홍길동", "test@example.com", null);
+
     private static final AdminOrderNotifier.Shipping SEOUL = new AdminOrderNotifier.Shipping(
             "김받는", "+821098765432", "06000", "서울특별시 서초구 테스트로 1", "101호", "문 앞에 놓아주세요");
 
@@ -39,7 +45,7 @@ class AdminOrderNotifierTest {
         String message = notifier.buildMessage(event(new BigDecimal("3000"),
                 new OrderCompletedEvent.Item("SKU-1", "푸른 곰", "김작가", 2, new BigDecimal("300000")),
                 new OrderCompletedEvent.Item("SKU-2", "붉은 곰", "이작가", 1, new BigDecimal("150000"))),
-                "+821012345678", SEOUL);
+                ORDERER, SEOUL);
 
         assertThat(message)
                 .contains("주문번호: `ORD-20260812-1`")
@@ -61,7 +67,7 @@ class AdminOrderNotifierTest {
     @Test
     @DisplayName("주문·수령·상품 순서로 묶인다")
     void sectionsAreInOrder() {
-        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), "+821012345678", SEOUL);
+        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), ORDERER, SEOUL);
 
         assertThat(message.indexOf("*주문*")).isLessThan(message.indexOf("*수령*"));
         assertThat(message.indexOf("*수령*")).isLessThan(message.indexOf("*상품*"));
@@ -72,7 +78,7 @@ class AdminOrderNotifierTest {
     void artistNameIsOptional() {
         String message = notifier.buildMessage(event(BigDecimal.ZERO,
                 new OrderCompletedEvent.Item("SKU-1", "푸른 곰", null, 1, new BigDecimal("450000"))),
-                null, SEOUL);
+                ORDERER, SEOUL);
 
         assertThat(message).contains("푸른 곰").doesNotContain("[]");
     }
@@ -80,7 +86,7 @@ class AdminOrderNotifierTest {
     @Test
     @DisplayName("상세 주소와 요청사항이 없으면 그만큼만 적는다")
     void optionalShippingFields() {
-        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), null,
+        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), ORDERER,
                 new AdminOrderNotifier.Shipping("김받는", "+821098765432", "06000",
                         "서울특별시 서초구 테스트로 1", null, "  "));
 
@@ -92,7 +98,7 @@ class AdminOrderNotifierTest {
     @Test
     @DisplayName("주문자 전화번호를 못 구하면 이메일만 적는다")
     void contactFallsBackToEmail() {
-        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), null, SEOUL);
+        String message = notifier.buildMessage(event(BigDecimal.ZERO, item()), ORDERER_NO_PHONE, SEOUL);
 
         assertThat(message).contains("주문자 연락처: test@example.com\n");
     }
@@ -116,6 +122,8 @@ class AdminOrderNotifierTest {
         when(slackProvider.getIfAvailable()).thenReturn(slack);
 
         Order order = mock(Order.class);
+        when(order.getOrdererName()).thenReturn("홍길동");
+        when(order.getOrdererEmail()).thenReturn("test@example.com");
         when(order.getOrdererPhone()).thenReturn("+821012345678");
         when(orders.findById(1L)).thenReturn(Optional.of(order));
 
@@ -142,6 +150,10 @@ class AdminOrderNotifierTest {
     void sendsEvenWhenShippingLookupFails() {
         SlackNotifier slack = mock(SlackNotifier.class);
         when(slackProvider.getIfAvailable()).thenReturn(slack);
+        Order order = mock(Order.class);
+        when(order.getOrdererName()).thenReturn("홍길동");
+        when(order.getOrdererEmail()).thenReturn("test@example.com");
+        when(orders.findById(anyLong())).thenReturn(Optional.of(order));
         when(shipments.findByOrderId(anyLong())).thenThrow(new RuntimeException("DB 연결 끊김"));
 
         notifier.notifyOrderCompleted(event(BigDecimal.ZERO, item()));
@@ -151,7 +163,7 @@ class AdminOrderNotifierTest {
     }
 
     @Test
-    @DisplayName("주문자 전화번호를 못 읽어도 알림은 나간다")
+    @DisplayName("주문자 정보를 못 읽어도 알림은 나간다 — 주문번호와 상품은 남는다")
     void sendsEvenWhenOrderLookupFails() {
         SlackNotifier slack = mock(SlackNotifier.class);
         when(slackProvider.getIfAvailable()).thenReturn(slack);
@@ -159,7 +171,9 @@ class AdminOrderNotifierTest {
 
         notifier.notifyOrderCompleted(event(BigDecimal.ZERO, item()));
 
-        verify(slack).send(argThat((String m) -> m.contains("주문자 연락처: test@example.com\n")));
+        verify(slack).send(argThat((String m) -> m.contains("주문번호: `ORD-20260812-1`")
+                && m.contains("주문자: -")
+                && m.contains("주문자 연락처: -")));
     }
 
     private OrderCompletedEvent.Item item() {
@@ -170,7 +184,6 @@ class AdminOrderNotifierTest {
         BigDecimal product = new BigDecimal("450000");
         return OrderCompletedEvent.of(
                 1L, "ORD-20260812-1", 10L,
-                "홍길동", "test@example.com",
                 product, shipping, product.add(shipping),
                 List.of(items));
     }

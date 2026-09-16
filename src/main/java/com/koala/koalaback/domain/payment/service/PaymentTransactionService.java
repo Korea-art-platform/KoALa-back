@@ -273,8 +273,6 @@ public class PaymentTransactionService {
                 order.getId(),
                 order.getOrderNo(),
                 order.getUser() != null ? order.getUser().getId() : null,
-                order.getOrdererName(),
-                order.getOrdererEmail(),
                 order.getProductAmount(),
                 order.getShippingAmount(),
                 order.getTotalAmount(),

@@ -15,9 +15,6 @@ public record OrderCompletedEvent(
         String orderNo,
         Long userId,
 
-        String ordererName,
-        String ordererEmail,
-
         BigDecimal productAmount,
         BigDecimal shippingAmount,
         BigDecimal totalAmount,
@@ -26,13 +23,12 @@ public record OrderCompletedEvent(
 ) {
     public static final String TOPIC = "order.completed";
     public static final String EVENT_TYPE = "order.completed";
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
 
     public record Item(String skuCode, String skuName, String artistName,
                        int quantity, BigDecimal lineAmount) {}
 
     public static OrderCompletedEvent of(Long orderId, String orderNo, Long userId,
-                                         String ordererName, String ordererEmail,
                                          BigDecimal productAmount, BigDecimal shippingAmount,
                                          BigDecimal totalAmount, List<Item> items) {
         return new OrderCompletedEvent(
@@ -41,7 +37,6 @@ public record OrderCompletedEvent(
                 CURRENT_SCHEMA_VERSION,
                 Instant.now(),
                 orderId, orderNo, userId,
-                ordererName, ordererEmail,
                 productAmount, shippingAmount, totalAmount,
                 items);
     }

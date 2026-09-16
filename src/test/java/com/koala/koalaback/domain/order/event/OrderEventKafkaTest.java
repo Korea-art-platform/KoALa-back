@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.timeout;
 
@@ -43,11 +44,15 @@ class OrderEventKafkaTest {
     @Autowired private KafkaTemplate<String, Object> kafkaTemplate;
 
     @MockitoBean private EmailService emailService;
+    @MockitoBean private OrderConfirmDataFactory orderConfirmDataFactory;
 
     @Test
     @DisplayName("발행한 주문 완료 이벤트를 컨슈머가 받아 메일 발송을 호출한다")
     void publishedEvent_isConsumedAndTriggersEmail() {
         OrderCompletedEvent event = sampleEvent("ORD-1001", 1L);
+        given(orderConfirmDataFactory.from(any())).willReturn(new EmailService.OrderConfirmData(
+                "buyer@koala.test", "구매자", "ORD-1001", List.of(),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
 
         kafkaTemplate.send(OrderCompletedEvent.TOPIC, event.partitionKey(), event);
 
@@ -74,25 +79,19 @@ class OrderEventKafkaTest {
     }
 
     @Test
-    @DisplayName("이벤트 → 메일 데이터 변환에서 주문 정보가 그대로 옮겨진다")
-    void toEmailData_mapsAllOrderFields() {
-        OrderCompletedEvent event = sampleEvent("ORD-3003", 7L);
+    @DisplayName("카프카로 나가는 이벤트에 주문자 이름·이메일이 없다")
+    void eventCarriesNoOrdererPii() throws Exception {
+        String json = new ObjectMapper().registerModule(new JavaTimeModule())
+                .writeValueAsString(sampleEvent("ORD-3003", 7L));
 
-        EmailService.OrderConfirmData data = OrderEventRelay.toEmailData(event);
-
-        org.assertj.core.api.Assertions.assertThat(data.orderNo()).isEqualTo("ORD-3003");
-        org.assertj.core.api.Assertions.assertThat(data.toEmail()).isEqualTo("buyer@koala.test");
-        org.assertj.core.api.Assertions.assertThat(data.totalAmount())
-                .isEqualByComparingTo(BigDecimal.valueOf(53_000));
-        org.assertj.core.api.Assertions.assertThat(data.items())
-                .extracting(EmailService.OrderConfirmData.ItemData::skuName)
-                .containsExactly("테스트 아트토이");
+        org.assertj.core.api.Assertions.assertThat(json)
+                .doesNotContain("orderer")
+                .doesNotContain("@");
     }
 
     private OrderCompletedEvent sampleEvent(String orderNo, Long orderId) {
         return OrderCompletedEvent.of(
                 orderId, orderNo, 99L,
-                "구매자", "buyer@koala.test",
                 BigDecimal.valueOf(50_000),
                 BigDecimal.valueOf(3_000),
                 BigDecimal.valueOf(53_000),
