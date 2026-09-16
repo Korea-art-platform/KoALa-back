@@ -242,11 +242,16 @@ git config --get core.hooksPath   # .githooks 가 나와야 한다
 ### CI 에서 한 번 더
 
 훅은 `git commit --no-verify` 로 우회된다. 그래서 `.github/workflows/secret-scan.yml`
-이 main 푸시와 모든 PR 에서 gitleaks 를 돌려 같은 패턴을 다시 본다. 걸리면 빌드가 실패한다.
+이 main 푸시와 모든 PR 에서 같은 검사를 다시 돌린다. 걸리면 빌드가 실패한다.
 
-훅과 CI 는 **`.gitleaks.toml` 하나를 같이 본다.** 규칙을 바꿀 때는 `.gitleaks.toml` 과
-`.githooks/pre-commit` 을 **반드시 같이** 고친다. 한쪽만 고치면 "로컬은 통과하는데
-CI 에서만 막히는" 상태가 된다.
+훅과 CI 는 **`.githooks/scan-secrets.sh` 하나를 같이 쓴다.** 규칙은 그 파일 한 곳에만
+있으므로, 고칠 때도 한 곳만 고치면 된다. 외부 도구를 쓰지 않아 라이선스나 버전 문제가 없다.
+
+로컬에서 저장소 전체를 직접 검사하려면:
+
+```bash
+sh .githooks/scan-secrets.sh --tracked
+```
 
 ### 이미 커밋해 버렸다면
 
