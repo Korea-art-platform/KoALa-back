@@ -58,6 +58,8 @@ out/
 # 로컬 개발 설정 (민감 정보 포함 가능)
 src/main/resources/application*.yml
 src/test/resources/application*.yml
+# CI 전용 더미 테스트 설정은 예외 — 실제 값이 없고, 없으면 CI 에서 테스트가 기동하지 못한다.
+!src/test/resources/application-ci.yml
 
 # Firebase 서비스 계정 키 (민감 정보 — 절대 커밋 금지)
 src/main/resources/firebase-service-account.json
@@ -65,3 +67,20 @@ src/main/resources/firebase-service-account.json
 # 빌드/실행 로그
 *.log
 bootrun.log
+
+# ── 키 자료 · 인증서 (보안 점검 2026-09: 누락분 보강) ──────────────────────
+# 이름만으로도 커밋되면 안 되는 것들. .githooks/pre-commit 과 .gitleaks.toml 이
+# 같은 목록을 보고 커밋/CI 에서 한 번 더 막는다.
+*.jks
+*.keystore
+keystore.properties
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# Firebase 서비스 계정 키 — 경로와 무관하게 차단
+firebase-service-account.json

@@ -195,6 +195,65 @@ Testcontainers 통합 테스트가 운영 마이그레이션 대신 `classpath:d
 새 마이그레이션을 추가할 때는 최신 번호(현재 V28) 이후를 쓰고, 기존 파일은 수정하지 마세요
 (적용된 마이그레이션의 체크섬이 바뀌면 `validate-on-migrate: true` 때문에 기동이 실패합니다).
 
+## 보안 — 시크릿이 커밋되지 않게
+
+과거에 시크릿이 커밋돼 BFG 로 히스토리를 정리한 적이 있다. 같은 일이 반복되지 않도록
+**로컬 훅(1차)** 과 **CI 스캔(2차)** 두 겹으로 막는다.
+
+### 훅 설치 — 클론한 뒤 한 번만
+
+```bash
+git config core.hooksPath .githooks
+```
+
+저장소마다 한 번씩 실행한다. `.git/hooks` 는 클론에 딸려 오지 않으므로,
+새로 클론했거나 다른 PC 에서 작업을 시작할 때 다시 실행해야 한다.
+
+설치됐는지 확인:
+
+```bash
+git config --get core.hooksPath   # .githooks 가 나와야 한다
+```
+
+### 무엇을 막는가
+
+`.githooks/pre-commit` 이 **스테이징된 내용에서 추가된 줄과 파일 이름만** 본다.
+저장소 전체를 훑지 않으므로 커밋이 느려지지 않는다.
+
+내용에서 걸리는 것:
+
+| 종류 | 예 |
+|---|---|
+| AWS 액세스 키 | `AKIA…` / `ASIA…` |
+| 개인키 | `-----BEGIN … PRIVATE KEY-----` |
+| 결제 시크릿 키 | `test_sk_…` / `live_sk_…` |
+| 구글 API 키 | `AIza…` |
+| 슬랙 토큰·웹훅 | `xoxb-…`, `hooks.slack.com/services/…` |
+| JWT 토큰 | `eyJ….….…` |
+
+이름만으로 막는 것: `.env` 계열, `application-local.yml`, `application-prod.yml`,
+`application*.properties`, `*.jks`, `*.keystore`, `keystore.properties`,
+`firebase-service-account.json`, `*.pem`, `*.p12`, `id_rsa` 류.
+
+`*.example` 로 끝나는 템플릿(`.env.example`, `.env.properties.example`)은 자리표시자만
+들어 있으므로 검사에서 제외된다. **실제 값이 아니라 예시를 커밋하려면 파일 이름을
+`.example` 로 두면 된다.**
+
+### CI 에서 한 번 더
+
+훅은 `git commit --no-verify` 로 우회된다. 그래서 `.github/workflows/secret-scan.yml`
+이 main 푸시와 모든 PR 에서 gitleaks 를 돌려 같은 패턴을 다시 본다. 걸리면 빌드가 실패한다.
+
+훅과 CI 는 **`.gitleaks.toml` 하나를 같이 본다.** 규칙을 바꿀 때는 `.gitleaks.toml` 과
+`.githooks/pre-commit` 을 **반드시 같이** 고친다. 한쪽만 고치면 "로컬은 통과하는데
+CI 에서만 막히는" 상태가 된다.
+
+### 이미 커밋해 버렸다면
+
+푸시 전이면 되돌릴 수 있지만, **푸시했다면 그 값은 유출된 것으로 보고 즉시 폐기(rotate)한다.**
+히스토리를 지워도 이미 당겨 간 사람·포크·CI 로그에는 남는다. 순서는 키 폐기가 먼저고
+히스토리 정리는 그다음이다.
+
 ## 배포
 
 `main` 브랜치 푸시 시 GitHub Actions(`.github/workflows/deploy.yml`)가 자동 실행됩니다.

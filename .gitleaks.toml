@@ -1,0 +1,79 @@
+# gitleaks 설정 — .githooks/pre-commit 과 같은 것을 시크릿으로 본다.
+#
+# 훅과 이 파일은 짝이다. 한쪽 규칙만 고치면 "로컬은 통과하는데 CI 는 막는"
+# 상황이 생긴다. 규칙을 바꿀 때는 반드시 둘 다 바꾼다.
+#
+# 기본 규칙셋(useDefault)은 일부러 켜지 않았다. 켜면 CI 가 훅보다 엄격해져
+# 로컬에서 통과한 커밋이 CI 에서만 깨진다. 커버리지를 넓히고 싶으면
+# 아래 [extend] 주석을 풀고, 훅에도 같은 수준의 검사를 추가한다.
+#
+# [extend]
+# useDefault = true
+
+title = "KoALa secret scanning"
+
+# ── 내용 기반 규칙 (훅의 scan_content 와 1:1) ──────────────────────────────
+
+[[rules]]
+id = "koala-aws-access-key"
+description = "AWS 액세스 키 ID"
+regex = '''A(KIA|SIA)[0-9A-Z]{16}'''
+
+[[rules]]
+id = "koala-private-key"
+description = "개인키 헤더"
+regex = '''-----BEGIN[ A-Z]*PRIVATE KEY-----'''
+
+[[rules]]
+id = "koala-payment-secret-key"
+description = "결제 시크릿 키 (토스/나이스/페이플 계열)"
+regex = '''(test|live)_(sk|ak)_[0-9A-Za-z]{10,}'''
+
+[[rules]]
+id = "koala-google-api-key"
+description = "구글 API 키"
+regex = '''AIza[0-9A-Za-z_\-]{35}'''
+
+[[rules]]
+id = "koala-slack-token"
+description = "슬랙 토큰"
+regex = '''xox[baprs]-[0-9A-Za-z\-]{10,}'''
+
+[[rules]]
+id = "koala-slack-webhook"
+description = "슬랙 웹훅 URL"
+regex = '''hooks\.slack\.com/services/[0-9A-Za-z/+_\-]{20,}'''
+
+[[rules]]
+id = "koala-jwt"
+description = "JWT 형태의 base64 블롭"
+regex = '''eyJ[0-9A-Za-z_\-]{10,}\.[0-9A-Za-z_\-]{10,}\.[0-9A-Za-z_\-]{10,}'''
+
+# ── 파일 이름 기반 규칙 (훅의 check_forbidden_name 과 1:1) ─────────────────
+# 내용과 무관하게 저장소에 있으면 안 되는 파일들.
+
+[[rules]]
+id = "koala-forbidden-env-file"
+description = "커밋 금지 파일 — .env 계열"
+path = '''(^|/)\.env(\.[^/]*)?$'''
+
+[[rules]]
+id = "koala-forbidden-spring-config"
+description = "커밋 금지 파일 — 스프링 로컬/운영 설정"
+path = '''(^|/)application(-local|-prod)\.ya?ml$|(^|/)application(-[^/]*)?\.properties$'''
+
+[[rules]]
+id = "koala-forbidden-keystore"
+description = "커밋 금지 파일 — 키스토어/인증서/서비스계정 키"
+path = '''(^|/)([^/]*\.(jks|keystore|pem|p12|pfx)|keystore\.properties|firebase-service-account\.json|id_(rsa|dsa|ecdsa|ed25519))$'''
+
+# ── 예외 ────────────────────────────────────────────────────────────────────
+# 템플릿 파일(*.example)에는 자리표시자만 들어 있다. 훅도 같은 경로를 건너뛴다.
+# 훅 스크립트와 이 설정 파일 자체는 패턴 문자열을 담고 있어 제외한다.
+[allowlist]
+description = "템플릿·설정 파일 예외"
+paths = [
+  '''.*\.example$''',
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)\.githooks/.*''',
+]
