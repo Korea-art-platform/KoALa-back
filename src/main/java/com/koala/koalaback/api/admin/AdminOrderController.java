@@ -37,14 +37,14 @@ public class AdminOrderController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         if (userId != null) {
-            return ApiResponse.ok(orderService.adminSearchOrders(userId, null, null, pageable));
+            return ApiResponse.ok(orderService.adminSearchOrders(userId, null, pageable));
         }
         return ApiResponse.ok(orderService.getAdminOrders(pageable));
     }
 
     @Operation(summary = "주문 검색 (어드민)", description = """
-            이름·전화번호는 주소줄에 실으면 접속 로그와 리퍼러에 그대로 쌓인다.
-            그래서 본문으로 받는다.
+            전화번호는 주소줄에 실으면 접속 로그와 리퍼러에 그대로 쌓여 본문으로 받는다.
+            주문자 정보가 암호화돼 있어 전화번호 전체 또는 뒷자리 4자리로만 찾는다.
             """)
     @PostMapping("/search")
     public ApiResponse<PageResponse<OrderDto.OrderSummaryResponse>> searchOrders(
@@ -54,17 +54,16 @@ public class AdminOrderController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         boolean hasSearch = req.userId() != null
-                || (req.name()  != null && !req.name().isBlank())
                 || (req.phone() != null && !req.phone().isBlank());
 
         if (!hasSearch) {
             return ApiResponse.ok(orderService.getAdminOrders(pageable));
         }
         return ApiResponse.ok(
-                orderService.adminSearchOrders(req.userId(), req.name(), req.phone(), pageable));
+                orderService.adminSearchOrders(req.userId(), req.phone(), pageable));
     }
 
-    public record AdminOrderSearchRequest(Long userId, String name, String phone) {}
+    public record AdminOrderSearchRequest(Long userId, String phone) {}
 
     @Operation(summary = "주문 상세 (어드민)", description = "고객용과 달리 userId 를 걸지 않고 주문번호만으로 연다.")
     @GetMapping("/{orderNo}")

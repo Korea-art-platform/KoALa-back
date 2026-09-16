@@ -55,14 +55,26 @@ public class Order extends BaseTimeEntity {
     @Column(nullable = false, precision = 13, scale = 2)
     private BigDecimal totalAmount;
 
-    @Column(nullable = false, length = 100)
+    @Convert(converter = com.koala.koalaback.global.crypto.AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String ordererName;
 
-    @Column(nullable = false, length = 255)
+    @Convert(converter = com.koala.koalaback.global.crypto.AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String ordererEmail;
 
-    @Column(nullable = false, length = 30)
+    @Convert(converter = com.koala.koalaback.global.crypto.AesGcmCryptoConverter.class)
+    @Column(nullable = false, length = 512)
     private String ordererPhone;
+
+    @Column(length = 64)
+    private String ordererEmailHash;
+
+    @Column(length = 64)
+    private String ordererPhoneHash;
+
+    @Column(length = 4)
+    private String ordererPhoneLast4;
 
     private LocalDateTime paidAt;
     private LocalDateTime cancelledAt;
@@ -92,6 +104,12 @@ public class Order extends BaseTimeEntity {
         this.ordererName = ordererName;
         this.ordererEmail = ordererEmail;
         this.ordererPhone = ordererPhone;
+    }
+
+    public void applyOrdererIndex(String emailHash, String phoneHash, String phoneLast4) {
+        this.ordererEmailHash = emailHash;
+        this.ordererPhoneHash = phoneHash;
+        this.ordererPhoneLast4 = phoneLast4;
     }
 
     public void markPaid() {

@@ -54,6 +54,7 @@ public class OrderService {
     private final PaymentService paymentService;
     private final CodeGenerator codeGenerator;
     private final PhoneNormalizer phoneNormalizer;
+    private final com.koala.koalaback.global.crypto.PiiIndex piiIndex;
 
     private final OrderTransactionService orderTransactionService;
 
@@ -136,6 +137,10 @@ public class OrderService {
                 .ordererEmail(req.getOrdererEmail())
                 .ordererPhone(phone)
                 .build();
+        order.applyOrdererIndex(
+                piiIndex.ofEmail(req.getOrdererEmail()),
+                piiIndex.ofPhone(phone),
+                piiIndex.last4Of(phone));
         orderRepository.save(order);
 
         List<OrderItem> orderItems = orderLines.stream().map(l -> {
@@ -263,14 +268,17 @@ public class OrderService {
     }
 
     public PageResponse<OrderDto.OrderSummaryResponse> adminSearchOrders(
-            Long userId, String name, String phone, Pageable pageable) {
+            Long userId, String phone, Pageable pageable) {
+        String digits = phone == null ? null : phone.replaceAll("[^0-9]", "");
+        boolean hasPhone = digits != null && !digits.isBlank();
+
+        String phoneHash  = hasPhone && digits.length() > 4
+                ? piiIndex.ofPhone(phoneNormalizer.normalize(phone)) : null;
+        String phoneLast4 = hasPhone && digits.length() == 4 ? digits : null;
+
         return PageResponse.of(
-                orderRepository.searchOrders(
-                        userId,
-                        (name  != null && !name.isBlank())  ? name  : null,
-                        (phone != null && !phone.isBlank()) ? phone : null,
-                        pageable
-                ).map(OrderDto.OrderSummaryResponse::from)
+                orderRepository.searchOrders(userId, phoneHash, phoneLast4, pageable)
+                        .map(OrderDto.OrderSummaryResponse::from)
         );
     }
 
@@ -325,7 +333,10 @@ public class OrderService {
     public int linkGuestOrders(Long userId, String email) {
         if (email == null || email.isBlank()) return 0;
 
-        List<Order> orders = orderRepository.findByOrdererEmailAndUserIsNull(email);
+        String emailHash = piiIndex.ofEmail(email);
+        if (emailHash == null) return 0;
+
+        List<Order> orders = orderRepository.findByOrdererEmailHashAndUserIsNull(emailHash);
         if (orders.isEmpty()) return 0;
 
         var owner = userService.getUserById(userId);
