@@ -2,7 +2,9 @@ package com.koala.koalaback.domain.payment.repository;
 
 import com.koala.koalaback.domain.payment.dto.DailyRevenueProjection;
 import com.koala.koalaback.domain.payment.entity.Payment;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,6 +19,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByPgTransactionId(String pgTransactionId);
 
     Optional<Payment> findTopByOrderIdOrderByCreatedAtDesc(Long orderId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Payment> findTopWithLockByOrderIdOrderByCreatedAtDesc(Long orderId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Payment> findWithLockByPaymentNo(String paymentNo);
 
     List<Payment> findByStatusInOrderByCreatedAtDesc(List<String> statuses);
 

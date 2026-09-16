@@ -76,7 +76,7 @@ public class PaymentTransactionService {
 
     private ConfirmContext beginConfirmInternal(Order order, PaymentDto.ConfirmRequest req) {
         Payment payment = paymentRepository
-                .findTopByOrderIdOrderByCreatedAtDesc(order.getId())
+                .findTopWithLockByOrderIdOrderByCreatedAtDesc(order.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
         if (payment.isInProgress()) {
@@ -146,7 +146,7 @@ public class PaymentTransactionService {
 
     @Transactional
     public CancelContext beginCancel(String paymentNo, PaymentDto.CancelRequest req) {
-        Payment payment = paymentRepository.findByPaymentNo(paymentNo)
+        Payment payment = paymentRepository.findWithLockByPaymentNo(paymentNo)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
         if (!payment.isCaptured()) {
@@ -205,7 +205,7 @@ public class PaymentTransactionService {
 
     @Transactional
     public PaymentDto.PaymentResponse resolveStuckPayment(String paymentNo, String outcome, String memo) {
-        Payment payment = paymentRepository.findByPaymentNo(paymentNo)
+        Payment payment = paymentRepository.findWithLockByPaymentNo(paymentNo)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
         if (!payment.isSettlementPending() && !"CANCEL_IN_PROGRESS".equals(payment.getStatus())) {

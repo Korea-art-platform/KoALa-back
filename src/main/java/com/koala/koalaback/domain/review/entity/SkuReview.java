@@ -121,6 +121,13 @@ public class SkuReview extends BaseTimeEntity {
         this.moderatedAt = LocalDateTime.now();
     }
 
+    public void resetModeration() {
+        this.reviewStatus = "PENDING";
+        this.isVisible = false;
+        this.moderatedByAdmin = null;
+        this.moderatedAt = null;
+    }
+
     public void updateContent(int rating, String title, String content) {
         this.rating = rating;
         this.title = title;

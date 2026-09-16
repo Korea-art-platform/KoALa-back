@@ -104,6 +104,20 @@ public class UserService {
         }
 
         User user = getUserById(userId);
+
+        if (user.getDeletedAt() != null) {
+            refreshTokenRepository.deleteByUserId(String.valueOf(userId));
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        if ("SUSPENDED".equals(user.getStatus())) {
+            refreshTokenRepository.deleteByUserId(String.valueOf(userId));
+            throw new BusinessException(ErrorCode.USER_SUSPENDED);
+        }
+        if ("INACTIVE".equals(user.getStatus())) {
+            refreshTokenRepository.deleteByUserId(String.valueOf(userId));
+            throw new BusinessException(ErrorCode.USER_INACTIVE);
+        }
+
         return issueTokens(user);
     }
 

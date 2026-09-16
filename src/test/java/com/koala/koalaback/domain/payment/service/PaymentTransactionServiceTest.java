@@ -50,7 +50,7 @@ class PaymentTransactionServiceTest {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "READY", BigDecimal.valueOf(53_000));
         given(orderRepository.findByOrderNo("ORD-1")).willReturn(Optional.of(order));
-        given(paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(any()))
+        given(paymentRepository.findTopWithLockByOrderIdOrderByCreatedAtDesc(any()))
                 .willReturn(Optional.of(payment));
 
         PaymentDto.ConfirmRequest req = confirmRequest(BigDecimal.valueOf(1_000));
@@ -69,7 +69,7 @@ class PaymentTransactionServiceTest {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "READY", BigDecimal.valueOf(53_000));
         given(orderRepository.findByOrderNo("ORD-1")).willReturn(Optional.of(order));
-        given(paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(any()))
+        given(paymentRepository.findTopWithLockByOrderIdOrderByCreatedAtDesc(any()))
                 .willReturn(Optional.of(payment));
 
         PaymentTransactionService.ConfirmContext ctx = paymentTransactionService
@@ -86,7 +86,7 @@ class PaymentTransactionServiceTest {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "IN_PROGRESS", BigDecimal.valueOf(53_000));
         given(orderRepository.findByOrderNo("ORD-1")).willReturn(Optional.of(order));
-        given(paymentRepository.findTopByOrderIdOrderByCreatedAtDesc(any()))
+        given(paymentRepository.findTopWithLockByOrderIdOrderByCreatedAtDesc(any()))
                 .willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentTransactionService
@@ -149,7 +149,7 @@ class PaymentTransactionServiceTest {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "CANCEL_IN_PROGRESS", BigDecimal.valueOf(450_000));
         ReflectionTestUtils.setField(payment, "approvedAmount", BigDecimal.valueOf(450_000));
-        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+        given(paymentRepository.findWithLockByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
 
         paymentTransactionService.resolveStuckPayment("PAY-1", "CAPTURED", "샌드박스 취소 거절");
 
@@ -161,7 +161,7 @@ class PaymentTransactionServiceTest {
     void resolveStuck_alreadyDone_rejected() {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "CAPTURED", BigDecimal.valueOf(450_000));
-        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+        given(paymentRepository.findWithLockByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() ->
                 paymentTransactionService.resolveStuckPayment("PAY-1", "FAILED", "x"))
@@ -177,7 +177,7 @@ class PaymentTransactionServiceTest {
     void resolveStuck_unknownOutcome_rejected() {
         Order order = givenOrder();
         Payment payment = givenPayment(order, "IN_DOUBT", BigDecimal.valueOf(450_000));
-        given(paymentRepository.findByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
+        given(paymentRepository.findWithLockByPaymentNo("PAY-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() ->
                 paymentTransactionService.resolveStuckPayment("PAY-1", "NONSENSE", "x"))

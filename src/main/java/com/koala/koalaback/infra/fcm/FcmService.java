@@ -30,7 +30,9 @@ public class FcmService {
             String response = FirebaseMessaging.getInstance().send(message);
             log.info("[FCM] 발송 성공: messageId={}", response);
         } catch (FirebaseMessagingException e) {
-            log.error("[FCM] 발송 실패: token={}, error={}", token, e.getMessage());
+            log.error("[FCM] 발송 실패: token={}, error={}",
+                    token != null && token.length() > 8 ? token.substring(0, 8) + "***" : "***",
+                    e.getMessage());
         }
     }
 }

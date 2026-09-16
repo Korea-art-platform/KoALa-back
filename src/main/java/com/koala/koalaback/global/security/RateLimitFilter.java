@@ -1,6 +1,6 @@
 package com.koala.koalaback.global.security;
 
-import com.koala.koalaback.global.util.IpResolverUtil;
+import com.koala.koalaback.global.util.ClientIpResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +23,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
     private final StringRedisTemplate redisTemplate;
+    private final ClientIpResolver clientIpResolver;
 
     private static final int    SENSITIVE_LIMIT      = 5;
     private static final int    SENSITIVE_WINDOW_SEC = 60;
@@ -30,14 +31,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int    GLOBAL_LIMIT         = 200;
     private static final int    GLOBAL_WINDOW_SEC    = 60;
 
-    private static final Set<String> SENSITIVE_PATHS = Set.of(
+    // 앞부분으로 맞춘다. 하위 경로(비회원 주문 조회, 인증코드 확인)가 빠지면
+    // 주문번호·인증코드를 무제한으로 넣어 볼 수 있다.
+    private static final Set<String> SENSITIVE_PREFIXES = Set.of(
             "/api/v1/auth/login",
             "/api/v1/auth/signup",
-            "/api/v1/auth/password-reset/send",
+            "/api/v1/auth/password-reset",
             "/admin/api/v1/auth/login",
-            // 비회원 주문 조회는 주문번호와 전화번호만 맞으면 남의 주문이 열린다.
-            // 로그인과 같은 급으로 막는다.
-            "/api/v1/orders/guest"
+            "/api/v1/orders/guest",
+            "/api/v1/payments/confirm"
     );
 
     private static final DefaultRedisScript<Long> INCR_SCRIPT = new DefaultRedisScript<>(
@@ -56,8 +58,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String ip   = resolveClientIp(request);
 
-        if (SENSITIVE_PATHS.contains(path)) {
-            if (!isAllowed(ip, "sensitive:" + path, SENSITIVE_LIMIT, SENSITIVE_WINDOW_SEC)) {
+        String sensitive = matchSensitive(path);
+        if (sensitive != null) {
+            if (!isAllowed(ip, "sensitive:" + sensitive, SENSITIVE_LIMIT, SENSITIVE_WINDOW_SEC)) {
                 log.warn("[RateLimit] 민감 경로 초과 — ip={}, path={}", ip, path);
                 writeRateLimitResponse(response);
                 return;
@@ -90,8 +93,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
+    private String matchSensitive(String path) {
+        return SENSITIVE_PREFIXES.stream()
+                .filter(path::startsWith)
+                .findFirst()
+                .orElse(null);
+    }
+
     private String resolveClientIp(HttpServletRequest request) {
-        return IpResolverUtil.resolve(request);
+        return clientIpResolver.resolve(request);
     }
 
     private void writeRateLimitResponse(HttpServletResponse response) throws IOException {

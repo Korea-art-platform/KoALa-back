@@ -11,7 +11,7 @@ import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
 import com.koala.koalaback.global.security.JwtProvider;
 import com.koala.koalaback.global.util.CodeGenerator;
-import com.koala.koalaback.global.util.IpResolverUtil;
+import com.koala.koalaback.global.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +32,9 @@ public class AdminService {
     private final CodeGenerator codeGenerator;
     private final SkuService skuService;
     private final StockService stockService;
+    private final ClientIpResolver clientIpResolver;
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AdminDto.TokenResponse login(AdminDto.LoginRequest req, HttpServletRequest httpReq) {
         Admin admin = adminRepository.findByLoginId(req.getLoginId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ADMIN_LOGIN_FAILED));
@@ -98,7 +99,7 @@ public class AdminService {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        return IpResolverUtil.resolve(request);
+        return clientIpResolver.resolve(request);
     }
 
     private void saveAuditLog(Admin admin, String actionType, String targetType,

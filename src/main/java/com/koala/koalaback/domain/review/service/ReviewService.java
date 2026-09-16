@@ -86,7 +86,17 @@ public class ReviewService {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
+        boolean wasApproved = review.isApproved();
+        int previousRating = review.getRating();
+
         review.updateContent(req.getRating(), req.getTitle(), req.getContent());
+        review.resetModeration();
+
+        if (wasApproved) {
+            skuReviewStatsRepository.findBySkuId(review.getSku().getId())
+                    .ifPresent(stats -> stats.removeReview(previousRating));
+        }
+
         return ReviewDto.ReviewResponse.from(review);
     }
 
@@ -168,7 +178,7 @@ public class ReviewService {
     }
 
     private SkuReview getReviewByCode(String reviewCode) {
-        return skuReviewRepository.findByReviewCode(reviewCode)
+        return skuReviewRepository.findByReviewCodeAndDeletedAtIsNull(reviewCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
     }
 }

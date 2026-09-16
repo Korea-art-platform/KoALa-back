@@ -1,5 +1,6 @@
 package com.koala.koalaback.global.security;
 
+import com.koala.koalaback.global.util.ClientIpResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,15 +19,11 @@ public class AdminIpAllowlistFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_LOGIN_PATH = "/admin/api/v1/auth/login";
 
-    private static final Set<String> TRUSTED_PROXY_PREFIXES = Set.of(
-            "127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.",
-            "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
-            "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "0:0:0:0:0:0:0:1", "::1"
-    );
-
     private final Set<String> allowedIps;
+    private final ClientIpResolver clientIpResolver;
 
-    public AdminIpAllowlistFilter(String allowedIpsConfig) {
+    public AdminIpAllowlistFilter(String allowedIpsConfig, ClientIpResolver clientIpResolver) {
+        this.clientIpResolver = clientIpResolver;
         if (allowedIpsConfig == null || allowedIpsConfig.isBlank()) {
             this.allowedIps = Set.of("127.0.0.1", "0:0:0:0:0:0:0:1", "::1");
         } else {
@@ -74,24 +71,6 @@ public class AdminIpAllowlistFilter extends OncePerRequestFilter {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-
-        boolean fromTrustedProxy = TRUSTED_PROXY_PREFIXES.stream()
-                .anyMatch(remoteAddr::startsWith)
-                || "::1".equals(remoteAddr)
-                || "0:0:0:0:0:0:0:1".equals(remoteAddr);
-
-        if (fromTrustedProxy) {
-            String xForwardedFor = request.getHeader("X-Forwarded-For");
-            if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-                return xForwardedFor.split(",")[0].trim();
-            }
-            String xRealIp = request.getHeader("X-Real-IP");
-            if (xRealIp != null && !xRealIp.isBlank()) {
-                return xRealIp.trim();
-            }
-        }
-
-        return remoteAddr;
+        return clientIpResolver.resolve(request);
     }
 }

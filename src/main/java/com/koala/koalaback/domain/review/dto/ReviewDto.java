@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.review.dto;
 
+import com.koala.koalaback.global.util.PiiMasker;
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.review.entity.SkuReview;
 import com.koala.koalaback.domain.review.entity.SkuReviewMedia;
@@ -120,7 +121,7 @@ public class ReviewDto {
                     .skuCode(r.getSku().getSkuCode())
                     .skuName(r.getSku().getName())
                     .userCode(r.getUser().getUserCode())
-                    .userName(r.getUser().getName())
+                    .userName(PiiMasker.name(r.getUser().getName()))
                     .rating(r.getRating())
                     .title(r.getTitle())
                     .content(r.getContent())

@@ -12,7 +12,7 @@ import java.util.Optional;
 public interface SkuReviewRepository extends JpaRepository<SkuReview, Long> {
     boolean existsByOrderItemId(Long orderItemId);
 
-    Optional<SkuReview> findByReviewCode(String reviewCode);
+    Optional<SkuReview> findByReviewCodeAndDeletedAtIsNull(String reviewCode);
 
     Page<SkuReview> findBySkuIdAndReviewStatusAndDeletedAtIsNull(
             Long skuId, String reviewStatus, Pageable pageable);

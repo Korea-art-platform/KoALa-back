@@ -2,6 +2,7 @@ package com.koala.koalaback.api.admin;
 
 import com.koala.koalaback.domain.user.dto.UserDto;
 import com.koala.koalaback.domain.user.entity.User;
+import com.koala.koalaback.domain.user.repository.RefreshTokenRepository;
 import com.koala.koalaback.domain.user.repository.UserRepository;
 import com.koala.koalaback.global.exception.BusinessException;
 import com.koala.koalaback.global.exception.ErrorCode;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Operation(summary = "회원 목록")
     @GetMapping
@@ -52,6 +54,7 @@ public class AdminUserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         user.suspend();
+        refreshTokenRepository.deleteByUserId(String.valueOf(userId));
         return ApiResponse.ok();
     }
 

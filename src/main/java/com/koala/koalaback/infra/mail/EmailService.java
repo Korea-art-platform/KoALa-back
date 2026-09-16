@@ -1,5 +1,6 @@
 package com.koala.koalaback.infra.mail;
 
+import com.koala.koalaback.global.util.PiiMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -31,7 +32,7 @@ public class EmailService {
             helper.setText(buildOrderConfirmTemplate(data), true);
 
             mailSender.send(message);
-            log.info("주문 완료 이메일 발송 성공: orderNo={}, email={}", data.orderNo(), data.toEmail());
+            log.info("주문 완료 이메일 발송 성공: orderNo={}, email={}", data.orderNo(), PiiMasker.email(data.toEmail()));
         } catch (MessagingException e) {
             log.error("주문 완료 이메일 발송 실패: orderNo={}, error={}", data.orderNo(), e.getMessage());
         }
@@ -155,7 +156,7 @@ public class EmailService {
             helper.setText(buildEmailTemplate(token), true);
 
             mailSender.send(message);
-            log.info("비밀번호 재설정 이메일 발송 성공: {}", toEmail);
+            log.info("비밀번호 재설정 이메일 발송 성공: {}", PiiMasker.email(toEmail));
         } catch (MessagingException e) {
             log.error("이메일 발송 실패: {}", e.getMessage());
         }

@@ -1,6 +1,7 @@
 package com.koala.koalaback.global.config;
 
 import com.koala.koalaback.global.security.AdminIpAllowlistFilter;
+import com.koala.koalaback.global.util.ClientIpResolver;
 import com.koala.koalaback.global.security.JwtFilter;
 import com.koala.koalaback.global.security.PublicCacheHeaderFilter;
 import com.koala.koalaback.global.security.JwtProvider;
@@ -51,7 +52,7 @@ public class SecurityConfig {
     private String adminAllowedIps;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(ClientIpResolver clientIpResolver, HttpSecurity http) throws Exception {
         boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
 
         return http
@@ -154,6 +155,7 @@ public class SecurityConfig {
                         }
 
                         auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
+                        auth.requestMatchers("/actuator/**").hasRole("ADMIN");
                         auth.requestMatchers("/error").permitAll();
                         auth.requestMatchers("/uploads/**").permitAll();
                         auth.requestMatchers("/admin/api/**").hasRole("ADMIN");
@@ -184,7 +186,7 @@ public class SecurityConfig {
                 .addFilterBefore(new PublicCacheHeaderFilter(), JwtFilter.class)
                 .addFilterBefore(rateLimitFilter,
                         JwtFilter.class)
-                .addFilterBefore(new AdminIpAllowlistFilter(adminAllowedIps),
+                .addFilterBefore(new AdminIpAllowlistFilter(adminAllowedIps, clientIpResolver),
                         RateLimitFilter.class)
                 .build();
     }

@@ -32,21 +32,39 @@ public class AdminOrderController {
     @GetMapping
     public ApiResponse<PageResponse<OrderDto.OrderSummaryResponse>> getOrders(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String phone,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        boolean hasSearch = userId != null
-                || (name  != null && !name.isBlank())
-                || (phone != null && !phone.isBlank());
-
-        if (hasSearch) {
-            return ApiResponse.ok(orderService.adminSearchOrders(userId, name, phone, pageable));
+        if (userId != null) {
+            return ApiResponse.ok(orderService.adminSearchOrders(userId, null, null, pageable));
         }
         return ApiResponse.ok(orderService.getAdminOrders(pageable));
     }
+
+    @Operation(summary = "주문 검색 (어드민)", description = """
+            이름·전화번호는 주소줄에 실으면 접속 로그와 리퍼러에 그대로 쌓인다.
+            그래서 본문으로 받는다.
+            """)
+    @PostMapping("/search")
+    public ApiResponse<PageResponse<OrderDto.OrderSummaryResponse>> searchOrders(
+            @RequestBody AdminOrderSearchRequest req,
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        boolean hasSearch = req.userId() != null
+                || (req.name()  != null && !req.name().isBlank())
+                || (req.phone() != null && !req.phone().isBlank());
+
+        if (!hasSearch) {
+            return ApiResponse.ok(orderService.getAdminOrders(pageable));
+        }
+        return ApiResponse.ok(
+                orderService.adminSearchOrders(req.userId(), req.name(), req.phone(), pageable));
+    }
+
+    public record AdminOrderSearchRequest(Long userId, String name, String phone) {}
 
     @Operation(summary = "주문 상세 (어드민)", description = "고객용과 달리 userId 를 걸지 않고 주문번호만으로 연다.")
     @GetMapping("/{orderNo}")
