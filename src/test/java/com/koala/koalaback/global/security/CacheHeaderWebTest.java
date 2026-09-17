@@ -16,6 +16,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 실제 Security 필터 체인을 통과했을 때 캐시 헤더가 살아남는지 본다.
@@ -43,6 +44,15 @@ class CacheHeaderWebTest extends IntegrationTestSupport {
     @DisplayName("배너 응답에 캐시 헤더가 살아남고 no-store 는 없다")
     void bannersCached() throws Exception {
         mvc.perform(get("/api/v1/banners").param("bannerType", "MAIN"))
+                .andExpect(header().string("Cache-Control", containsString("max-age=60")))
+                .andExpect(header().string("Cache-Control", not(containsString("no-store"))));
+    }
+
+    @Test
+    @DisplayName("팝업은 비로그인으로 열리고 캐시된다")
+    void popupsPublicAndCached() throws Exception {
+        mvc.perform(get("/api/v1/popups").param("lang", "ko").param("page", "home"))
+                .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", containsString("max-age=60")))
                 .andExpect(header().string("Cache-Control", not(containsString("no-store"))));
     }

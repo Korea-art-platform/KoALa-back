@@ -41,6 +41,7 @@ class PublicCacheHeaderFilterTest {
     void publicListsCached() throws Exception {
         for (String uri : new String[]{
                 "/api/v1/banners",
+                "/api/v1/popups",
                 "/api/v1/artists",
                 "/api/v1/skus",
                 "/api/v1/skus/genre-counts",

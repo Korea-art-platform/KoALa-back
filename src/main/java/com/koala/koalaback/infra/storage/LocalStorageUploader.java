@@ -33,7 +33,7 @@ public class LocalStorageUploader implements StorageUploader {
 
             "hero", "gallery", "spine_360", "profile", "thumbnail", "detail", "cover",
 
-            "banner", "banners",
+            "banner", "banners", "popups",
 
             "interview_video", "interview_image", "studio", "hands",
 

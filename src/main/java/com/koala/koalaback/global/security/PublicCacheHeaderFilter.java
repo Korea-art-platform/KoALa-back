@@ -66,6 +66,7 @@ public class PublicCacheHeaderFilter extends OncePerRequestFilter {
      */
     private boolean isPublicPath(String uri) {
         if (uri.equals("/api/v1/banners")) return true;
+        if (uri.equals("/api/v1/popups")) return true;
         if (uri.equals("/api/v1/artists")) return true;
         if (uri.equals("/api/v1/skus")) return true;
         if (uri.equals("/api/v1/skus/genre-counts")) return true;

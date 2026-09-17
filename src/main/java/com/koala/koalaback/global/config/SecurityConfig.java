@@ -114,6 +114,7 @@ public class SecurityConfig {
                                 "/api/v1/artists/**",
                                 "/api/v1/skus/**",
                                 "/api/v1/banners/**",
+                                "/api/v1/popups",
                                 "/api/v1/categories",
                                 "/api/v1/notices/**",
                                 "/api/v1/stores/**",
