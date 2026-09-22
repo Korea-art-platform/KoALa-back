@@ -124,7 +124,8 @@ public class SecurityConfig {
                         // 같은 급으로 막는다 — 주문번호를 넣어 보는 것을 막아야 한다.
                         auth.requestMatchers(HttpMethod.POST,
                                 "/api/v1/orders/guest",
-                                "/api/v1/orders/guest/lookup").permitAll();
+                                "/api/v1/orders/guest/lookup",
+                                "/api/v1/orders/guest/orders").permitAll();
 
                         // 비회원이 결제를 마치려면 이 둘을 지나야 한다. 막아 두면
                         // 주문만 서고 결제에서 401 이 난다.

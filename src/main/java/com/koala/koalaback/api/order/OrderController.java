@@ -13,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @Tag(name = "주문", description = "주문 생성·조회·취소. 비회원 주문 포함")
 @RestController
@@ -86,6 +87,19 @@ public class OrderController {
     public ApiResponse<OrderDto.OrderDetailResponse> lookupGuestOrder(
             @Valid @RequestBody OrderDto.GuestLookupRequest req) {
         return ApiResponse.ok(orderService.getGuestOrder(req.getOrderNo(), req.getPhone()));
+    }
+
+    @Operation(summary = "비회원 주문 목록", description = """
+            주문번호를 잃어버린 비회원이 이메일과 휴대폰번호로 자기 주문을 찾는다.
+            둘 다 맞아야 하고, 최근 6개월·스무 건까지만 돌려준다.
+
+            GET 이 아니라 POST 다. 이메일과 번호가 URL 에 남으면 브라우저 기록과 중계
+            서버 로그에 개인정보가 그대로 쌓인다. 반복 시도는 RateLimitFilter 가 막는다.
+            """)
+    @PostMapping("/guest/orders")
+    public ApiResponse<List<OrderDto.OrderSummaryResponse>> listGuestOrders(
+            @Valid @RequestBody OrderDto.GuestOrderListRequest req) {
+        return ApiResponse.ok(orderService.getGuestOrders(req.getEmail(), req.getPhone()));
     }
 
     @Operation(summary = "내 주문 목록", description = "로그인한 사용자의 주문만 돌려준다. 기본 10건씩.")

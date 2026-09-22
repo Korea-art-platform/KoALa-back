@@ -5,6 +5,7 @@ import com.koala.koalaback.domain.order.entity.OrderItem;
 import com.koala.koalaback.domain.order.entity.OrderShipment;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -60,6 +61,21 @@ public class OrderDto {
         @Schema(description = "주문번호", example = "KL-20260907143000-A1B2",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         private String orderNo;
+
+        @NotBlank
+        @Schema(description = "주문할 때 적은 휴대폰번호", example = "010-0000-0000",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private String phone;
+    }
+
+    @Getter
+    @Schema(description = "비회원 주문 목록 조회 요청. 이메일과 휴대폰번호가 모두 맞아야 돌려준다")
+    public static class GuestOrderListRequest {
+        @NotBlank
+        @Email
+        @Schema(description = "주문할 때 적은 이메일", example = "buyer@example.com",
+                requiredMode = Schema.RequiredMode.REQUIRED)
+        private String email;
 
         @NotBlank
         @Schema(description = "주문할 때 적은 휴대폰번호", example = "010-0000-0000",

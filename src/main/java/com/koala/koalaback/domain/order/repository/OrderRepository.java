@@ -19,6 +19,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     /** 가입할 때 붙일 비회원 주문을 찾는다. 이메일은 암호화돼 있어 해시로 찾는다. */
     java.util.List<Order> findByOrdererEmailHashAndUserIsNull(String ordererEmailHash);
 
+    /** 비회원 주문 목록. 이메일과 휴대폰이 모두 맞는 주문만, 최근 것부터 스무 건까지. */
+    List<Order> findTop20ByOrdererEmailHashAndOrdererPhoneHashAndUserIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
+            String ordererEmailHash, String ordererPhoneHash, LocalDateTime createdAfter);
+
     Page<Order> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);

@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,6 +43,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderService {
+    private static final int GUEST_LOOKUP_MONTHS = 6;
+
     private final OrderRepository orderRepository;
     private final VatPolicy vatPolicy;
     private final OrderItemRepository orderItemRepository;
@@ -321,6 +324,26 @@ public class OrderService {
 
         log.info("비회원 주문 조회: orderNo={}", orderNo);
         return OrderDto.OrderDetailResponse.from(order);
+    }
+
+    /**
+     * 비회원 주문 목록.
+     *
+     * 주문번호를 잃어버린 사람이 쓴다. 이메일과 휴대폰번호가 **모두** 맞아야 돌려준다 —
+     * 하나만으로 열면 남의 번호를 넣어 보는 것만으로 주문 존재가 드러난다.
+     * 계정에 붙은 주문은 제외한다. 회원은 로그인해서 보는 자리가 따로 있다.
+     */
+    public List<OrderDto.OrderSummaryResponse> getGuestOrders(String email, String phone) {
+        String emailHash = piiIndex.ofEmail(email);
+        String phoneHash = piiIndex.ofPhone(phoneNormalizer.normalize(phone));
+        if (emailHash == null || phoneHash == null) return List.of();
+
+        List<Order> orders = orderRepository
+                .findTop20ByOrdererEmailHashAndOrdererPhoneHashAndUserIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
+                        emailHash, phoneHash, LocalDateTime.now().minusMonths(GUEST_LOOKUP_MONTHS));
+
+        log.info("비회원 주문 목록 조회: {}건", orders.size());
+        return orders.stream().map(OrderDto.OrderSummaryResponse::from).toList();
     }
 
     /**
