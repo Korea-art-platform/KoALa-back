@@ -4,6 +4,7 @@ import com.koala.koalaback.domain.artist.dto.ArtistDto;
 import com.koala.koalaback.domain.artist.service.ArtistService;
 import com.koala.koalaback.domain.sku.dto.SkuDto;
 import com.koala.koalaback.domain.sku.service.SkuService;
+import com.koala.koalaback.global.share.CdnImageUrl;
 import com.koala.koalaback.global.share.ShareMetaHtml;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,9 @@ public class ShareMetaController {
 
     @Value("${koala.web-base-url:https://koala-art.co.kr}")
     private String webBaseUrl;
+
+    @Value("${koala.cdn-base-url:}")
+    private String cdnBaseUrl;
 
     @Operation(summary = "작품 미리보기", description = """
             작품 주소를 공유했을 때 그 작품의 제목·설명·이미지가 뜨게 한다.
@@ -84,7 +88,7 @@ public class ShareMetaController {
     }
 
     private String image(String url) {
-        return url == null || url.isBlank() ? defaultImage() : url;
+        return url == null || url.isBlank() ? defaultImage() : CdnImageUrl.toCdn(url, cdnBaseUrl);
     }
 
     private String defaultImage() {
