@@ -16,11 +16,21 @@ public final class ShareMetaHtml {
     }
 
     public static String render(String title, String description, String imageUrl, String canonicalUrl, String type) {
+        return render(title, description, imageUrl, canonicalUrl, type, null);
+    }
+
+    /** jsonLd 는 이미 만들어진 JSON 문자열이다. 없으면 넣지 않는다. */
+    public static String render(String title, String description, String imageUrl, String canonicalUrl,
+                                String type, String jsonLd) {
         String safeTitle = escape(title);
         String safeDescription = escape(clamp(description));
         String safeImage = escape(imageUrl);
         String safeUrl = escape(canonicalUrl);
         String safeType = escape(type);
+
+        String structured = jsonLd == null || jsonLd.isBlank()
+                ? ""
+                : "<script type=\"application/ld+json\">" + jsonLd + "</script>";
 
         return """
                 <!doctype html>
@@ -42,6 +52,7 @@ public final class ShareMetaHtml {
                 <meta name="twitter:description" content="%s">
                 <meta name="twitter:image" content="%s">
                 <meta http-equiv="refresh" content="0; url=%s">
+                %s
                 </head>
                 <body>
                 <a href="%s">%s</a>
@@ -51,7 +62,7 @@ public final class ShareMetaHtml {
                 safeTitle, safeDescription, safeUrl, safeType,
                 safeTitle, safeDescription, safeImage, safeUrl,
                 safeTitle, safeDescription, safeImage,
-                safeUrl, safeUrl, safeTitle);
+                safeUrl, structured, safeUrl, safeTitle);
     }
 
     private static String clamp(String value) {
