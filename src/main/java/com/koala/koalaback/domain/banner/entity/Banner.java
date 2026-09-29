@@ -62,6 +62,10 @@ public class Banner extends BaseTimeEntity {
     @Column(name = "title_image_url", length = 700)
     private String titleImageUrl;
 
+    // COMPOSED — 화면이 조립한다 · FULL — 디자인이 끝난 한 장을 그대로 건다
+    @Column(name = "layout_mode", length = 20)
+    private String layoutMode;
+
     @Column(length = 700)
     private String linkUrl;
 
@@ -98,7 +102,7 @@ public class Banner extends BaseTimeEntity {
                   String badge, String description,
                   String imageUrl, String mobileImageUrl, String videoUrl,
                   Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
-                  String titleImageUrl, String linkUrl, String linkTarget,
+                  String titleImageUrl, String layoutMode, String linkUrl, String linkTarget,
                   String bgColor, String textColor, Integer sortOrder,
                   LocalDateTime visibleFrom, LocalDateTime visibleTo, Admin createdByAdmin) {
         this.bannerCode = bannerCode;
@@ -115,6 +119,7 @@ public class Banner extends BaseTimeEntity {
         this.effectImageUrl2 = effectImageUrl2;
         this.effectImageUrl3 = effectImageUrl3;
         this.titleImageUrl = titleImageUrl;
+        this.layoutMode = layoutMode != null ? layoutMode : "COMPOSED";
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget != null ? linkTarget : "SELF";
         this.bgColor = bgColor;
@@ -129,7 +134,7 @@ public class Banner extends BaseTimeEntity {
     public void update(String title, String subtitle, String badge, String description,
                        String imageUrl, String mobileImageUrl, String videoUrl,
                        Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
-                       String titleImageUrl,
+                       String titleImageUrl, String layoutMode,
                        String linkUrl, String linkTarget,
                        String bgColor, String textColor, Integer sortOrder,
                        LocalDateTime visibleFrom, LocalDateTime visibleTo,
@@ -146,6 +151,7 @@ public class Banner extends BaseTimeEntity {
         this.effectImageUrl2 = effectImageUrl2;
         this.effectImageUrl3 = effectImageUrl3;
         this.titleImageUrl = titleImageUrl;
+        this.layoutMode = layoutMode != null ? layoutMode : "COMPOSED";
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget;
         this.bgColor = bgColor;
