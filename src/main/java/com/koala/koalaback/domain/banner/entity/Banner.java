@@ -58,6 +58,10 @@ public class Banner extends BaseTimeEntity {
     @Column(name = "effect_image_url3", length = 700)
     private String effectImageUrl3;
 
+    // 뒤에 크게 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다
+    @Column(name = "title_image_url", length = 700)
+    private String titleImageUrl;
+
     @Column(length = 700)
     private String linkUrl;
 
@@ -94,7 +98,7 @@ public class Banner extends BaseTimeEntity {
                   String badge, String description,
                   String imageUrl, String mobileImageUrl, String videoUrl,
                   Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
-                  String linkUrl, String linkTarget,
+                  String titleImageUrl, String linkUrl, String linkTarget,
                   String bgColor, String textColor, Integer sortOrder,
                   LocalDateTime visibleFrom, LocalDateTime visibleTo, Admin createdByAdmin) {
         this.bannerCode = bannerCode;
@@ -110,6 +114,7 @@ public class Banner extends BaseTimeEntity {
         this.effectImageUrl1 = effectImageUrl1;
         this.effectImageUrl2 = effectImageUrl2;
         this.effectImageUrl3 = effectImageUrl3;
+        this.titleImageUrl = titleImageUrl;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget != null ? linkTarget : "SELF";
         this.bgColor = bgColor;
@@ -124,6 +129,7 @@ public class Banner extends BaseTimeEntity {
     public void update(String title, String subtitle, String badge, String description,
                        String imageUrl, String mobileImageUrl, String videoUrl,
                        Sku sku, String effectImageUrl1, String effectImageUrl2, String effectImageUrl3,
+                       String titleImageUrl,
                        String linkUrl, String linkTarget,
                        String bgColor, String textColor, Integer sortOrder,
                        LocalDateTime visibleFrom, LocalDateTime visibleTo,
@@ -139,6 +145,7 @@ public class Banner extends BaseTimeEntity {
         this.effectImageUrl1 = effectImageUrl1;
         this.effectImageUrl2 = effectImageUrl2;
         this.effectImageUrl3 = effectImageUrl3;
+        this.titleImageUrl = titleImageUrl;
         this.linkUrl = linkUrl;
         this.linkTarget = linkTarget;
         this.bgColor = bgColor;

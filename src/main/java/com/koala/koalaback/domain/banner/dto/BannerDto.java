@@ -52,6 +52,9 @@ public class BannerDto {
         @Size(max = 700)
         private String effectImageUrl3;
 
+        @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
+        private String titleImageUrl;
+
         @Size(max = 700)
         private String linkUrl;
 
@@ -101,6 +104,9 @@ public class BannerDto {
         @Size(max = 700)
         private String effectImageUrl3;
 
+        @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
+        private String titleImageUrl;
+
         @Size(max = 700)
         private String linkUrl;
 
@@ -143,6 +149,9 @@ public class BannerDto {
         private String effectImageUrl1;
         private String effectImageUrl2;
         private String effectImageUrl3;
+
+        @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
+        private String titleImageUrl;
         private String linkUrl;
         private String linkTarget;
         private String bgColor;
@@ -178,6 +187,7 @@ public class BannerDto {
                     .effectImageUrl1(b.getEffectImageUrl1())
                     .effectImageUrl2(b.getEffectImageUrl2())
                     .effectImageUrl3(b.getEffectImageUrl3())
+                    .titleImageUrl(b.getTitleImageUrl())
                     .linkUrl(b.getLinkUrl())
                     .linkTarget(b.getLinkTarget())
                     .bgColor(b.getBgColor())

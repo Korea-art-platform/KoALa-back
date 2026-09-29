@@ -63,6 +63,7 @@ public class BannerService {
                 .effectImageUrl1(req.getEffectImageUrl1())
                 .effectImageUrl2(req.getEffectImageUrl2())
                 .effectImageUrl3(req.getEffectImageUrl3())
+                .titleImageUrl(req.getTitleImageUrl())
                 .linkUrl(req.getLinkUrl())
                 .linkTarget(req.getLinkTarget())
                 .bgColor(req.getBgColor())
@@ -87,6 +88,7 @@ public class BannerService {
                 req.getImageUrl(), req.getMobileImageUrl(), req.getVideoUrl(),
                 findSku(req.getSkuCode()),
                 req.getEffectImageUrl1(), req.getEffectImageUrl2(), req.getEffectImageUrl3(),
+                req.getTitleImageUrl(),
                 req.getLinkUrl(), req.getLinkTarget(),
                 req.getBgColor(), req.getTextColor(),
                 req.getSortOrder(), req.getVisibleFrom(),
