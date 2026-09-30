@@ -26,6 +26,10 @@ public class ArtistDto {
         @NotBlank @Size(max = 150)
         private String name;
 
+        @Size(max = 150)
+        @Schema(description = "영문 이름. 영어 화면에서 쓰며 비우면 한글 이름을 쓴다", example = "Park Junsang")
+        private String nameEn;
+
         @NotBlank @Size(max = 180)
         private String slug;
 
@@ -39,6 +43,10 @@ public class ArtistDto {
     public static class UpdateRequest {
         @NotBlank @Size(max = 150)
         private String name;
+
+        @Size(max = 150)
+        @Schema(description = "영문 이름. 영어 화면에서 쓰며 비우면 한글 이름을 쓴다", example = "Park Junsang")
+        private String nameEn;
 
         @NotBlank @Size(max = 180)
         private String slug;
@@ -123,6 +131,7 @@ public class ArtistDto {
         private Long id;
         private String artistCode;
         private String name;
+        private String nameEn;
         private String slug;
         private String description;
         private String profileImageUrl;
@@ -136,6 +145,7 @@ public class ArtistDto {
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
                     .name(a.getName())
+                    .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
                     .profileImageUrl(a.getProfileImageUrl())
@@ -154,6 +164,7 @@ public class ArtistDto {
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
                     .name(a.getName())
+                    .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
                     .profileImageUrl(a.getProfileImageUrl())
@@ -232,6 +243,7 @@ public class ArtistDto {
         private Long id;
         private String artistCode;
         private String name;
+        private String nameEn;
         private String slug;
         private String description;
         private String artistNote;
@@ -253,6 +265,7 @@ public class ArtistDto {
                     .id(a.getId())
                     .artistCode(a.getArtistCode())
                     .name(a.getName())
+                    .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
                     .artistNote(a.getArtistNote())

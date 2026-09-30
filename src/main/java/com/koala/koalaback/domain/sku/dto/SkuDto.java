@@ -306,6 +306,7 @@ public class SkuDto {
         private String status;
 
         private String artistName;
+        private String artistNameEn;
         private String artistCode;
 
         @Schema(description = "현재 재고. 장부의 증감 합계다", example = "12")
@@ -338,6 +339,7 @@ public class SkuDto {
                     .primaryImageUrl(sku.getPrimaryImageUrl())
                     .status(sku.getStatus())
                     .artistName(sku.getArtist().getName())
+                    .artistNameEn(sku.getArtist().getNameEn())
                     .artistCode(sku.getArtist().getArtistCode())
                     .stockQuantity(stock)
                     .avgRating(stats != null ? stats.getAvgRating() : BigDecimal.ZERO)
@@ -440,6 +442,7 @@ public class SkuDto {
         private LocalDateTime publishedAt;
         private String artistCode;
         private String artistName;
+        private String artistNameEn;
         private Integer stockQuantity;
         private BigDecimal avgRating;
         private Integer reviewCount;
@@ -490,6 +493,7 @@ public class SkuDto {
                     .publishedAt(sku.getPublishedAt())
                     .artistCode(sku.getArtist().getArtistCode())
                     .artistName(sku.getArtist().getName())
+                    .artistNameEn(sku.getArtist().getNameEn())
                     .stockQuantity(stock)
                     .avgRating(stats != null ? stats.getAvgRating() : BigDecimal.ZERO)
                     .reviewCount(stats != null ? stats.getReviewCount() : 0)

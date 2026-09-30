@@ -128,6 +128,7 @@ public class ArtistService {
         Artist artist = Artist.builder()
                 .artistCode(codeGenerator.generateCode())
                 .name(req.getName())
+                .nameEn(req.getNameEn())
                 .slug(req.getSlug())
                 .description(req.getDescription())
                 .artistNote(req.getArtistNote())
@@ -139,7 +140,7 @@ public class ArtistService {
     @Transactional
     public ArtistDto.SummaryResponse updateArtist(String artistCode, ArtistDto.UpdateRequest req) {
         Artist artist = getArtistEntityByCode(artistCode);
-        artist.update(req.getName(), req.getSlug(),
+        artist.update(req.getName(), req.getNameEn(), req.getSlug(),
                 req.getDescription(), req.getArtistNote(), req.getProfileImageUrl());
         return ArtistDto.SummaryResponse.from(artist);
     }

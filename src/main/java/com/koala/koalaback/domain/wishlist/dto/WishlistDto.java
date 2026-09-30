@@ -31,6 +31,7 @@ public class WishlistDto {
         private String status;
 
         private String artistName;
+        private String artistNameEn;
 
         @Schema(description = "찜한 시각")
         private LocalDateTime addedAt;
@@ -45,6 +46,7 @@ public class WishlistDto {
                     .effectivePrice(item.getSku().getEffectivePrice())
                     .status(item.getSku().getStatus())
                     .artistName(item.getSku().getArtist().getName())
+                    .artistNameEn(item.getSku().getArtist().getNameEn())
                     .addedAt(item.getCreatedAt())
                     .build();
         }

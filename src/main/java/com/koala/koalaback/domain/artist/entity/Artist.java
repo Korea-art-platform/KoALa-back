@@ -23,6 +23,9 @@ public class Artist extends BaseTimeEntity {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(name = "name_en", length = 150)
+    private String nameEn;
+
     @Column(nullable = false, unique = true, length = 180)
     private String slug;
 
@@ -57,10 +60,11 @@ public class Artist extends BaseTimeEntity {
     private List<ArtistCareer> careerList = new ArrayList<>();
 
     @Builder
-    public Artist(String artistCode, String name, String slug,
+    public Artist(String artistCode, String name, String nameEn, String slug,
                   String description, String artistNote, String profileImageUrl) {
         this.artistCode      = artistCode;
         this.name            = name;
+        this.nameEn          = blankToNull(nameEn);
         this.slug            = slug;
         this.description     = description;
         this.artistNote      = artistNote;
@@ -80,13 +84,18 @@ public class Artist extends BaseTimeEntity {
         this.commissionRate = rate;
     }
 
-    public void update(String name, String slug,
+    public void update(String name, String nameEn, String slug,
                        String description, String artistNote, String profileImageUrl) {
         this.name            = name;
+        this.nameEn          = blankToNull(nameEn);
         this.slug            = slug;
         this.description     = description;
         this.artistNote      = artistNote;
         this.profileImageUrl = profileImageUrl;
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     public void updateProfileImage(String url) {
