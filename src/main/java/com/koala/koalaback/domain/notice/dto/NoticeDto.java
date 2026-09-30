@@ -3,6 +3,7 @@ package com.koala.koalaback.domain.notice.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.notice.entity.Notice;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,6 +20,13 @@ public class NoticeDto {
         private String content;
 
         private Boolean isPinned;
+
+        @Size(max = 200)
+        @Schema(description = "제목 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String titleEn;
+
+        @Schema(description = "본문 영문(HTML). 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String contentEn;
     }
 
     @Getter
@@ -31,6 +39,13 @@ public class NoticeDto {
         private String content;
 
         private Boolean isPinned;
+
+        @Size(max = 200)
+        @Schema(description = "제목 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String titleEn;
+
+        @Schema(description = "본문 영문(HTML). 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String contentEn;
     }
 
     @Getter
@@ -41,6 +56,8 @@ public class NoticeDto {
         private String noticeCode;
         private String title;
         private String content;
+        private String titleEn;
+        private String contentEn;
         private Boolean isPinned;
         private Boolean isActive;
         private String createdByAdminName;
@@ -53,6 +70,8 @@ public class NoticeDto {
                     .noticeCode(n.getNoticeCode())
                     .title(n.getTitle())
                     .content(n.getContent())
+                    .titleEn(n.getTitleEn())
+                    .contentEn(n.getContentEn())
                     .isPinned(n.getIsPinned())
                     .isActive(n.getIsActive())
                     .createdByAdminName(n.getCreatedByAdmin() != null ? n.getCreatedByAdmin().getName() : null)

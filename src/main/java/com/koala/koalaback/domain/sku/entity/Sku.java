@@ -74,6 +74,24 @@ public class Sku extends BaseTimeEntity {
     @Lob
     private String packagingDescription;
 
+    @Lob
+    @Column(name = "description_en", columnDefinition = "LONGTEXT")
+    private String descriptionEn;
+
+    @Column(name = "material_en", length = 300)
+    private String materialEn;
+
+    @Lob
+    @Column(name = "material_description_en", columnDefinition = "LONGTEXT")
+    private String materialDescriptionEn;
+
+    @Column(name = "packaging_title_en", length = 200)
+    private String packagingTitleEn;
+
+    @Lob
+    @Column(name = "packaging_description_en", columnDefinition = "LONGTEXT")
+    private String packagingDescriptionEn;
+
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -241,6 +259,20 @@ public class Sku extends BaseTimeEntity {
 
     public BigDecimal getEffectivePrice() {
         return salePrice != null ? salePrice : listPrice;
+    }
+
+    public void changeEnglishTexts(String descriptionEn, String materialEn, String materialDescriptionEn,
+                                   String packagingTitleEn, String packagingDescriptionEn) {
+        this.descriptionEn          = englishOr(this.descriptionEn, descriptionEn);
+        this.materialEn             = englishOr(this.materialEn, materialEn);
+        this.materialDescriptionEn  = englishOr(this.materialDescriptionEn, materialDescriptionEn);
+        this.packagingTitleEn       = englishOr(this.packagingTitleEn, packagingTitleEn);
+        this.packagingDescriptionEn = englishOr(this.packagingDescriptionEn, packagingDescriptionEn);
+    }
+
+    private static String englishOr(String current, String incoming) {
+        if (incoming == null) return current;
+        return incoming.isBlank() ? null : incoming.trim();
     }
 
     public String getNameEn() {

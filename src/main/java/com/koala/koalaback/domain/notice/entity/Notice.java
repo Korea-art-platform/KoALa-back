@@ -25,6 +25,13 @@ public class Notice extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "title_en", length = 200)
+    private String titleEn;
+
+    @Lob
+    @Column(name = "content_en", columnDefinition = "TEXT")
+    private String contentEn;
+
     @Column(nullable = false)
     private Boolean isPinned = false;
 
@@ -57,6 +64,16 @@ public class Notice extends BaseTimeEntity {
         this.content = content;
         this.isPinned = isPinned != null && isPinned;
         this.updatedByAdmin = updatedByAdmin;
+    }
+
+    public void changeEnglish(String titleEn, String contentEn) {
+        this.titleEn   = englishOr(this.titleEn, titleEn);
+        this.contentEn = englishOr(this.contentEn, contentEn);
+    }
+
+    private static String englishOr(String current, String incoming) {
+        if (incoming == null) return current;
+        return incoming.isBlank() ? null : incoming.trim();
     }
 
     public void activate()   { this.isActive = true; }

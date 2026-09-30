@@ -37,6 +37,14 @@ public class Artist extends BaseTimeEntity {
     @Column(columnDefinition = "LONGTEXT")
     private String artistNote;
 
+    @Lob
+    @Column(name = "description_en", columnDefinition = "LONGTEXT")
+    private String descriptionEn;
+
+    @Lob
+    @Column(name = "artist_note_en", columnDefinition = "LONGTEXT")
+    private String artistNoteEn;
+
     @Column(length = 700)
     private String profileImageUrl;
 
@@ -92,6 +100,16 @@ public class Artist extends BaseTimeEntity {
         this.description     = description;
         this.artistNote      = artistNote;
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void changeEnglishTexts(String descriptionEn, String artistNoteEn) {
+        this.descriptionEn = englishOr(this.descriptionEn, descriptionEn);
+        this.artistNoteEn  = englishOr(this.artistNoteEn, artistNoteEn);
+    }
+
+    private static String englishOr(String current, String incoming) {
+        if (incoming == null) return current;
+        return incoming.isBlank() ? null : incoming.trim();
     }
 
     private static String blankToNull(String v) {

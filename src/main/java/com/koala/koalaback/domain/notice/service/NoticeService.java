@@ -58,6 +58,7 @@ public class NoticeService {
                 .isPinned(req.getIsPinned())
                 .createdByAdmin(admin)
                 .build();
+        notice.changeEnglish(req.getTitleEn(), req.getContentEn());
         return NoticeDto.NoticeResponse.from(noticeRepository.save(notice));
     }
 
@@ -67,6 +68,7 @@ public class NoticeService {
         Admin admin = adminService.getAdminById(adminId);
         Notice notice = getNoticeByCode(noticeCode);
         notice.update(req.getTitle(), req.getContent(), req.getIsPinned(), admin);
+        notice.changeEnglish(req.getTitleEn(), req.getContentEn());
         return NoticeDto.NoticeResponse.from(notice);
     }
 

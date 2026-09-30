@@ -134,6 +134,7 @@ public class ArtistService {
                 .artistNote(req.getArtistNote())
                 .profileImageUrl(req.getProfileImageUrl())
                 .build();
+        artist.changeEnglishTexts(req.getDescriptionEn(), req.getArtistNoteEn());
         return ArtistDto.SummaryResponse.from(artistRepository.save(artist));
     }
 
@@ -142,6 +143,7 @@ public class ArtistService {
         Artist artist = getArtistEntityByCode(artistCode);
         artist.update(req.getName(), req.getNameEn(), req.getSlug(),
                 req.getDescription(), req.getArtistNote(), req.getProfileImageUrl());
+        artist.changeEnglishTexts(req.getDescriptionEn(), req.getArtistNoteEn());
         return ArtistDto.SummaryResponse.from(artist);
     }
 
@@ -298,6 +300,7 @@ public class ArtistService {
                 .content(req.getContent())
                 .sortOrder(nextOrder)
                 .build();
+        career.changeContentEn(req.getContentEn());
         return ArtistDto.CareerResponse.from(artistCareerRepository.save(career));
     }
 
@@ -310,6 +313,7 @@ public class ArtistService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         career.update(req.getCategory(), req.getYear(), req.getContent(),
                 req.getSortOrder() != null ? req.getSortOrder() : career.getSortOrder());
+        career.changeContentEn(req.getContentEn());
         return ArtistDto.CareerResponse.from(career);
     }
 

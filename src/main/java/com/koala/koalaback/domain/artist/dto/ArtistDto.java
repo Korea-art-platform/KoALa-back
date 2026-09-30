@@ -36,6 +36,12 @@ public class ArtistDto {
         private String description;
         private String artistNote;
         private String profileImageUrl;
+
+        @Schema(description = "작가 소개 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
+
+        @Schema(description = "작가 노트 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String artistNoteEn;
     }
 
     @Getter
@@ -54,6 +60,12 @@ public class ArtistDto {
         private String description;
         private String artistNote;
         private String profileImageUrl;
+
+        @Schema(description = "작가 소개 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
+
+        @Schema(description = "작가 노트 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String artistNoteEn;
     }
 
     @Getter
@@ -106,6 +118,10 @@ public class ArtistDto {
         @NotBlank @Size(max = 1000)
         private String content;
 
+        @Size(max = 1000)
+        @Schema(description = "약력 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String contentEn;
+
         private Integer sortOrder;
     }
 
@@ -121,6 +137,10 @@ public class ArtistDto {
         @NotBlank @Size(max = 1000)
         private String content;
 
+        @Size(max = 1000)
+        @Schema(description = "약력 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String contentEn;
+
         private Integer sortOrder;
     }
 
@@ -134,6 +154,7 @@ public class ArtistDto {
         private String nameEn;
         private String slug;
         private String description;
+        private String descriptionEn;
         private String profileImageUrl;
         private Boolean isActive;
         private List<MediaResponse> mediaList;
@@ -148,6 +169,7 @@ public class ArtistDto {
                     .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
+                    .descriptionEn(a.getDescriptionEn())
                     .profileImageUrl(a.getProfileImageUrl())
                     .isActive(a.getIsActive())
                     .mediaList(List.of())
@@ -167,6 +189,7 @@ public class ArtistDto {
                     .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
+                    .descriptionEn(a.getDescriptionEn())
                     .profileImageUrl(a.getProfileImageUrl())
                     .isActive(a.getIsActive())
                     .mediaList(media.stream().map(MediaResponse::from).toList())
@@ -246,7 +269,9 @@ public class ArtistDto {
         private String nameEn;
         private String slug;
         private String description;
+        private String descriptionEn;
         private String artistNote;
+        private String artistNoteEn;
         private String profileImageUrl;
         private Boolean isActive;
         private List<MediaResponse>  mediaList;
@@ -268,7 +293,9 @@ public class ArtistDto {
                     .nameEn(a.getNameEn())
                     .slug(a.getSlug())
                     .description(a.getDescription())
+                    .descriptionEn(a.getDescriptionEn())
                     .artistNote(a.getArtistNote())
+                    .artistNoteEn(a.getArtistNoteEn())
                     .profileImageUrl(a.getProfileImageUrl())
                     .isActive(a.getIsActive())
                     .mediaList(media.stream().map(MediaResponse::from).toList())
@@ -288,6 +315,7 @@ public class ArtistDto {
         private String category;
         private Integer year;
         private String content;
+        private String contentEn;
         private Integer sortOrder;
 
         public static CareerResponse from(ArtistCareer c) {
@@ -296,6 +324,7 @@ public class ArtistDto {
                     .category(c.getCategory())
                     .year(c.getYear())
                     .content(c.getContent())
+                    .contentEn(c.getContentEn())
                     .sortOrder(c.getSortOrder())
                     .build();
         }

@@ -190,6 +190,8 @@ public class SkuService {
                 .weightKg(req.getWeightKg())
                 .weightG(req.getWeightG())
                 .build();
+        sku.changeEnglishTexts(req.getDescriptionEn(), req.getMaterialEn(), req.getMaterialDescriptionEn(),
+                req.getPackagingTitleEn(), req.getPackagingDescriptionEn());
         skuRepository.save(sku);
         skuReviewStatsRepository.save(SkuReviewStats.builder().sku(sku).build());
         return toSummary(sku);
@@ -216,6 +218,8 @@ public class SkuService {
                 req.getModelEn(), req.getSubModelNameEn(), req.getColor(), req.getColorEn(),
                 req.getWidthCm(), req.getHeightCm(), req.getDepthCm(),
                 req.getWeightKg(), req.getWeightG());
+        sku.changeEnglishTexts(req.getDescriptionEn(), req.getMaterialEn(), req.getMaterialDescriptionEn(),
+                req.getPackagingTitleEn(), req.getPackagingDescriptionEn());
         return toSummary(sku);
     }
 

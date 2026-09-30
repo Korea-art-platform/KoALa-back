@@ -50,6 +50,17 @@ public class PartnerStore extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "name_en", length = 200)
+    private String nameEn;
+
+    @Convert(converter = AesGcmCryptoConverter.class)
+    @Column(name = "address_en", length = 1024)
+    private String addressEn;
+
+    @Lob
+    @Column(name = "description_en", columnDefinition = "TEXT")
+    private String descriptionEn;
+
     @Column(length = 700)
     private String mapUrl;
 
@@ -108,6 +119,17 @@ public class PartnerStore extends BaseTimeEntity {
         this.snsUrl = snsUrl;
         this.imageUrl = imageUrl;
         if (sortOrder != null) this.sortOrder = sortOrder;
+    }
+
+    public void changeEnglish(String nameEn, String addressEn, String descriptionEn) {
+        this.nameEn        = englishOr(this.nameEn, nameEn);
+        this.addressEn     = englishOr(this.addressEn, addressEn);
+        this.descriptionEn = englishOr(this.descriptionEn, descriptionEn);
+    }
+
+    private static String englishOr(String current, String incoming) {
+        if (incoming == null) return current;
+        return incoming.isBlank() ? null : incoming.trim();
     }
 
     public void changeSortOrder(int sortOrder) {

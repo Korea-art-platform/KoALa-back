@@ -25,6 +25,9 @@ public class ArtistCareer {
     @Column(nullable = false, length = 1000)
     private String content;
 
+    @Column(name = "content_en", length = 1000)
+    private String contentEn;
+
     @Column(nullable = false)
     private Integer sortOrder;
 
@@ -39,6 +42,11 @@ public class ArtistCareer {
         this.content   = content;
         this.sortOrder = sortOrder;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void changeContentEn(String contentEn) {
+        if (contentEn == null) return;
+        this.contentEn = contentEn.isBlank() ? null : contentEn.trim();
     }
 
     public void update(String category, Integer year, String content, Integer sortOrder) {

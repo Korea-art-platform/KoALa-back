@@ -7,6 +7,7 @@ import com.koala.koalaback.domain.sku.entity.SkuReviewStats;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -69,6 +70,15 @@ public class SkuDto {
         private String materialDescription;
         private String packagingTitle;
         private String packagingDescription;
+
+        @Schema(description = "영문 글. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
+        @Size(max = 300)
+        private String materialEn;
+        private String materialDescriptionEn;
+        @Size(max = 200)
+        private String packagingTitleEn;
+        private String packagingDescriptionEn;
 
         @NotNull @PositiveOrZero
         @Schema(description = "정가. 부가세를 뺀 공급가액이다. 고객 화면에는 여기에 10% 를 더한 값이 보인다",
@@ -150,6 +160,15 @@ public class SkuDto {
         private String materialDescription;
         private String packagingTitle;
         private String packagingDescription;
+
+        @Schema(description = "영문 글. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
+        @Size(max = 300)
+        private String materialEn;
+        private String materialDescriptionEn;
+        @Size(max = 200)
+        private String packagingTitleEn;
+        private String packagingDescriptionEn;
 
         @NotNull @PositiveOrZero
         @Schema(description = "정가. 부가세를 뺀 공급가액이다. 고객 화면에는 여기에 10% 를 더한 값이 보인다",
@@ -295,9 +314,11 @@ public class SkuDto {
         private Boolean isLimitedEdition;
 
         private String description;
+        private String descriptionEn;
 
         @Schema(description = "소재. 스토어 카드에 한 줄로 보인다", example = "도자기/세라믹")
         private String material;
+        private String materialEn;
 
         @Schema(description = "대표 이미지 주소")
         private String primaryImageUrl;
@@ -335,7 +356,9 @@ public class SkuDto {
                     .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .description(sku.getDescription())
+                    .descriptionEn(sku.getDescriptionEn())
                     .material(sku.getMaterial())
+                    .materialEn(sku.getMaterialEn())
                     .primaryImageUrl(sku.getPrimaryImageUrl())
                     .status(sku.getStatus())
                     .artistName(sku.getArtist().getName())
@@ -366,6 +389,7 @@ public class SkuDto {
         private String colorEn;
         private String slug;
         private String description;
+        private String descriptionEn;
         private String skuType;
         private String mainCategory;
         private String genre;
@@ -373,6 +397,10 @@ public class SkuDto {
         private String materialDescription;
         private String packagingTitle;
         private String packagingDescription;
+        private String materialEn;
+        private String materialDescriptionEn;
+        private String packagingTitleEn;
+        private String packagingDescriptionEn;
         private String currency;
         @Schema(description = "정가. 부가세를 뺀 공급가액이다. 고객 화면에 그대로 쓰면 안 된다",
                 example = "300000")
@@ -463,6 +491,7 @@ public class SkuDto {
                     .colorEn(sku.getColorEn())
                     .slug(sku.getSlug())
                     .description(sku.getDescription())
+                    .descriptionEn(sku.getDescriptionEn())
                     .skuType(sku.getSkuType())
                     .mainCategory(sku.getMainCategory())
                     .genre(sku.getGenre())
@@ -470,6 +499,10 @@ public class SkuDto {
                     .materialDescription(sku.getMaterialDescription())
                     .packagingTitle(sku.getPackagingTitle())
                     .packagingDescription(sku.getPackagingDescription())
+                    .materialEn(sku.getMaterialEn())
+                    .materialDescriptionEn(sku.getMaterialDescriptionEn())
+                    .packagingTitleEn(sku.getPackagingTitleEn())
+                    .packagingDescriptionEn(sku.getPackagingDescriptionEn())
                     .currency(sku.getCurrency())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())

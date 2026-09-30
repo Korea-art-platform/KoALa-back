@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import com.koala.koalaback.domain.store.entity.PartnerStore;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -36,6 +37,17 @@ public class PartnerStoreDto {
         private String mapUrl;
         private String snsUrl;
         private String imageUrl;
+
+        @Size(max = 200)
+        @Schema(description = "매장 이름 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String nameEn;
+
+        @Size(max = 300)
+        @Schema(description = "영문 주소 한 줄. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String addressEn;
+
+        @Schema(description = "매장 소개 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
         private Integer sortOrder;
     }
 
@@ -56,6 +68,17 @@ public class PartnerStoreDto {
         private String mapUrl;
         private String snsUrl;
         private String imageUrl;
+
+        @Size(max = 200)
+        @Schema(description = "매장 이름 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String nameEn;
+
+        @Size(max = 300)
+        @Schema(description = "영문 주소 한 줄. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String addressEn;
+
+        @Schema(description = "매장 소개 영문. 보내지 않으면 그대로 두고, 빈 값이면 지운다")
+        private String descriptionEn;
         private Integer sortOrder;
     }
 
@@ -76,6 +99,10 @@ public class PartnerStoreDto {
         private String mapUrl;
         private String snsUrl;
         private String imageUrl;
+
+        private String nameEn;
+        private String addressEn;
+        private String descriptionEn;
         private Boolean isActive;
         private Integer sortOrder;
         private LocalDateTime createdAt;
@@ -93,6 +120,9 @@ public class PartnerStoreDto {
                     .phone2(s.getPhone2())
                     .email(s.getEmail())
                     .description(s.getDescription())
+                    .nameEn(s.getNameEn())
+                    .addressEn(s.getAddressEn())
+                    .descriptionEn(s.getDescriptionEn())
                     .mapUrl(s.getMapUrl())
                     .snsUrl(s.getSnsUrl())
                     .imageUrl(s.getImageUrl())
