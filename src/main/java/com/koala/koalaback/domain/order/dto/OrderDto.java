@@ -24,7 +24,7 @@ public class OrderDto {
         @Schema(description = "주문자 이름", example = "김주문", requiredMode = Schema.RequiredMode.REQUIRED)
         private String ordererName;
 
-        @NotBlank
+        @NotBlank @Email
         @Schema(description = "주문자 이메일. 나중에 같은 이메일로 가입하면 비회원 주문이 그 계정에 붙는다",
                 example = "buyer@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
         private String ordererEmail;
