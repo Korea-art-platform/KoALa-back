@@ -248,11 +248,7 @@ public class SkuService {
     }
 
     private static String joinSpeciesAndModel(String species, String model, String separator) {
-        String s = species == null ? "" : species.trim();
-        String m = model == null ? "" : model.trim();
-        if (m.isEmpty()) return s;
-        if (s.isEmpty() || m.toLowerCase().contains(s.toLowerCase())) return m;
-        return s + separator + m;
+        return Sku.joinNames(species, model, separator);
     }
 
     /** 같은 모델의 다른 색이 같은 슬러그를 만들 수 있어 뒤에 번호를 붙인다. */

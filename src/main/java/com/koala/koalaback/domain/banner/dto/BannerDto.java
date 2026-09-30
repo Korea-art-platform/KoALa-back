@@ -144,6 +144,7 @@ public class BannerDto {
         private String videoUrl;
         private String skuCode;
         private String skuName;
+        private String skuNameEn;
         private String skuModel;
         private String artistCode;
         private String artistName;
@@ -187,6 +188,7 @@ public class BannerDto {
                     .videoUrl(b.getVideoUrl())
                     .skuCode(sku != null ? sku.getSkuCode() : null)
                     .skuName(sku != null ? sku.getName() : null)
+                    .skuNameEn(sku != null ? sku.getNameEn() : null)
                     .skuModel(sku != null ? sku.getModel() : null)
                     .artistCode(sku != null ? sku.getArtist().getArtistCode() : null)
                     .artistName(sku != null ? sku.getArtist().getName() : null)

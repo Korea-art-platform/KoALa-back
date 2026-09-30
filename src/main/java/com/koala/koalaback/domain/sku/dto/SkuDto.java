@@ -242,8 +242,14 @@ public class SkuDto {
         @Schema(description = "상품명. 종·모델 이름으로 만든 값이며 카드 제목으로 쓴다")
         private String name;
 
+        @Schema(description = "영문 상품명. 영문 종·모델로 만든 값이며 비어 있으면 null")
+        private String nameEn;
+
         @Schema(description = "종 이름. 같은 종끼리 묶을 때 쓴다")
         private String model;
+
+        @Schema(description = "영문 종 이름")
+        private String modelEn;
 
         @Schema(description = "URL 슬러그")
         private String slug;
@@ -313,7 +319,9 @@ public class SkuDto {
                     .id(sku.getId())
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .nameEn(sku.getNameEn())
                     .model(sku.getModel())
+                    .modelEn(sku.getModelEn())
                     .slug(sku.getSlug())
                     .skuType(sku.getSkuType())
                     .mainCategory(sku.getMainCategory())
@@ -347,6 +355,7 @@ public class SkuDto {
         @Schema(example = "A1B2C3D4E5F60718")
         private String skuCode;
         private String name;
+        private String nameEn;
         private String model;
         private String subModelName;
         private String modelEn;
@@ -442,6 +451,7 @@ public class SkuDto {
                     .id(sku.getId())
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .nameEn(sku.getNameEn())
                     .model(sku.getModel())
                     .subModelName(sku.getSubModelName())
                     .modelEn(sku.getModelEn())

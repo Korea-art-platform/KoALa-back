@@ -242,4 +242,17 @@ public class Sku extends BaseTimeEntity {
     public BigDecimal getEffectivePrice() {
         return salePrice != null ? salePrice : listPrice;
     }
+
+    public String getNameEn() {
+        String en = joinNames(modelEn, subModelNameEn, " ");
+        return en.isEmpty() ? null : en;
+    }
+
+    public static String joinNames(String species, String model, String separator) {
+        String s = species == null ? "" : species.trim();
+        String m = model == null ? "" : model.trim();
+        if (m.isEmpty()) return s;
+        if (s.isEmpty() || m.toLowerCase().contains(s.toLowerCase())) return m;
+        return s + separator + m;
+    }
 }

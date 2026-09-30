@@ -19,6 +19,7 @@ public class WishlistDto {
         private String skuCode;
 
         private String skuName;
+        private String skuNameEn;
         private String primaryImageUrl;
 
         @Schema(description = "적용 공급가액. 부가세를 뺀 금액이라 화면에 그대로 쓰면 안 된다",
@@ -39,6 +40,7 @@ public class WishlistDto {
                     .id(item.getId())
                     .skuCode(item.getSku().getSkuCode())
                     .skuName(item.getSku().getName())
+                    .skuNameEn(item.getSku().getNameEn())
                     .primaryImageUrl(item.getSku().getPrimaryImageUrl())
                     .effectivePrice(item.getSku().getEffectivePrice())
                     .status(item.getSku().getStatus())

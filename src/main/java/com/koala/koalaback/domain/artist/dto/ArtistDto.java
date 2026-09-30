@@ -171,6 +171,7 @@ public class ArtistDto {
     public static class FeaturedSkuInfo {
         private String skuCode;
         private String name;
+        private String nameEn;
         private BigDecimal listPrice;
         private BigDecimal salePrice;
         /** 화면에 보이는 금액 — 공급가액 + 부가세 */
@@ -183,6 +184,7 @@ public class ArtistDto {
             return FeaturedSkuInfo.builder()
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .nameEn(sku.getNameEn())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
                     .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
@@ -199,6 +201,7 @@ public class ArtistDto {
     public static class ArtistSkuItem {
         private String skuCode;
         private String name;
+        private String nameEn;
         private BigDecimal listPrice;
         private BigDecimal salePrice;
         /** 화면에 보이는 금액 — 공급가액 + 부가세 */
@@ -211,6 +214,7 @@ public class ArtistDto {
             return ArtistSkuItem.builder()
                     .skuCode(sku.getSkuCode())
                     .name(sku.getName())
+                    .nameEn(sku.getNameEn())
                     .listPrice(sku.getListPrice())
                     .salePrice(sku.getSalePrice())
                     .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))

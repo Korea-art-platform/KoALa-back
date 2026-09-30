@@ -119,6 +119,7 @@ public class CartDto {
         private String skuCode;
 
         private String skuName;
+        private String skuNameEn;
         private String primaryImageUrl;
 
         @Schema(example = "2")
@@ -145,6 +146,7 @@ public class CartDto {
                     .id(item.getId())
                     .skuCode(item.getSku().getSkuCode())
                     .skuName(item.getSku().getName())
+                    .skuNameEn(item.getSku().getNameEn())
                     .primaryImageUrl(item.getSku().getPrimaryImageUrl())
                     .quantity(item.getQuantity())
                     .unitPrice(line.unitGross())
