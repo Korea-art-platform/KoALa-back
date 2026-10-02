@@ -13,7 +13,8 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNo(String orderNo);
-
+    Optional<Order> findByPayToken(String payToken);
+    List<Order> findTop50ByOrderChannelOrderByCreatedAtDesc(String orderChannel);
     Optional<Order> findByOrderNoAndUserId(String orderNo, Long userId);
 
     /** 가입할 때 붙일 비회원 주문을 찾는다. 이메일은 암호화돼 있어 해시로 찾는다. */

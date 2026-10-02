@@ -79,6 +79,11 @@ public class Order extends BaseTimeEntity {
     private LocalDateTime paidAt;
     private LocalDateTime cancelledAt;
 
+    @Column(nullable = false, length = 20)
+    private String orderChannel = "ONLINE";
+    @Column(length = 40, unique = true)
+    private String payToken;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
@@ -112,10 +117,14 @@ public class Order extends BaseTimeEntity {
         this.ordererPhoneLast4 = phoneLast4;
     }
 
-    public void markPaid() {
+    public void markPaid(){
         this.orderStatus = "PAID";
         this.paymentStatus = "PAID";
         this.paidAt = LocalDateTime.now();
+        if(isOnSite()){
+            this.orderStatus = "DELIVERED";
+            if(shipment != null) shipment.markDelivered();
+        }
     }
 
     public void markPreparing()  { this.orderStatus = "PREPARING"; }
@@ -140,6 +149,11 @@ public class Order extends BaseTimeEntity {
     /** 비회원인가 */
     public boolean isGuest() { return this.user == null; }
 
+    public void markOnSite(String payToken){
+        this.orderChannel = "ON_SITE";
+        this.payToken = payToken;
+    }
+    public boolean isOnSite(){return "ON_SITE".equals(orderChannel);}
     /**
      * 비회원으로 한 주문을 계정에 붙인다.
      *

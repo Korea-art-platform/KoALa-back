@@ -19,6 +19,12 @@ public class AdminIpAllowlistFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_LOGIN_PATH = "/admin/api/v1/auth/login";
 
+    private static final String ONSITE_PAYMENT_PREFIX = "/admin/api/v1/onsite-payments";
+
+    private static final Set<String> OFFSITE_ALLOWED_PATHS = Set.of(
+            "/admin/api/v1/me",
+            "/admin/api/v1/auth/logout");
+
     private final Set<String> allowedIps;
     private final ClientIpResolver clientIpResolver;
 
@@ -45,7 +51,8 @@ public class AdminIpAllowlistFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (uri.equals(ADMIN_LOGIN_PATH)) {
+        if (uri.equals(ADMIN_LOGIN_PATH) || uri.startsWith(ONSITE_PAYMENT_PREFIX)
+                || OFFSITE_ALLOWED_PATHS.contains(uri)) {
             filterChain.doFilter(request, response);
             return;
         }

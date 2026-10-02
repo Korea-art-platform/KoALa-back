@@ -165,6 +165,7 @@ public class OrderDto {
 
         @Schema(description = "주문 상태. PENDING_PAYMENT(결제 대기) · PAID(결제 완료) · PREPARING(준비중) · SHIPPED(배송중) · DELIVERED(배송완료) · CANCELLED(취소)", example = "PAID")
         private String orderStatus;
+        private String orderChannel;
 
         @Schema(description = "결제 상태. READY(대기) · PAID(완료) · CANCELLED(취소) · FAILED(실패)", example = "PAID")
         private String paymentStatus;
@@ -196,6 +197,7 @@ public class OrderDto {
                     .userId(o.getUser() != null ? o.getUser().getId() : null)
                     .orderNo(o.getOrderNo())
                     .orderStatus(o.getOrderStatus())
+                    .orderChannel(o.getOrderChannel())
                     .paymentStatus(o.getPaymentStatus())
                     .totalAmount(o.getTotalAmount())
                     .itemCount(items.size())
@@ -219,6 +221,7 @@ public class OrderDto {
 
         @Schema(description = "주문 상태. PENDING_PAYMENT(결제 대기) · PAID(결제 완료) · PREPARING(준비중) · SHIPPED(배송중) · DELIVERED(배송완료) · CANCELLED(취소)", example = "PAID")
         private String orderStatus;
+        private String orderChannel;
 
         @Schema(description = "결제 상태. READY(대기) · PAID(완료) · CANCELLED(취소) · FAILED(실패)", example = "PAID")
         private String paymentStatus;
@@ -255,6 +258,7 @@ public class OrderDto {
                     .id(o.getId())
                     .orderNo(o.getOrderNo())
                     .orderStatus(o.getOrderStatus())
+                    .orderChannel(o.getOrderChannel())
                     .paymentStatus(o.getPaymentStatus())
                     .currency(o.getCurrency())
                     .productAmount(o.getProductAmount())

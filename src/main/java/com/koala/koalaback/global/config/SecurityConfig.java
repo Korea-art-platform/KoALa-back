@@ -140,6 +140,7 @@ public class SecurityConfig {
                         auth.requestMatchers(HttpMethod.POST,
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm").permitAll();
+                        auth.requestMatchers(HttpMethod.GET, "/api/v1/onsite-payments/*").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(HttpMethod.DELETE, "/api/v1/artists/*/follow").authenticated();
