@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -106,6 +107,13 @@ public class OnSitePaymentService {
                 .filter(Order::isOnSite)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
         return OnSitePaymentDto.PublicResponse.from(order);
+    }
+
+    public Optional<String> payTokenOf(String orderNo) {
+        if (orderNo == null || orderNo.isBlank()) return Optional.empty();
+        return orderRepository.findByOrderNo(orderNo)
+                .filter(Order::isOnSite)
+                .map(Order::getPayToken);
     }
 
     public List<OnSitePaymentDto.Response> getRecent() {

@@ -1,5 +1,6 @@
 package com.koala.koalaback.domain.order.dto;
 
+import com.koala.koalaback.domain.order.entity.OnSitePaymentSetting;
 import com.koala.koalaback.domain.order.entity.Order;
 import com.koala.koalaback.domain.order.entity.OrderItem;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
@@ -84,6 +86,54 @@ public class OnSitePaymentDto {
                     .amount(o.getTotalAmount())
                     .payable("PENDING_PAYMENT".equals(o.getOrderStatus()))
                     .paid("PAID".equals(o.getPaymentStatus()))
+                    .build();
+        }
+    }
+
+    @Getter
+    @Schema(name = "OnSitePinRequest", description = "현장결제 페이지 입장 PIN")
+    public static class PinRequest {
+        @NotBlank @Pattern(regexp = "^[0-9]{6}$")
+        private String pin;
+    }
+
+    @Getter
+    @Builder
+    @Schema(name = "OnSiteSessionResponse", description = "현장결제 페이지 입장권. 요청 헤더 X-Onsite-Session 에 싣는다")
+    public static class SessionResponse {
+        private String sessionToken;
+        private LocalDateTime expiresAt;
+    }
+
+    @Getter
+    @Builder
+    @Schema(name = "OnSiteStatusResponse", description = "현장결제 페이지가 켜져 있는지")
+    public static class StatusResponse {
+        private boolean enabled;
+    }
+
+    @Getter
+    @Schema(name = "OnSiteSettingUpdateRequest", description = "현장결제 페이지 켜기·끄기와 PIN 변경. 비운 항목은 그대로 둔다")
+    public static class SettingUpdateRequest {
+        private Boolean enabled;
+
+        @Pattern(regexp = "^[0-9]{6}$")
+        private String pin;
+    }
+
+    @Getter
+    @Builder
+    @Schema(name = "OnSiteSettingResponse", description = "현장결제 페이지 설정 (어드민)")
+    public static class SettingResponse {
+        private boolean enabled;
+        private boolean pinSet;
+        private LocalDateTime updatedAt;
+
+        public static SettingResponse from(OnSitePaymentSetting s) {
+            return SettingResponse.builder()
+                    .enabled(s.isOn())
+                    .pinSet(s.hasPin())
+                    .updatedAt(s.getUpdatedAt())
                     .build();
         }
     }

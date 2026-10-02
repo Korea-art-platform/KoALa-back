@@ -80,6 +80,9 @@ public enum ErrorCode {
     TOSS_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_GATEWAY, "TL002", "토스 인가 코드 교환에 실패했습니다."),
     TOSS_USER_INFO_FAILED(HttpStatus.BAD_GATEWAY, "TL003", "토스 사용자 정보 조회에 실패했습니다."),
 
+    ONSITE_DISABLED(HttpStatus.FORBIDDEN, "OS001", "현장결제가 꺼져 있습니다. 관리자에게 켜 달라고 요청해 주세요."),
+    ONSITE_PIN_INVALID(HttpStatus.UNAUTHORIZED, "OS002", "PIN 이 맞지 않습니다."),
+    ONSITE_SESSION_EXPIRED(HttpStatus.UNAUTHORIZED, "OS003", "다시 PIN 을 입력해 주세요."),
     CSV_EMPTY_FILE(HttpStatus.BAD_REQUEST, "CSV001", "빈 파일입니다."),
     CSV_INVALID_HEADER(HttpStatus.BAD_REQUEST, "CSV002", "CSV 헤더가 올바르지 않습니다."),
     CSV_TOO_MANY_ROWS(HttpStatus.BAD_REQUEST, "CSV003", "허용된 최대 행 수를 초과했습니다."),

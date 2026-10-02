@@ -141,6 +141,8 @@ public class SecurityConfig {
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm").permitAll();
                         auth.requestMatchers(HttpMethod.GET, "/api/v1/onsite-payments/*").permitAll();
+                        auth.requestMatchers(HttpMethod.GET, "/api/v1/onsite/status", "/api/v1/onsite/payments").permitAll();
+                        auth.requestMatchers(HttpMethod.POST, "/api/v1/onsite/session", "/api/v1/onsite/payments").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/artists/*/follow").authenticated();
                         auth.requestMatchers(HttpMethod.DELETE, "/api/v1/artists/*/follow").authenticated();
@@ -149,6 +151,7 @@ public class SecurityConfig {
                                 "/login/oauth2/**").permitAll();
                         auth.requestMatchers("/webhook/**").permitAll();
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/payments/nice/return").permitAll();
+                        auth.requestMatchers(HttpMethod.GET, "/api/v1/payments/nice/return").permitAll();
                         auth.requestMatchers(HttpMethod.POST, "/api/v1/payments/payple/return").permitAll();
 
                         auth.requestMatchers(HttpMethod.POST, "/admin/api/v1/auth/login").permitAll();

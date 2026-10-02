@@ -1,5 +1,6 @@
 package com.koala.koalaback.api.payment;
 
+import com.koala.koalaback.domain.order.service.OnSitePaymentService;
 import com.koala.koalaback.domain.payment.dto.PaymentDto;
 import com.koala.koalaback.domain.payment.service.PaymentService;
 import com.koala.koalaback.global.exception.BusinessException;
@@ -13,7 +14,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -50,6 +53,7 @@ public class NicePaymentReturnController {
 
     private final PaymentService paymentService;
     private final NiceSignatureVerifier signatureVerifier;
+    private final OnSitePaymentService onSitePaymentService;
 
     @Value("${koala.web-base-url:https://koala-art.co.kr}")
     private String webBaseUrl;
@@ -71,10 +75,18 @@ public class NicePaymentReturnController {
             리다이렉트는 302 가 아니라 303 이다. 303 이어야 브라우저가 POST 를 GET 으로
             바꿔 보낸다.
 
+            나이스 문서는 POST 만 말하지만, 모바일에서 카카오톡·네이버 앱을 다녀오면
+            같은 주소가 GET 으로 열리는 경우가 있어 GET 도 받는다. 인증은 똑같이 서명으로
+            하므로 방식이 달라도 위험이 늘지 않는다.
+
+            현장결제 주문은 결제가 끝나면 그 결제 페이지(/pay/{payToken})로 돌려보낸다.
+            앱을 다녀오며 새 탭이 열리면 브라우저에 잠깐 둔 값이 사라지기 때문이다.
+
             nicepay.enabled=true 일 때만 등록된다.
             """)
-    @PostMapping(value = "/api/v1/payments/nice/return")
+    @RequestMapping(value = "/api/v1/payments/nice/return", method = {RequestMethod.POST, RequestMethod.GET})
     public ResponseEntity<Void> handleReturn(
+            HttpServletRequest request,
             @RequestParam(required = false) String authResultCode,
             @RequestParam(required = false) String authResultMsg,
             @RequestParam(required = false) String tid,
@@ -82,6 +94,16 @@ public class NicePaymentReturnController {
             @RequestParam(required = false) String amount,
             @RequestParam(required = false) String authToken,
             @RequestParam(required = false) String signature) {
+
+        log.info("NicePay return: method={}, orderId={}, code={}, ua={}",
+                request.getMethod(), orderId, authResultCode, request.getHeader("User-Agent"));
+
+        if (authResultCode == null && authToken == null && tid == null) {
+            log.warn("★NicePay 결과 없이 돌아옴★ 승인 불가: method={}, orderId={}, ua={}",
+                    request.getMethod(), orderId, request.getHeader("User-Agent"));
+            return redirectToFail(orderId, "RETURN_WITHOUT_RESULT",
+                    "결제 결과를 받지 못했습니다. 결제 내역을 확인하시고 다시 시도해 주세요.");
+        }
 
         if (!AUTH_SUCCESS.equals(authResultCode)) {
             // 사용자가 취소했거나 카드사에서 거절된 경우 — 승인 단계까지 가지 않는다
@@ -101,7 +123,9 @@ public class NicePaymentReturnController {
                     new PaymentDto.ConfirmRequest(tid, orderId, new BigDecimal(amount)));
 
             log.info("NicePay 승인 완료: orderId={}, tid={}", orderId, tid);
-            return redirect(webBaseUrl + "/payment/success?orderNo=" + encode(orderId));
+            return redirect(onSitePaymentService.payTokenOf(orderId)
+                    .map(token -> webBaseUrl + "/pay/" + token)
+                    .orElse(webBaseUrl + "/payment/success?orderNo=" + encode(orderId)));
 
         } catch (BusinessException e) {
             log.error("NicePay 승인 실패: orderId={}, tid={}, error={}",
@@ -114,6 +138,13 @@ public class NicePaymentReturnController {
     }
 
     private ResponseEntity<Void> redirectToFail(String orderId, String code, String message) {
+        String onSiteToken = onSitePaymentService.payTokenOf(orderId).orElse(null);
+        if (onSiteToken != null) {
+            return redirect(UriComponentsBuilder.fromUriString(webBaseUrl + "/pay/" + onSiteToken)
+                    .queryParam("failed", message == null || message.isBlank() ? "결제가 완료되지 않았습니다." : message)
+                    .encode(StandardCharsets.UTF_8)
+                    .toUriString());
+        }
         String url = UriComponentsBuilder.fromUriString(webBaseUrl + "/payment/fail")
                 .queryParam("orderNo", orderId == null ? "" : orderId)
                 .queryParam("code", code == null ? "" : code)

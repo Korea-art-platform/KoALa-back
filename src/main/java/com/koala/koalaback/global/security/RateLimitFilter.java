@@ -39,7 +39,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/api/v1/auth/password-reset",
             "/admin/api/v1/auth/login",
             "/api/v1/orders/guest",
-            "/api/v1/payments/confirm"
+            "/api/v1/payments/confirm",
+            "/api/v1/onsite/session"
     );
 
     private static final DefaultRedisScript<Long> INCR_SCRIPT = new DefaultRedisScript<>(

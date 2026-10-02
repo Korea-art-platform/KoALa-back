@@ -122,6 +122,16 @@ class OnSitePaymentServiceTest extends IntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("결제를 마친 현장결제 주문은 결제 페이지 토큰을 찾아 그리로 돌려보낼 수 있다")
+    void findsPayTokenForReturnRedirect() {
+        OnSitePaymentDto.Response created = onSitePaymentService.create(request(50_000, false));
+
+        assertThat(onSitePaymentService.payTokenOf(created.getOrderNo())).contains(created.getPayToken());
+        assertThat(onSitePaymentService.payTokenOf("KL-NOT-EXIST")).isEmpty();
+        assertThat(onSitePaymentService.payTokenOf(null)).isEmpty();
+    }
+
+    @Test
     @DisplayName("없는 토큰은 주문을 찾을 수 없다고 답한다")
     void unknownTokenIsNotFound() {
         assertThatThrownBy(() -> onSitePaymentService.getByToken("0".repeat(32)))
