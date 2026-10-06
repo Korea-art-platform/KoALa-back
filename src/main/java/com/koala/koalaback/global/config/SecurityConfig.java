@@ -242,7 +242,16 @@ public class SecurityConfig {
         ));
 
         config.setAllowCredentials(true);
+
+        CorsConfiguration pgCallback = new CorsConfiguration();
+        pgCallback.setAllowedOriginPatterns(List.of("*"));
+        pgCallback.setAllowedMethods(List.of("GET", "POST"));
+        pgCallback.setAllowCredentials(false);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/v1/payments/nice/return", pgCallback);
+        source.registerCorsConfiguration("/api/v1/payments/payple/return", pgCallback);
+        source.registerCorsConfiguration("/webhook/**", pgCallback);
         source.registerCorsConfiguration("/**", config);
         return source;
     }
