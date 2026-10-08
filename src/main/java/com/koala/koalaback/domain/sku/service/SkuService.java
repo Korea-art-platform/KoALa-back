@@ -192,6 +192,7 @@ public class SkuService {
                 .build();
         sku.changeEnglishTexts(req.getDescriptionEn(), req.getMaterialEn(), req.getMaterialDescriptionEn(),
                 req.getPackagingTitleEn(), req.getPackagingDescriptionEn());
+        sku.changeFreeShipping(req.getFreeShipping());
         skuRepository.save(sku);
         skuReviewStatsRepository.save(SkuReviewStats.builder().sku(sku).build());
         return toSummary(sku);
@@ -220,6 +221,7 @@ public class SkuService {
                 req.getWeightKg(), req.getWeightG());
         sku.changeEnglishTexts(req.getDescriptionEn(), req.getMaterialEn(), req.getMaterialDescriptionEn(),
                 req.getPackagingTitleEn(), req.getPackagingDescriptionEn());
+        sku.changeFreeShipping(req.getFreeShipping());
         return toSummary(sku);
     }
 

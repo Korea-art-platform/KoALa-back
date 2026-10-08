@@ -105,6 +105,32 @@ class OrderCreateIntegrationTest extends IntegrationTestSupport {
         assertThat(cartService.getCart(userId).getItems()).hasSize(2);
     }
 
+    @Test
+    @DisplayName("배송비 면제 상품만 담기면 무료 기준 아래라도 배송비가 0원이다")
+    void createOrder_allFreeShipping_noShippingFee() {
+        Long userId = givenUser();
+        Sku sku = givenSkuWithStock("테스트상품", 10, BigDecimal.valueOf(1_000), true);
+        addToCart(userId, sku, 1);
+
+        OrderDto.OrderDetailResponse response = orderService.createOrder(userId, createRequest());
+
+        assertThat(response.getShippingAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("면제 상품과 일반 상품이 섞이면 배송비가 붙는다")
+    void createOrder_mixedFreeShipping_chargesShippingFee() {
+        Long userId = givenUser();
+        Sku free = givenSkuWithStock("테스트상품", 10, BigDecimal.valueOf(1_000), true);
+        Sku normal = givenSkuWithStock("아트토이", 10, BigDecimal.valueOf(10_000), false);
+        addToCart(userId, free, 1);
+        addToCart(userId, normal, 1);
+
+        OrderDto.OrderDetailResponse response = orderService.createOrder(userId, createRequest());
+
+        assertThat(response.getShippingAmount()).isEqualByComparingTo(BigDecimal.valueOf(3_000));
+    }
+
     private Long givenUser() {
         String uid = UUID.randomUUID().toString().substring(0, 8);
         User user = userRepository.save(User.builder()
@@ -118,6 +144,10 @@ class OrderCreateIntegrationTest extends IntegrationTestSupport {
     }
 
     private Sku givenSkuWithStock(String name, int stock, BigDecimal price) {
+        return givenSkuWithStock(name, stock, price, false);
+    }
+
+    private Sku givenSkuWithStock(String name, int stock, BigDecimal price, boolean freeShipping) {
         String uid = UUID.randomUUID().toString().substring(0, 8);
 
         Artist artist = artistRepository.save(Artist.builder()
@@ -138,6 +168,7 @@ class OrderCreateIntegrationTest extends IntegrationTestSupport {
                 .listPrice(price)
                 .build();
         sku.publish();
+        sku.changeFreeShipping(freeShipping);
         skuRepository.save(sku);
 
         stockService.initialize(sku, stock, "주문 테스트 초기 재고");

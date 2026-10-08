@@ -131,6 +131,9 @@ public class Sku extends BaseTimeEntity {
     @Column(name = "weight_g")
     private Integer weightG;
 
+    @Column(nullable = false)
+    private Boolean freeShipping = false;
+
     @Column(nullable = false, length = 20)
     private String status;
 
@@ -268,6 +271,14 @@ public class Sku extends BaseTimeEntity {
         this.materialDescriptionEn  = englishOr(this.materialDescriptionEn, materialDescriptionEn);
         this.packagingTitleEn       = englishOr(this.packagingTitleEn, packagingTitleEn);
         this.packagingDescriptionEn = englishOr(this.packagingDescriptionEn, packagingDescriptionEn);
+    }
+
+    public void changeFreeShipping(Boolean freeShipping) {
+        if (freeShipping != null) this.freeShipping = freeShipping;
+    }
+
+    public boolean isFreeShipping() {
+        return Boolean.TRUE.equals(freeShipping);
     }
 
     private static String englishOr(String current, String incoming) {

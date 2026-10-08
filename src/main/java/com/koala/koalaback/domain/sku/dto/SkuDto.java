@@ -120,6 +120,9 @@ public class SkuDto {
         @NotNull @PositiveOrZero
         @Schema(description = "무게 (g)", example = "1200", requiredMode = Schema.RequiredMode.REQUIRED)
         private Integer weightG;
+
+        @Schema(description = "배송비 면제. 보내지 않으면 그대로 둔다", example = "false")
+        private Boolean freeShipping;
     }
 
     @Getter @Setter
@@ -210,6 +213,9 @@ public class SkuDto {
         @NotNull @PositiveOrZero
         @Schema(description = "무게 (g)", example = "1200", requiredMode = Schema.RequiredMode.REQUIRED)
         private Integer weightG;
+
+        @Schema(description = "배송비 면제. 보내지 않으면 그대로 둔다", example = "false")
+        private Boolean freeShipping;
     }
 
     @Getter
@@ -310,6 +316,8 @@ public class SkuDto {
         @Schema(description = "면세 상품인지. 원작 분류에는 부가세를 붙이지 않아 "
                 + "displayPrice 가 공급가액과 같다", example = "false")
         private Boolean taxExempt;
+        @Schema(description = "배송비 면제 상품인지", example = "false")
+        private Boolean freeShipping;
         @Schema(description = "한정판인지", example = "true")
         private Boolean isLimitedEdition;
 
@@ -354,6 +362,7 @@ public class SkuDto {
                     .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
                     .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
                     .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
+                    .freeShipping(sku.isFreeShipping())
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .description(sku.getDescription())
                     .descriptionEn(sku.getDescriptionEn())
@@ -463,6 +472,9 @@ public class SkuDto {
         @Schema(description = "무게 (g)", example = "1200")
         private Integer weightG;
 
+        @Schema(description = "배송비 면제 상품인지", example = "false")
+        private Boolean freeShipping;
+
         @Schema(description = "상태. DRAFT(미공개) · ACTIVE(판매중) · OUT_OF_STOCK(품절) · DISCONTINUED(단종)", example = "ACTIVE")
         private String status;
 
@@ -510,6 +522,7 @@ public class SkuDto {
                     .displayPrice(vat.grossOf(sku.getEffectivePrice(), sku.getMainCategory(), exempt))
                     .displayListPrice(vat.grossOf(sku.getListPrice(), sku.getMainCategory(), exempt))
                     .taxExempt(vat.isExempt(sku.getMainCategory(), exempt))
+                    .freeShipping(sku.isFreeShipping())
                     .isLimitedEdition(sku.getIsLimitedEdition())
                     .editionSize(sku.getEditionSize())
                     .editionNumber(sku.getEditionNumber())

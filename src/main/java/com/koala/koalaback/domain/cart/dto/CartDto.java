@@ -139,6 +139,9 @@ public class CartDto {
         @Schema(description = "그중 부가세", example = "33000")
         private BigDecimal taxAmount;
 
+        @Schema(description = "배송비 면제 상품인지", example = "false")
+        private Boolean freeShipping;
+
         public static CartItemResponse from(CartItem item, VatPolicy vat, Set<String> exempt) {
             VatPolicy.Line line = vat.lineOf(item.getUnitPrice(), item.getQuantity(),
                     item.getSku().getMainCategory(), exempt);
@@ -153,6 +156,7 @@ public class CartDto {
                     .lineAmount(line.gross())
                     .supplyAmount(line.supply())
                     .taxAmount(line.tax())
+                    .freeShipping(item.getSku().isFreeShipping())
                     .build();
         }
     }

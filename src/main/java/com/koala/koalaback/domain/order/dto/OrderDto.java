@@ -235,7 +235,7 @@ public class OrderDto {
         @Schema(description = "할인 금액", example = "0")
         private BigDecimal discountAmount;
 
-        @Schema(description = "배송비. 상품 금액(부가세 포함)이 5만원 이상이면 0, 아니면 3000", example = "3000")
+        @Schema(description = "배송비. 상품 금액(부가세 포함)이 5만원 이상이거나 담긴 상품이 모두 배송비 면제면 0, 아니면 3000", example = "3000")
         private BigDecimal shippingAmount;
 
         @Schema(description = "부가세 합계. 상품 부가세와 배송비에 든 세액을 더한 값이다. "

@@ -116,7 +116,8 @@ public class OrderService {
 
         // 무료배송은 고객이 보는 금액으로 판단한다. "5만원 이상 무료"의 5만원은
         // 장바구니에 찍힌 그 숫자다.
-        BigDecimal shippingAmount = productGross.compareTo(new BigDecimal("50000")) >= 0
+        boolean allFreeShipping = orderLines.stream().allMatch(l -> l.sku().isFreeShipping());
+        BigDecimal shippingAmount = allFreeShipping || productGross.compareTo(new BigDecimal("50000")) >= 0
                 ? BigDecimal.ZERO : new BigDecimal("3000");
 
         // 배송비는 부가세가 포함된 금액이다. 고객이 내는 3,000원은 그대로 두고
