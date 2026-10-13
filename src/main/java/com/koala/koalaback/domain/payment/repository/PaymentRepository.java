@@ -28,19 +28,30 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByStatusInOrderByCreatedAtDesc(List<String> statuses);
 
-    @Query("SELECT COALESCE(SUM(p.approvedAmount), 0) FROM Payment p WHERE p.approvedAt >= :from AND p.status = 'CAPTURED'")
+    @Query("""
+        SELECT COALESCE(SUM(p.approvedAmount - COALESCE(p.cancelledAmount, 0)), 0) FROM Payment p
+        WHERE p.approvedAt >= :from
+          AND p.status IN ('CAPTURED', 'PARTIAL_REFUNDED')
+          AND p.order.orderStatus <> 'CANCELLED'
+        """)
     BigDecimal sumApprovedAmountAfter(@Param("from") LocalDateTime from);
 
-    @Query("SELECT COALESCE(SUM(p.approvedAmount), 0) FROM Payment p WHERE p.status = 'CAPTURED'")
+    @Query("""
+        SELECT COALESCE(SUM(p.approvedAmount - COALESCE(p.cancelledAmount, 0)), 0) FROM Payment p
+        WHERE p.status IN ('CAPTURED', 'PARTIAL_REFUNDED')
+          AND p.order.orderStatus <> 'CANCELLED'
+        """)
     BigDecimal sumTotalApprovedAmount();
 
     @Query(value = """
         SELECT DATE_FORMAT(p.approved_at, '%Y-%m-%d')  AS date,
-               COALESCE(SUM(p.approved_amount), 0)     AS revenue,
+               COALESCE(SUM(p.approved_amount - COALESCE(p.cancelled_amount, 0)), 0) AS revenue,
                COUNT(*)                                 AS order_count
         FROM payments p
+        JOIN orders o ON o.id = p.order_id
         WHERE p.approved_at >= :from
-          AND p.status = 'CAPTURED'
+          AND p.status IN ('CAPTURED', 'PARTIAL_REFUNDED')
+          AND o.order_status <> 'CANCELLED'
         GROUP BY DATE_FORMAT(p.approved_at, '%Y-%m-%d')
         ORDER BY DATE_FORMAT(p.approved_at, '%Y-%m-%d') ASC
         """, nativeQuery = true)

@@ -279,6 +279,15 @@ public class PaymentService {
 
     private void settleInDoubtByWebhook(Payment payment, String status, BigDecimal webhookAmount,
                                         String paymentKey, String payloadJson) {
+        if ("CANCELED".equals(status) && payment.isRefundable()) {
+            BigDecimal remaining = payment.getApprovedAmount().subtract(payment.getCancelledAmount());
+            payment.markCancelled(remaining);
+            payment.getOrder().forceCancel();
+            recordEvent(payment, "CANCELLED", "SUCCESS", remaining, paymentKey, payloadJson);
+            log.warn("PG 관리 화면에서 취소된 결제를 반영: paymentNo={}, orderNo={}, amount={}",
+                    payment.getPaymentNo(), payment.getOrder().getOrderNo(), remaining);
+            return;
+        }
         if (!payment.isInDoubt()) {
             return;
         }

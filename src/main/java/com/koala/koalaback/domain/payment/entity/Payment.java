@@ -125,6 +125,7 @@ public class Payment extends BaseTimeEntity {
     }
 
     public boolean isCaptured()   { return "CAPTURED".equals(this.status); }
+    public boolean isRefundable() { return isCaptured() || "PARTIAL_REFUNDED".equals(this.status); }
     public boolean isReady()      { return "READY".equals(this.status); }
     public boolean isInProgress() { return "IN_PROGRESS".equals(this.status); }
     public boolean isInDoubt()    { return "IN_DOUBT".equals(this.status); }
