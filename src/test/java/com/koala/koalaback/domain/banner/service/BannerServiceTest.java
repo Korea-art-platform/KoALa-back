@@ -105,6 +105,22 @@ class BannerServiceTest {
     }
 
     @Test
+    @DisplayName("배경 이미지는 선택 값이다 — 넣으면 담기고 빈 값이면 비운다")
+    void createBanner_backgroundImage() {
+        given(adminService.getAdminById(1L)).willReturn(mock(Admin.class));
+        given(codeGenerator.generateCode()).willReturn("BNR-1", "BNR-2");
+        given(bannerRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        BannerDto.CreateRequest withBg = showcaseRequest(null);
+        given(withBg.getBackgroundImageUrl()).willReturn("bg.jpg");
+        BannerDto.CreateRequest blankBg = showcaseRequest(null);
+        given(blankBg.getBackgroundImageUrl()).willReturn(" ");
+
+        assertThat(bannerService.createBanner(1L, withBg).getBackgroundImageUrl()).isEqualTo("bg.jpg");
+        assertThat(bannerService.createBanner(1L, blankBg).getBackgroundImageUrl()).isNull();
+    }
+
+    @Test
     @DisplayName("걸어 둔 작품이 나중에 삭제되면 응답에서 뺀다")
     void response_hidesDeletedSku() {
         Sku sku = sku("SKU-1");

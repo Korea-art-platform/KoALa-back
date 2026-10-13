@@ -75,6 +75,7 @@ public class BannerService {
                 .createdByAdmin(admin)
                 .build();
 
+        banner.changeBackgroundImage(req.getBackgroundImageUrl());
         return toResponse(bannerRepository.save(banner));
     }
 
@@ -94,6 +95,7 @@ public class BannerService {
                 req.getBgColor(), req.getTextColor(),
                 req.getSortOrder(), req.getVisibleFrom(),
                 req.getVisibleTo(), admin);
+        banner.changeBackgroundImage(req.getBackgroundImageUrl());
 
         return toResponse(banner);
     }

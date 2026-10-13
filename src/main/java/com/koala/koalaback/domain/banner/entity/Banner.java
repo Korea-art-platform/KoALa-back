@@ -62,6 +62,10 @@ public class Banner extends BaseTimeEntity {
     @Column(name = "title_image_url", length = 700)
     private String titleImageUrl;
 
+    // 조립 방식 히어로 뒤에 꽉 차게 까는 배경 이미지. 비우면 배경색만 쓴다
+    @Column(name = "background_image_url", length = 700)
+    private String backgroundImageUrl;
+
     // COMPOSED — 화면이 조립한다 · FULL — 디자인이 끝난 한 장을 그대로 건다
     @Column(name = "layout_mode", length = 20)
     private String layoutMode;
@@ -163,6 +167,10 @@ public class Banner extends BaseTimeEntity {
     }
 
     public void updateImageUrl(String url) { this.imageUrl = url; }
+
+    public void changeBackgroundImage(String url) {
+        this.backgroundImageUrl = url == null || url.isBlank() ? null : url;
+    }
 
     public void updateVideoUrl(String url) { this.videoUrl = url; }
 

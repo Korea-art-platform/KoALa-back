@@ -55,6 +55,10 @@ public class BannerDto {
         @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
         private String titleImageUrl;
 
+        @Size(max = 700)
+        @Schema(description = "조립 방식 히어로의 배경 이미지. 비우면 배경색만 쓴다")
+        private String backgroundImageUrl;
+
         @Schema(description = "꾸미는 방식 — COMPOSED(화면이 조립) · FULL(완성 이미지 한 장)", example = "COMPOSED")
         private String layoutMode;
 
@@ -110,6 +114,10 @@ public class BannerDto {
         @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
         private String titleImageUrl;
 
+        @Size(max = 700)
+        @Schema(description = "조립 방식 히어로의 배경 이미지. 비우면 배경색만 쓴다")
+        private String backgroundImageUrl;
+
         @Schema(description = "꾸미는 방식 — COMPOSED(화면이 조립) · FULL(완성 이미지 한 장)", example = "COMPOSED")
         private String layoutMode;
 
@@ -161,6 +169,10 @@ public class BannerDto {
         @Schema(description = "히어로 뒤에 깔리는 작품명 이미지. 비우면 작품 이름을 글자로 그린다")
         private String titleImageUrl;
 
+        @Size(max = 700)
+        @Schema(description = "조립 방식 히어로의 배경 이미지. 비우면 배경색만 쓴다")
+        private String backgroundImageUrl;
+
         @Schema(description = "꾸미는 방식 — COMPOSED(화면이 조립) · FULL(완성 이미지 한 장)", example = "COMPOSED")
         private String layoutMode;
         private String linkUrl;
@@ -201,6 +213,7 @@ public class BannerDto {
                     .effectImageUrl2(b.getEffectImageUrl2())
                     .effectImageUrl3(b.getEffectImageUrl3())
                     .titleImageUrl(b.getTitleImageUrl())
+                    .backgroundImageUrl(b.getBackgroundImageUrl())
                     .layoutMode(b.getLayoutMode())
                     .linkUrl(b.getLinkUrl())
                     .linkTarget(b.getLinkTarget())
