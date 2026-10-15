@@ -156,12 +156,18 @@ class ImageOptimizerTest {
     }
 
     @Test
-    @DisplayName("투명한 부분이 있는 PNG 는 PNG 그대로 둔다 — 배경이 하얗게 깨지면 안 된다")
-    void screenCopy_transparentPngStaysPng() throws Exception {
+    @DisplayName("투명한 부분이 있는 PNG 는 투명도를 살린 WebP 로 줄인다 — 배경이 하얗게 깨지면 안 된다")
+    void screenCopy_transparentPngBecomesWebp() throws Exception {
         byte[] original = png(2000, 2000, true);
 
-        optimizer.deriveForScreen(original, "image/png", 1200)
-                .ifPresent(copy -> assertThat(copy.contentType()).isEqualTo("image/png"));
+        ImageOptimizer.OptimizedImage copy = optimizer.deriveForScreen(original, "image/png", 1200).orElseThrow();
+
+        assertThat(copy.contentType()).isEqualTo("image/webp");
+        assertThat(copy.size()).isLessThan(original.length);
+        BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(copy.bytes()));
+        assertThat(decoded.getWidth()).isEqualTo(1200);
+        assertThat(decoded.getColorModel().hasAlpha()).isTrue();
+        assertThat(decoded.getRGB(10, 10) >>> 24).as("투명했던 자리는 투명하게 남는다").isZero();
     }
 
     @Test

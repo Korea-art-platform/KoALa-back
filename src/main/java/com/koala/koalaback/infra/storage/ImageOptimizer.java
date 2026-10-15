@@ -27,6 +27,9 @@ public class ImageOptimizer {
     @Value("${koala.image.jpeg-quality:0.82}")
     private float jpegQuality;
 
+    @Value("${koala.image.webp-quality:0.85}")
+    private float webpQuality = 0.85f;
+
     public record OptimizedImage(byte[] bytes, String contentType, boolean changed) {
         public long size() { return bytes.length; }
     }
@@ -112,14 +115,51 @@ public class ImageOptimizer {
                     ? scale(source, (double) maxWidth / source.getWidth())
                     : source;
             boolean transparent = hasTransparency(sized);
-            String outType = transparent ? "image/png" : "image/jpeg";
-            byte[] encoded = encode(transparent ? sized : toRgb(sized), outType);
+            String outType;
+            byte[] encoded;
+            if (!transparent) {
+                outType = "image/jpeg";
+                encoded = encode(toRgb(sized), outType);
+            } else {
+                byte[] webp = encodeWebp(sized);
+                outType = webp != null ? "image/webp" : "image/png";
+                encoded = webp != null ? webp : encode(sized, outType);
+            }
             if (encoded.length >= original.length) return Optional.empty();
 
             return Optional.of(new OptimizedImage(encoded, outType, true));
         } catch (Exception e) {
             log.warn("화면용 사본 생성 실패 — 건너뛴다: maxWidth={}, error={}", maxWidth, e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    private byte[] encodeWebp(BufferedImage image) {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/webp");
+        if (!writers.hasNext()) return null;
+        ImageWriter writer = writers.next();
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+             ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
+            writer.setOutput(ios);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                for (String type : param.getCompressionTypes()) {
+                    if (type.toLowerCase().contains("lossy")) {
+                        param.setCompressionType(type);
+                        break;
+                    }
+                }
+                param.setCompressionQuality(webpQuality);
+            }
+            writer.write(null, new IIOImage(image, null, null), param);
+            ios.flush();
+            return out.toByteArray();
+        } catch (Throwable e) {
+            log.warn("WebP 변환 실패 — PNG 로 둔다: {}", e.getMessage());
+            return null;
+        } finally {
+            writer.dispose();
         }
     }
 
