@@ -48,6 +48,7 @@ public class ImageBackfillService {
     public record Result(
             int scanned,
             int thumbsCreated,
+            int screenCopiesCreated,
             int headersFixed,
             int skipped,
             int failed,
@@ -66,7 +67,7 @@ public class ImageBackfillService {
 
         ListObjectsV2Response listing = s3Client.listObjectsV2(req.build());
 
-        int scanned = 0, thumbs = 0, headers = 0, skipped = 0, failed = 0;
+        int scanned = 0, thumbs = 0, screens = 0, headers = 0, skipped = 0, failed = 0;
         Set<String> keys = new HashSet<>();
         for (S3Object o : listing.contents()) keys.add(o.key());
 
@@ -74,7 +75,7 @@ public class ImageBackfillService {
             String key = obj.key();
             scanned++;
 
-            if (ImageDerivatives.isThumbKey(key) || !isImage(key)) {
+            if (ImageDerivatives.isDerivedKey(key) || !isImage(key)) {
                 skipped++;
                 continue;
             }
@@ -82,16 +83,22 @@ public class ImageBackfillService {
             try {
                 boolean needThumb = !keys.contains(ImageDerivatives.thumbKey(key))
                         && !exists(ImageDerivatives.thumbKey(key));
+                boolean needScreen = !keys.contains(ImageDerivatives.mediumKey(key))
+                        && !exists(ImageDerivatives.mediumKey(key));
                 boolean needHeader = !hasCacheControl(key);
 
-                if (!needThumb && !needHeader) {
+                if (!needThumb && !needScreen && !needHeader) {
                     skipped++;
                     continue;
                 }
 
-                if (needThumb) {
-                    if (createThumb(key)) thumbs++;
-                    else skipped++;
+                if (needThumb || needScreen) {
+                    ResponseBytes<GetObjectResponse> got = s3Client.getObjectAsBytes(
+                            GetObjectRequest.builder().bucket(bucket).key(key).build());
+                    byte[] original = got.asByteArray();
+                    String type = contentTypeOf(key, got.response().contentType());
+                    if (needThumb && createThumb(key, original, type)) thumbs++;
+                    if (needScreen && createScreenCopy(key, original, type)) screens++;
                 }
                 if (needHeader) {
                     fixCacheControl(key);
@@ -104,10 +111,10 @@ public class ImageBackfillService {
         }
 
         String next = Boolean.TRUE.equals(listing.isTruncated()) ? listing.nextContinuationToken() : null;
-        log.info("[ImageBackfill] prefix={} scanned={} thumbs={} headers={} skipped={} failed={} more={}",
-                prefix, scanned, thumbs, headers, skipped, failed, next != null);
+        log.info("[ImageBackfill] prefix={} scanned={} thumbs={} screens={} headers={} skipped={} failed={} more={}",
+                prefix, scanned, thumbs, screens, headers, skipped, failed, next != null);
 
-        return new Result(scanned, thumbs, headers, skipped, failed, next, next == null);
+        return new Result(scanned, thumbs, screens, headers, skipped, failed, next, next == null);
     }
 
     private boolean isImage(String key) {
@@ -134,30 +141,39 @@ public class ImageBackfillService {
         }
     }
 
-    private boolean createThumb(String key) {
-        ResponseBytes<GetObjectResponse> got = s3Client.getObjectAsBytes(
-                GetObjectRequest.builder().bucket(bucket).key(key).build());
+    private String contentTypeOf(String key, String contentType) {
+        if (contentType != null && !contentType.isBlank()) return contentType;
+        return key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+    }
 
-        String contentType = got.response().contentType();
-        if (contentType == null || contentType.isBlank()) {
-            contentType = key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-        }
-
-        final String ct = contentType;
-        return imageOptimizer.derive(got.asByteArray(), ct, ImageDerivatives.THUMB_EDGE)
+    private boolean createThumb(String key, byte[] original, String contentType) {
+        return imageOptimizer.derive(original, contentType, ImageDerivatives.THUMB_EDGE)
                 .map(thumb -> {
-                    s3Client.putObject(
-                            PutObjectRequest.builder()
-                                    .bucket(bucket)
-                                    .key(ImageDerivatives.thumbKey(key))
-                                    .contentType(ct)
-                                    .contentLength((long) thumb.bytes().length)
-                                    .cacheControl(ImageDerivatives.CACHE_CONTROL)
-                                    .build(),
-                            RequestBody.fromBytes(thumb.bytes()));
+                    putDerived(ImageDerivatives.thumbKey(key), thumb);
                     return true;
                 })
                 .orElse(false);
+    }
+
+    private boolean createScreenCopy(String key, byte[] original, String contentType) {
+        return imageOptimizer.deriveForScreen(original, contentType, ImageDerivatives.MEDIUM_WIDTH)
+                .map(copy -> {
+                    putDerived(ImageDerivatives.mediumKey(key), copy);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    private void putDerived(String key, ImageOptimizer.OptimizedImage image) {
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(image.contentType())
+                        .contentLength((long) image.bytes().length)
+                        .cacheControl(ImageDerivatives.CACHE_CONTROL)
+                        .build(),
+                RequestBody.fromBytes(image.bytes()));
     }
 
     /** 메타데이터만 바꾸려면 자기 자신으로 복사하면서 REPLACE 해야 한다. */

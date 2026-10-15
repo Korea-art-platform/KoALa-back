@@ -102,6 +102,55 @@ public class ImageOptimizer {
         }
     }
 
+    public Optional<OptimizedImage> deriveForScreen(byte[] original, String contentType, int maxWidth) {
+        if (!isOptimizable(contentType)) return Optional.empty();
+        try {
+            BufferedImage source = ImageIO.read(new ByteArrayInputStream(original));
+            if (source == null) return Optional.empty();
+
+            BufferedImage sized = source.getWidth() > maxWidth
+                    ? scale(source, (double) maxWidth / source.getWidth())
+                    : source;
+            boolean transparent = hasTransparency(sized);
+            String outType = transparent ? "image/png" : "image/jpeg";
+            byte[] encoded = encode(transparent ? sized : toRgb(sized), outType);
+            if (encoded.length >= original.length) return Optional.empty();
+
+            return Optional.of(new OptimizedImage(encoded, outType, true));
+        } catch (Exception e) {
+            log.warn("화면용 사본 생성 실패 — 건너뛴다: maxWidth={}, error={}", maxWidth, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private boolean hasTransparency(BufferedImage image) {
+        if (!image.getColorModel().hasAlpha()) return false;
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int[] row = new int[w];
+        for (int y = 0; y < h; y++) {
+            image.getRGB(0, y, w, 1, row, 0, w);
+            for (int argb : row) {
+                if ((argb >>> 24) != 0xFF) return true;
+            }
+        }
+        return false;
+    }
+
+    private BufferedImage toRgb(BufferedImage image) {
+        if (image.getType() == BufferedImage.TYPE_INT_RGB) return image;
+        BufferedImage rgb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = rgb.createGraphics();
+        try {
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, image.getWidth(), image.getHeight());
+            g.drawImage(image, 0, 0, null);
+        } finally {
+            g.dispose();
+        }
+        return rgb;
+    }
+
     private boolean isOptimizable(String contentType) {
         return "image/jpeg".equals(contentType)
                 || "image/jpg".equals(contentType)

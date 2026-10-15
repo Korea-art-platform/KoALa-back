@@ -21,9 +21,30 @@ public final class ImageDerivatives {
      */
     public static final String CACHE_CONTROL = "public, max-age=31536000, immutable";
 
+    public static final int MEDIUM_WIDTH = 1200;
+
+    public static final String MEDIUM_SUFFIX = "_w" + MEDIUM_WIDTH;
+
+    public static String mediumKey(String key) {
+        if (key == null || key.isBlank()) return key;
+        if (isDerivedKey(key)) return key;
+        int dot = key.lastIndexOf('.');
+        int slash = key.lastIndexOf('/');
+        if (dot <= slash) return key + MEDIUM_SUFFIX;
+        return key.substring(0, dot) + MEDIUM_SUFFIX + key.substring(dot);
+    }
+
+    public static boolean isDerivedKey(String key) {
+        if (key == null) return false;
+        int dot = key.lastIndexOf('.');
+        int slash = key.lastIndexOf('/');
+        String base = dot > slash ? key.substring(0, dot) : key;
+        return base.endsWith(THUMB_SUFFIX) || base.endsWith(MEDIUM_SUFFIX);
+    }
+
     public static String thumbKey(String key) {
         if (key == null || key.isBlank()) return key;
-        if (isThumbKey(key)) return key;
+        if (isDerivedKey(key)) return key;
 
         int dot = key.lastIndexOf('.');
         int slash = key.lastIndexOf('/');

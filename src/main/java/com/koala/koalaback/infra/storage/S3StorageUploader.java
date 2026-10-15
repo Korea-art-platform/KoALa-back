@@ -42,6 +42,7 @@ public class S3StorageUploader implements StorageUploader {
                     key, optimized.size() / 1024, optimized.changed());
 
             putThumbnail(key, optimized.contentType(), optimized.bytes());
+            putScreenCopy(key, optimized.contentType(), optimized.bytes());
 
             return cdnBaseUrl + "/" + key;
         } catch (RuntimeException e) {
@@ -65,6 +66,19 @@ public class S3StorageUploader implements StorageUploader {
                     });
         } catch (Exception e) {
             log.warn("S3 thumbnail failed — 원본만 사용: key={}, error={}", key, e.getMessage());
+        }
+    }
+
+    private void putScreenCopy(String key, String contentType, byte[] bytes) {
+        try {
+            imageOptimizer.deriveForScreen(bytes, contentType, ImageDerivatives.MEDIUM_WIDTH)
+                    .ifPresent(copy -> {
+                        String mk = ImageDerivatives.mediumKey(key);
+                        put(mk, copy.contentType(), copy.bytes());
+                        log.info("S3 screen copy success: key={}, size={}KB", mk, copy.size() / 1024);
+                    });
+        } catch (Exception e) {
+            log.warn("S3 screen copy failed — 원본만 사용: key={}, error={}", key, e.getMessage());
         }
     }
 

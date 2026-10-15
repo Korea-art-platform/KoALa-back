@@ -141,4 +141,50 @@ class ImageOptimizerTest {
         }
         return image;
     }
+
+    @Test
+    @DisplayName("화면용 사본은 가로 1200px 로 줄이고, 투명하지 않은 PNG 는 JPEG 로 바꾼다")
+    void screenCopy_opaquePngBecomesJpeg() throws Exception {
+        byte[] original = png(2000, 2000, false);
+
+        ImageOptimizer.OptimizedImage copy = optimizer.deriveForScreen(original, "image/png", 1200).orElseThrow();
+
+        assertThat(copy.contentType()).isEqualTo("image/jpeg");
+        assertThat(copy.size()).isLessThan(original.length);
+        BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(copy.bytes()));
+        assertThat(decoded.getWidth()).isEqualTo(1200);
+    }
+
+    @Test
+    @DisplayName("투명한 부분이 있는 PNG 는 PNG 그대로 둔다 — 배경이 하얗게 깨지면 안 된다")
+    void screenCopy_transparentPngStaysPng() throws Exception {
+        byte[] original = png(2000, 2000, true);
+
+        optimizer.deriveForScreen(original, "image/png", 1200)
+                .ifPresent(copy -> assertThat(copy.contentType()).isEqualTo("image/png"));
+    }
+
+    @Test
+    @DisplayName("파생본 이름 규칙 — 원본 옆에 _w1200 이 붙고, 파생본은 다시 파생하지 않는다")
+    void derivedKeys() {
+        assertThat(ImageDerivatives.mediumKey("skus/abc.png")).isEqualTo("skus/abc_w1200.png");
+        assertThat(ImageDerivatives.isDerivedKey("skus/abc_w1200.png")).isTrue();
+        assertThat(ImageDerivatives.isDerivedKey("skus/abc_t480.png")).isTrue();
+        assertThat(ImageDerivatives.thumbKey("skus/abc_w1200.png")).isEqualTo("skus/abc_w1200.png");
+    }
+
+    private byte[] png(int w, int h, boolean transparent) throws Exception {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setPaint(new GradientPaint(0, 0, Color.ORANGE, w, h, Color.BLUE));
+        g.fillRect(0, 0, w, h);
+        if (transparent) {
+            g.setComposite(java.awt.AlphaComposite.Clear);
+            g.fillRect(0, 0, w / 4, h / 4);
+        }
+        g.dispose();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", out);
+        return out.toByteArray();
+    }
 }
